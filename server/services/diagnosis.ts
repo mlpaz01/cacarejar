@@ -116,6 +116,47 @@ export interface CacaPlan {
   siteLido?: boolean;
   site?: SiteSnapshot | null;
   linkedin?: string | null;
+  redes?: Record<string, string>;
+  fontesUsadas?: { canal: string; origem: string; sinal: string; impacto: string; status?: string }[];
+  parecerEstrategico?: {
+    titulo: string;
+    analise: string;
+    prescricaoImediata: string;
+    radarImpacto?: string;
+  };
+  prescricoesPorCanal?: {
+    canal: "LinkedIn" | "Blog / SEO" | "Instagram" | "TikTok / Reels";
+    funcao: string;
+    prioridade: string;
+    conteudos: string[];
+    cta: string;
+    kpis: string[];
+    origem: string;
+  }[];
+  cronogramaMulticanal?: {
+    semana: string;
+    tema: string;
+    canais: { canal: string; acao: string; objetivo: string }[];
+    meta: string;
+  }[];
+  linkedin360?: {
+    empresa: string;
+    niveis: { nivel: string; descricao: string; achados: string[] }[];
+    areasAfins: string[];
+    cargos: string[];
+    tecnologias: string[];
+  };
+  acompanhamento?: {
+    ciclo: string;
+    progresso: number;
+    conteudos: { total: number; feitos: number };
+    campanhas: number;
+    proximoFoco: string;
+    snapshots: { label: string; resumo: string; scores: { nome: string; valor: number }[] }[];
+    semanas: { semana: string; itens: { texto: string; status: "done" | "todo" | "late" }[] }[];
+    metricasCampanha: { canal: string; titulo: string; metricas: { nome: string; valor: string }[]; leitura: string }[];
+    novaPrescricao: string;
+  };
 }
 
 // ───────────────────────── nicho / fatores ─────────────────────────
@@ -222,6 +263,278 @@ function inferPostInterests(plan: Partial<CacaPlan>, profile?: SocialProfile | n
     .filter(i => i.score >= 18 || i.evidencias.length)
     .sort((a, b) => b.score - a.score)
     .slice(0, 6);
+}
+
+function hasValue(v?: string | null) {
+  return !!String(v ?? "").trim();
+}
+
+function shortSource(url?: string | null) {
+  const raw = String(url ?? "").trim();
+  if (!raw) return "";
+  return raw.replace(/^https?:\/\//i, "").replace(/^www\./i, "").replace(/\/$/, "");
+}
+
+function detectBusinessName(plan: Partial<CacaPlan>, redes?: Record<string, string>, radar?: any) {
+  const linked = shortSource(plan.linkedin || redes?.linkedin);
+  if (linked) return linked;
+  const handle = plan.profile?.handle || redes?.instagram || radar?.baseHandle;
+  if (handle) return `@${String(handle).replace(/^@/, "")}`;
+  return plan.produto || "Negocio analisado";
+}
+
+function buildSources(plan: Partial<CacaPlan>, redes: Record<string, string> = {}, radar?: any): CacaPlan["fontesUsadas"] {
+  const out: CacaPlan["fontesUsadas"] = [];
+  if (hasValue(redes.site) || plan.siteLido) {
+    out.push({
+      canal: "Site",
+      origem: shortSource(redes.site || plan.site?.url) || "site informado",
+      sinal: plan.site?.title || plan.site?.description || "Proposta comercial e promessa central analisadas.",
+      impacto: "Vira base para Blog / SEO, materiais de autoridade e paginas de campanha.",
+      status: "analisado",
+    });
+  }
+  if (hasValue(redes.linkedin) || hasValue(plan.linkedin)) {
+    out.push({
+      canal: "LinkedIn",
+      origem: shortSource(plan.linkedin || redes.linkedin),
+      sinal: "Contexto B2B usado para mapear autoridade, decisores, areas afins e linguagem tecnica.",
+      impacto: "Define posts de tese, segmentacao de campanha e temas que precisam de prova tecnica.",
+      status: "visao 360",
+    });
+  }
+  if (plan.profile?.handle || hasValue(redes.instagram)) {
+    out.push({
+      canal: "Instagram",
+      origem: plan.profile?.handle ? `@${plan.profile.handle}` : String(redes.instagram),
+      sinal: plan.profile ? `${nf(plan.profile.followers)} seguidores e engajamento ~${plan.profile.engajamentoPct ?? "-"}%.` : "Perfil informado como contexto visual.",
+      impacto: "Alimenta prova social, bastidores, DNA visual e formatos de confianca.",
+      status: plan.profile ? "lido" : "informado",
+    });
+  }
+  if (hasValue(redes.tiktok)) {
+    out.push({
+      canal: "TikTok",
+      origem: String(redes.tiktok),
+      sinal: "Canal usado como hipotese para descoberta e simplificacao de dores complexas.",
+      impacto: "Orienta roteiros curtos, analogias e testes de retencao.",
+      status: "informado",
+    });
+  }
+  if (radar?.hits?.length || radar?.ideas?.length) {
+    const liked = (radar.feedback?.likedPostKeys ?? []).length;
+    const disliked = (radar.feedback?.dislikedPostKeys ?? []).length;
+    out.push({
+      canal: "Radar de Mercado",
+      origem: `${radar.hits?.length ?? 0} hits analisados`,
+      sinal: radar.marketSummary || "Padroes quentes, criadores e formatos vencedores identificados.",
+      impacto: `Feedback aplicado: ${liked} gostei e ${disliked} nao gostei. O parecer usa estes sinais para corrigir a rota.`,
+      status: "colaborativo",
+    });
+  }
+  return out;
+}
+
+function buildLinkedIn360(plan: Partial<CacaPlan>, redes: Record<string, string> = {}, radar?: any): CacaPlan["linkedin360"] {
+  const empresa = detectBusinessName(plan, redes, radar);
+  const interesses = (plan.interessesPosts ?? []).slice(0, 4);
+  const targeting = Array.from(new Set(interesses.flatMap(i => i.targeting ?? []))).slice(0, 8);
+  const techInterest = interesses.find(i => i.categoria === "tecnologia");
+  const riskInterest = interesses.find(i => i.nome.toLowerCase().includes("seguranca"));
+  return {
+    empresa,
+    niveis: [
+      {
+        nivel: "Nivel 1",
+        descricao: "Ativos proprios e pessoas diretamente ligadas ao perfil.",
+        achados: ["Pagina/empresa analisada", "Fundadores e porta-vozes potenciais", "Promessa central e termos tecnicos do site"],
+      },
+      {
+        nivel: "Nivel 2",
+        descricao: "Ecossistema proximo que valida autoridade.",
+        achados: ["Clientes e parceiros", "Concorrentes e empresas comparaveis", "Profissionais que comentam temas parecidos"],
+      },
+      {
+        nivel: "Nivel 3",
+        descricao: "Mercados adjacentes que ampliam campanha e conteudo.",
+        achados: targeting.length ? targeting.slice(0, 5) : ["Operacoes", "Tecnologia", "Gestao", "Compliance", "Compras B2B"],
+      },
+    ],
+    areasAfins: targeting.length ? targeting : ["Operacoes", "Tecnologia", "Administracao", "Seguranca", "Marketing B2B"],
+    cargos: ["CEO", "COO", "CTO", "Gerente de Operacoes", "Gestor de TI", "Compras B2B"],
+    tecnologias: [
+      techInterest ? techInterest.nome : "Automacao e produtividade",
+      riskInterest ? riskInterest.nome : "Dados, compliance e confianca",
+      "Integracoes, CRM e processos digitais",
+    ],
+  };
+}
+
+function buildChannelPrescriptions(plan: Partial<CacaPlan>, radar?: any): CacaPlan["prescricoesPorCanal"] {
+  const radarSource = radar?.marketSummary ? "Radar de Mercado + feedbacks" : "Diagnostico 360";
+  const coreTheme = plan.nicho || plan.produto || "tema principal";
+  return [
+    {
+      canal: "LinkedIn",
+      funcao: "Autoridade, demanda B2B e conversa com decisores.",
+      prioridade: "Prioridade 1",
+      conteudos: [
+        `Post de tese sobre a dor central em ${coreTheme}.`,
+        "Casos, comparativos antes/depois e aprendizados de bastidor.",
+        "Comentarios estrategicos em perfis relacionados para abrir rede.",
+      ],
+      cta: "Diagnostico, conversa consultiva ou material rico.",
+      kpis: ["comentarios qualificados", "visitas ao site", "leads B2B"],
+      origem: "LinkedIn 360",
+    },
+    {
+      canal: "Blog / SEO",
+      funcao: "Respaldar notoriedade e capturar busca tecnica.",
+      prioridade: "Obrigatorio quando ha site ou LinkedIn B2B",
+      conteudos: [
+        "Artigo pilar que sustenta a tese da semana.",
+        "FAQ SEO com perguntas que aparecem nos comentarios e no Radar.",
+        "Glossario/comparativo para termos tecnicos que o comprador pesquisa.",
+      ],
+      cta: "Checklist, diagnostico ou contato comercial.",
+      kpis: ["palavras ranqueadas", "trafego organico", "conversao da pagina"],
+      origem: "Site + LinkedIn",
+    },
+    {
+      canal: "Instagram",
+      funcao: "Prova social, confianca visual e bastidores.",
+      prioridade: "Humanizacao",
+      conteudos: [
+        "Carrosseis de antes/depois e bastidores reais.",
+        "Stories com perguntas, provas e bastidores do processo.",
+        "Depoimentos e sinais visuais de credibilidade.",
+      ],
+      cta: "Direct, WhatsApp ou visita ao site.",
+      kpis: ["salvamentos", "respostas", "cliques no perfil"],
+      origem: "DNA visual + Radar social",
+    },
+    {
+      canal: "TikTok / Reels",
+      funcao: "Descoberta e simplificacao de dores complexas.",
+      prioridade: "Teste rapido",
+      conteudos: [
+        "Analogias simples para explicar um problema tecnico.",
+        "Mitos, erros comuns e bastidores em ate 45 segundos.",
+        "Cortes dos temas que performarem no LinkedIn e Instagram.",
+      ],
+      cta: "Comentar, seguir ou ver guia completo.",
+      kpis: ["retencao", "compartilhamentos", "visitas ao perfil"],
+      origem: radarSource,
+    },
+  ];
+}
+
+function buildMultichannelTimeline(plan: Partial<CacaPlan>): CacaPlan["cronogramaMulticanal"] {
+  const theme = plan.nicho || plan.produto || "tema central";
+  return [
+    {
+      semana: "Semana 1",
+      tema: "Dor central",
+      canais: [
+        { canal: "LinkedIn", acao: `Post de tese: o custo invisivel em ${theme}.`, objetivo: "Gerar conversa qualificada." },
+        { canal: "Blog", acao: "Artigo pilar com checklist e termos tecnicos.", objetivo: "Criar respaldo e destino de trafego." },
+        { canal: "Instagram", acao: "Carrossel visual com bastidor/prova social.", objetivo: "Humanizar a dor." },
+        { canal: "TikTok", acao: "Video curto com analogia simples.", objetivo: "Abrir descoberta." },
+      ],
+      meta: "Base de autoridade publicada.",
+    },
+    {
+      semana: "Semana 2",
+      tema: "Prova e comparacao",
+      canais: [
+        { canal: "LinkedIn", acao: "Comparativo antes/depois com metrica ou consequencia.", objetivo: "Reduzir objecao." },
+        { canal: "Blog", acao: "FAQ SEO derivado das duvidas e comentarios.", objetivo: "Responder buscas long tail." },
+        { canal: "Instagram", acao: "Depoimento, bastidor ou caso visual.", objetivo: "Aumentar confianca." },
+        { canal: "Campanha", acao: "Teste com publico decisor e criativos aprovados.", objetivo: "Medir resposta real." },
+      ],
+      meta: "Primeiros sinais de campanha e conteudo.",
+    },
+    {
+      semana: "Semana 3",
+      tema: "Autoridade tecnica",
+      canais: [
+        { canal: "LinkedIn", acao: "Post tecnico com linguagem de decisor.", objetivo: "Firmar autoridade." },
+        { canal: "Blog", acao: "Guia pratico com termo ranqueavel.", objetivo: "Construir ativo SEO." },
+        { canal: "TikTok", acao: "Erro comum explicado em 30 segundos.", objetivo: "Aumentar alcance." },
+        { canal: "Radar", acao: "Refazer Radar com feedbacks.", objetivo: "Trazer novos sinais quentes." },
+      ],
+      meta: "Rota corrigida por dados.",
+    },
+    {
+      semana: "Semana 4",
+      tema: "Conversao",
+      canais: [
+        { canal: "LinkedIn", acao: "Convite para diagnostico com prova concreta.", objetivo: "Gerar leads." },
+        { canal: "Blog", acao: "Landing/artigo de fundo para campanha.", objetivo: "Converter trafego." },
+        { canal: "Instagram", acao: "Stories com perguntas e chamada direta.", objetivo: "Ativar relacionamento." },
+        { canal: "Campanha", acao: "Remarketing para quem interagiu.", objetivo: "Aumentar eficiencia." },
+      ],
+      meta: "Novo ciclo pronto para recalibracao.",
+    },
+  ];
+}
+
+function buildPlanner(plan: Partial<CacaPlan>): CacaPlan["acompanhamento"] {
+  const timeline = plan.cronogramaMulticanal ?? buildMultichannelTimeline(plan) ?? [];
+  return {
+    ciclo: "Ciclo de 30 dias",
+    progresso: 0,
+    conteudos: { total: 16, feitos: 0 },
+    campanhas: 0,
+    proximoFoco: "Executar Semana 1",
+    snapshots: [
+      {
+        label: "Diagnostico Semana 0",
+        resumo: plan.sumarioExecutivo || "Foto inicial do posicionamento, canais e oportunidades.",
+        scores: [
+          { nome: "Clareza de posicionamento", valor: 62 },
+          { nome: "Consistencia por canal", valor: 38 },
+          { nome: "Base de autoridade", valor: 44 },
+        ],
+      },
+      {
+        label: "Check-in Semana 2",
+        resumo: "Sera preenchido quando houver execucao, posts publicados e primeiros sinais de campanha.",
+        scores: [
+          { nome: "Clareza de posicionamento", valor: 0 },
+          { nome: "Consistencia por canal", valor: 0 },
+          { nome: "Base de autoridade", valor: 0 },
+        ],
+      },
+    ],
+    semanas: timeline.map((week, i) => ({
+      semana: week.semana,
+      itens: week.canais.map(item => ({ texto: `${item.canal}: ${item.acao}`, status: "todo" as const })),
+    })),
+    metricasCampanha: [
+      { canal: "LinkedIn Ads", titulo: "Decisores e areas afins", metricas: [{ nome: "CTR", valor: "-" }, { nome: "CPL", valor: "-" }, { nome: "Leads qualificados", valor: "-" }], leitura: "Aguardando campanha aprovada." },
+      { canal: "Meta Ads", titulo: "Bastidores e prova visual", metricas: [{ nome: "CTR", valor: "-" }, { nome: "CPC", valor: "-" }, { nome: "Cliques no site", valor: "-" }], leitura: "Aguardando campanha aprovada." },
+      { canal: "Conteudo organico", titulo: "LinkedIn + Blog", metricas: [{ nome: "Comentarios qualificados", valor: "-" }, { nome: "Buscas de marca", valor: "-" }, { nome: "Artigos publicados", valor: "0/2" }], leitura: "Aguardando execucao do cronograma." },
+    ],
+    novaPrescricao: "Execute a primeira semana, publique o artigo pilar e registre o check-in para o Agente comparar a evolucao.",
+  };
+}
+
+function enhancePlanV2(plan: CacaPlan, redes: Record<string, string> = {}, radar?: any): CacaPlan {
+  const next: CacaPlan = { ...plan, redes: { ...(plan.redes ?? {}), ...redes } };
+  next.interessesPosts = inferPostInterests(next, next.profile, radar);
+  next.fontesUsadas = next.fontesUsadas?.length ? next.fontesUsadas : buildSources(next, next.redes, radar);
+  next.linkedin360 = next.linkedin360 ?? buildLinkedIn360(next, next.redes, radar);
+  next.prescricoesPorCanal = next.prescricoesPorCanal?.length ? next.prescricoesPorCanal : buildChannelPrescriptions(next, radar);
+  next.cronogramaMulticanal = next.cronogramaMulticanal?.length ? next.cronogramaMulticanal : buildMultichannelTimeline(next);
+  next.parecerEstrategico = next.parecerEstrategico ?? {
+    titulo: "Parecer estrategico",
+    analise: next.sumarioExecutivo || next.resumo || "O negocio tem sinais suficientes para organizar canais por funcao e transformar diagnostico em execucao.",
+    prescricaoImediata: "Trabalhar um tema central por semana, conectando LinkedIn, Blog / SEO, Instagram e TikTok / Reels em uma mesma narrativa.",
+    radarImpacto: radar?.marketSummary ? `Radar: ${truncate(radar.marketSummary, 360)}` : "Aguardando Radar de Mercado para fortalecer o parecer com sinais vivos.",
+  };
+  next.acompanhamento = next.acompanhamento ?? buildPlanner(next);
+  return next;
 }
 
 // ───────────────────────── DNA visual (visão) ─────────────────────────
@@ -393,7 +706,7 @@ function templatePlan(produto: string, objetivo: string, redes: Record<string, s
     postIdeas,
   };
   plan.interessesPosts = inferPostInterests(plan, profile);
-  return plan;
+  return enhancePlanV2(plan, redes);
 }
 
 // ───────────────────────── plano via LLM (cérebro) ─────────────────────────
@@ -472,8 +785,7 @@ Fatores válidos de referência: ${JSON.stringify(base.suggestedFactors)}.`;
       cronograma: parsed.cronograma?.length ? parsed.cronograma : base.cronograma,
       situacao: parsed.situacao?.length ? parsed.situacao : base.situacao,
     };
-    plan.interessesPosts = inferPostInterests(plan, profile);
-    return plan;
+    return enhancePlanV2(plan, redes);
   } catch (e) {
     console.error("[diagnosis] llmPlan falhou:", (e as any)?.message);
     return null;
@@ -524,19 +836,20 @@ export async function analyze(params: {
   plan.site = site ?? undefined;
   plan.siteLido = !!site?.title || !!site?.description;
   plan.linkedin = redes.linkedin || null;
-  plan.interessesPosts = inferPostInterests(plan, profile);
+  plan.redes = redes;
+  const enhancedPlan = enhancePlanV2(plan, redes);
 
   const base = suggestFactors(params.produto, params.objetivo, profile).factors;
-  plan.suggestedFactors = await sanitizeFactors(plan.suggestedFactors, base);
+  enhancedPlan.suggestedFactors = await sanitizeFactors(enhancedPlan.suggestedFactors, base);
 
   const db = await getDb();
   if (db) {
     const existing = await db.select().from(orgProfile).where(eq(orgProfile.organizationId, params.orgId)).limit(1);
     const row = {
-      organizationId: params.orgId, nicho: plan.nicho, produto: params.produto, objetivo: params.objetivo, redes,
-      dnaOrganico: { itens: plan.dnaOrganico, perfil: profile ?? undefined },
-      publicoAlvo: { idade: plan.suggestedFactors.img_pessoa_idade, sexo: plan.suggestedFactors.img_pessoa_sexo },
-      resumoDiagnostico: plan.sumarioExecutivo ?? plan.resumo, planoJson: plan as any, radarJson: null as any,
+      organizationId: params.orgId, nicho: enhancedPlan.nicho, produto: params.produto, objetivo: params.objetivo, redes,
+      dnaOrganico: { itens: enhancedPlan.dnaOrganico, perfil: profile ?? undefined },
+      publicoAlvo: { idade: enhancedPlan.suggestedFactors.img_pessoa_idade, sexo: enhancedPlan.suggestedFactors.img_pessoa_sexo },
+      resumoDiagnostico: enhancedPlan.sumarioExecutivo ?? enhancedPlan.resumo, planoJson: enhancedPlan as any, radarJson: null as any,
     };
     // registra a atualização (para rate limit por @)
     const history = ((existing[0]?.refreshHistory as any[]) ?? []).filter(r => Date.now() - r.at < REFRESH_WINDOW_MS);
@@ -546,7 +859,7 @@ export async function analyze(params: {
     if (existing.length) await db.update(orgProfile).set(row).where(eq(orgProfile.organizationId, params.orgId));
     else await db.insert(orgProfile).values(row);
   }
-  return plan;
+  return enhancedPlan;
 }
 
 /** Anexa as imagens geradas (creativeId + imageUrl) às postIdeas do plano salvo,
@@ -571,7 +884,7 @@ export async function archiveCurrentPlan(orgId: number, reason = "user-requested
   const rows = await db.select().from(orgProfile).where(eq(orgProfile.organizationId, orgId)).limit(1);
   const row = rows[0];
   if (!row?.planoJson) return { archived: false };
-  const archived = Array.isArray(row.archivedPlans) ? row.archivedPlans : [];
+  const archived: any[] = Array.isArray(row.archivedPlans) ? row.archivedPlans as any[] : [];
   archived.push({
     id: archiveId(), archivedAt: Date.now(), reason,
     nicho: row.nicho ?? undefined, produto: row.produto ?? undefined,
@@ -812,7 +1125,7 @@ ${feedback?.trim() || "(sem observacao)"}`,
     diagnosisDecidedAt: Date.now(),
   }));
 
-  const nextPlan = {
+  const nextPlanRaw = {
     ...plan,
     ...patch,
     radarContribuicoes: patch.radarContribuicoes,
@@ -825,6 +1138,7 @@ ${feedback?.trim() || "(sem observacao)"}`,
     postIdeas: plan.postIdeas,
     analiseTopPosts: plan.analiseTopPosts,
   };
+  const nextPlan = enhancePlanV2(nextPlanRaw as CacaPlan, (row?.redes as any) ?? plan.redes ?? {}, radar);
   nextPlan.interessesPosts = inferPostInterests(nextPlan, preservedProfile, radar);
   await db.update(orgProfile).set({
     planoJson: nextPlan as any,
@@ -862,12 +1176,15 @@ export async function getPlan(orgId: number) {
     if (!Array.isArray(healed.interessesPosts) || !healed.interessesPosts.length) {
       healed.interessesPosts = inferPostInterests(healed, savedProfile ?? healed.profile, row.radarJson);
     }
-    await db.update(orgProfile).set({ planoJson: healed as any }).where(eq(orgProfile.organizationId, orgId));
-    return healed as unknown as CacaPlan;
+    const enhanced = enhancePlanV2(healed as CacaPlan, row.redes ?? {}, row.radarJson);
+    await db.update(orgProfile).set({ planoJson: enhanced as any }).where(eq(orgProfile.organizationId, orgId));
+    return enhanced as unknown as CacaPlan;
   }
-  if (!Array.isArray(plan.interessesPosts) || !plan.interessesPosts.length) {
+  if (!Array.isArray(plan.interessesPosts) || !plan.interessesPosts.length || !plan.prescricoesPorCanal?.length || !plan.cronogramaMulticanal?.length || !plan.acompanhamento) {
     plan.interessesPosts = inferPostInterests(plan, plan.profile ?? savedProfile, row.radarJson);
-    await db.update(orgProfile).set({ planoJson: plan as any }).where(eq(orgProfile.organizationId, orgId));
+    const enhanced = enhancePlanV2(plan as CacaPlan, row.redes ?? {}, row.radarJson);
+    await db.update(orgProfile).set({ planoJson: enhanced as any }).where(eq(orgProfile.organizationId, orgId));
+    return enhanced as unknown as CacaPlan;
   }
   return plan as unknown as CacaPlan | null;
 }

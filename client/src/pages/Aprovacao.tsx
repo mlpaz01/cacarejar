@@ -48,8 +48,6 @@ export default function Aprovacao() {
     onError: e => toast.error(e.message || "Erro ao aprovar"),
   });
 
-  const toggle = (id: number) => setSel(s => ({ ...s, [id]: !s[id] }));
-
   return (
     <AppLayout title="Revisar e publicar" subtitle="A última conferência antes dos Agentes colocarem dinheiro em mídia.">
       {pending.isLoading ? (
@@ -111,26 +109,37 @@ export default function Aprovacao() {
                           className="text-left rounded-xl overflow-hidden border-2 transition-all bg-white"
                           style={{ borderColor: on ? "#18b85c" : "#e6ebf3", boxShadow: on ? "0 6px 18px rgba(24,184,92,.13)" : "none" }}
                         >
-                          <button type="button" onClick={() => toggle(v.id)} className="block w-full text-left">
-                            <div className="relative">
-                              <img src={c.imageUrl} alt="" className="w-full aspect-[4/3] object-cover bg-[#f6f8fc]" />
-                              <span
-                              className="absolute top-2 right-2 h-7 rounded-lg flex items-center gap-1 px-2 text-[10px] font-black"
-                              style={{ background: on ? "#18b85c" : "rgba(255,255,255,.92)", color: on ? "#fff" : "#61708a", border: on ? "none" : "1px solid #e6ebf3" }}
-                              >
-                                {on && <Check className="w-3 h-3" />} {on ? "Vai publicar" : "Fora"}
-                              </span>
-                            </div>
-                          </button>
+                          <div className="relative">
+                            <img src={c.imageUrl} alt="" className="w-full aspect-[16/10] object-cover bg-[#f6f8fc]" />
+                            <span
+                            className="absolute top-2 right-2 h-7 rounded-lg flex items-center gap-1 px-2 text-[10px] font-black"
+                            style={{ background: on ? "#18b85c" : "rgba(255,255,255,.92)", color: on ? "#fff" : "#61708a", border: on ? "none" : "1px solid #e6ebf3" }}
+                            >
+                              {on && <Check className="w-3 h-3" />} {on ? "Aprovado" : "Nao usar"}
+                            </span>
+                          </div>
                           <div className="p-3 bg-white">
-                            <p className="text-xs text-[#22304b] font-semibold leading-snug min-h-[86px] line-clamp-6">{c.copy}</p>
+                            <p className="text-xs text-[#22304b] font-semibold leading-snug min-h-[116px] line-clamp-8">{c.copy}</p>
                             <div className="flex flex-wrap gap-1 mt-2">
                               {c.lente && <Tag>{c.lente}</Tag>}
                               {c.formato && <Tag>{c.formato}</Tag>}
+                              {c.pilar && <Tag>{c.pilar}</Tag>}
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 mt-3">
+                              <button type="button" onClick={() => setSel(s => ({ ...s, [v.id]: true }))}
+                                className="text-[11px] font-black rounded-lg border py-2 flex items-center justify-center gap-1.5"
+                                style={{ background: on ? "#18b85c" : "#fff", color: on ? "#fff" : "#071b44", borderColor: on ? "#18b85c" : "#e6ebf3" }}>
+                                <Check className="w-3.5 h-3.5" /> Aprovar
+                              </button>
+                              <button type="button" onClick={() => setSel(s => ({ ...s, [v.id]: false }))}
+                                className="text-[11px] font-black rounded-lg border py-2 flex items-center justify-center"
+                                style={{ background: !on ? "#fff1ef" : "#fff", color: !on ? "#c20f00" : "#61708a", borderColor: !on ? "#ffd0c8" : "#e6ebf3" }}>
+                                Nao usar
+                              </button>
                             </div>
                             {c.id && (
                               <button type="button" onClick={() => navigate(`/criativos/${c.id}`)}
-                                className="mt-3 w-full text-[11px] font-black text-[#071b44] border border-[#e6ebf3] rounded-lg py-2 flex items-center justify-center gap-1.5 hover:bg-[#f6f8fc]">
+                                className="mt-2 w-full text-[11px] font-black text-[#071b44] border border-[#e6ebf3] rounded-lg py-2 flex items-center justify-center gap-1.5 hover:bg-[#f6f8fc]">
                                 <Pencil className="w-3 h-3" /> Editar / regerar
                               </button>
                             )}

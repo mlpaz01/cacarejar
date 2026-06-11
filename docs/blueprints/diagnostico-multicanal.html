@@ -1,0 +1,1463 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cacarejar - Blueprint Diagnostico Multicanal</title>
+    <style>
+      :root {
+        --navy: #061d48;
+        --navy-2: #0c2d66;
+        --ink: #071936;
+        --muted: #64748b;
+        --line: #dbe4f0;
+        --soft: #f5f8fc;
+        --card: #ffffff;
+        --red: #ff321f;
+        --red-2: #f24c3d;
+        --orange: #ff6a2a;
+        --green: #17b26a;
+        --blue: #2563eb;
+        --shadow: 0 14px 32px rgba(7, 25, 54, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        background: #eef3f9;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+        font-size: 14px;
+        line-height: 1.45;
+      }
+
+      .shell {
+        min-height: 100vh;
+        display: grid;
+        grid-template-columns: 252px 1fr;
+      }
+
+      aside {
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        padding: 24px 16px;
+        background: var(--navy);
+        color: #dce8fb;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 34px;
+      }
+
+      .brand-mark {
+        width: 56px;
+        height: 56px;
+        display: grid;
+        place-items: center;
+        border-radius: 18px;
+        background: #fff;
+        color: var(--red);
+        font-size: 30px;
+      }
+
+      .brand strong {
+        display: block;
+        font-size: 26px;
+        line-height: 1;
+        letter-spacing: 0;
+      }
+
+      .brand > div > span {
+        display: block;
+        margin-top: 5px;
+        color: #ff6a2a;
+        font-size: 9px;
+        font-weight: 800;
+      }
+
+      .brand .orange {
+        display: inline;
+        margin: 0;
+        color: #ff5b1a;
+      }
+
+      .nav-title {
+        margin: 24px 12px 8px;
+        color: #7c8eac;
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .nav-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin: 4px 0;
+        padding: 13px 14px;
+        border-radius: 14px;
+        color: #aebbd2;
+        font-weight: 800;
+      }
+
+      .nav-item.active {
+        color: #fff;
+        background: linear-gradient(135deg, #ff321f, #ff5d28);
+      }
+
+      main {
+        min-width: 0;
+      }
+
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 18px 28px;
+        background: rgba(255, 255, 255, 0.94);
+        border-bottom: 1px solid var(--line);
+        backdrop-filter: blur(12px);
+      }
+
+      header h1 {
+        margin: 0;
+        font-size: 22px;
+        letter-spacing: 0;
+      }
+
+      header p {
+        margin: 3px 0 0;
+        color: var(--muted);
+      }
+
+      .actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .btn {
+        min-height: 42px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 0 18px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #fff;
+        color: var(--ink);
+        font-weight: 900;
+        text-decoration: none;
+        box-shadow: 0 4px 14px rgba(7, 25, 54, 0.04);
+      }
+
+      .btn.primary {
+        border: 0;
+        color: #fff;
+        background: linear-gradient(135deg, #ff7a3a, #f02d63);
+        box-shadow: 0 12px 24px rgba(240, 45, 99, 0.22);
+      }
+
+      .btn.blue {
+        border: 0;
+        color: #fff;
+        background: var(--navy);
+      }
+
+      .btn.ghost {
+        background: transparent;
+        box-shadow: none;
+      }
+
+      .content {
+        padding: 28px;
+      }
+
+      .screen {
+        margin-bottom: 34px;
+        scroll-margin-top: 88px;
+      }
+
+      .screen-label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        margin: 0 0 14px;
+      }
+
+      .screen-label h2 {
+        margin: 0;
+        font-size: 15px;
+        color: var(--red);
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+      }
+
+      .screen-label p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .panel {
+        margin-bottom: 22px;
+        padding: 24px;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: var(--card);
+        box-shadow: var(--shadow);
+      }
+
+      .profile-hero {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 24px;
+        align-items: center;
+        padding: 28px;
+        color: #fff;
+        background: radial-gradient(circle at 12% 5%, #244f94 0, var(--navy) 48%);
+      }
+
+      .profile-main {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
+
+      .avatar {
+        width: 78px;
+        height: 78px;
+        display: grid;
+        place-items: center;
+        border-radius: 28px;
+        background: rgba(255, 255, 255, 0.13);
+        font-size: 34px;
+      }
+
+      .profile-hero h2 {
+        margin: 0;
+        color: #fff;
+        font-size: 25px;
+      }
+
+      .profile-hero p {
+        margin: 4px 0 0;
+        color: #d6e5ff;
+      }
+
+      .source-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .source {
+        padding: 7px 10px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 999px;
+        color: #fff;
+        background: rgba(255, 255, 255, 0.08);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(4, 118px);
+        gap: 10px;
+      }
+
+      .stat {
+        padding: 15px 12px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.1);
+        text-align: center;
+      }
+
+      .stat span {
+        display: block;
+        color: #c5d6f4;
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .stat strong {
+        display: block;
+        margin-top: 5px;
+        color: #fff;
+        font-size: 24px;
+      }
+
+      .two-col {
+        display: grid;
+        grid-template-columns: 1.15fr 0.85fr;
+        gap: 22px;
+      }
+
+      .note {
+        padding: 18px;
+        border-radius: 16px;
+        background: #f6f8fc;
+      }
+
+      .note h3,
+      .panel h3 {
+        margin: 0 0 8px;
+        font-size: 18px;
+      }
+
+      .note p,
+      .panel p {
+        margin: 0 0 10px;
+      }
+
+      .origin-grid {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 16px;
+      }
+
+      .origin {
+        min-height: 104px;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: #fff;
+      }
+
+      .origin b {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--red);
+        font-size: 12px;
+        text-transform: uppercase;
+      }
+
+      .origin span {
+        color: #49617f;
+        font-size: 12px;
+        font-weight: 650;
+      }
+
+      .section-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: 16px;
+      }
+
+      .section-title h3 {
+        margin: 0;
+      }
+
+      .section-title p {
+        margin: 3px 0 0;
+        color: var(--muted);
+      }
+
+      .channel-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .channel {
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: #fff;
+      }
+
+      .channel-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .channel h4 {
+        margin: 0;
+        font-size: 18px;
+      }
+
+      .tag,
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        padding: 3px 9px;
+        border-radius: 999px;
+        background: #edf4ff;
+        color: #0b3a79;
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .tag.red {
+        background: #fff0ed;
+        color: var(--red);
+      }
+
+      .tag.green {
+        background: #e9fbf2;
+        color: #067647;
+      }
+
+      .channel ul {
+        padding-left: 17px;
+        margin: 10px 0 0;
+      }
+
+      .channel li {
+        margin: 6px 0;
+      }
+
+      .timeline {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .week {
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: #fff;
+      }
+
+      .week h4 {
+        margin: 0 0 12px;
+        color: var(--red);
+        font-size: 16px;
+      }
+
+      .task {
+        display: grid;
+        grid-template-columns: 96px 1fr;
+        gap: 10px;
+        padding: 10px 0;
+        border-top: 1px solid #edf2f7;
+      }
+
+      .task:first-of-type {
+        border-top: 0;
+      }
+
+      .task b {
+        color: var(--navy);
+      }
+
+      .radar-grid {
+        display: grid;
+        grid-template-columns: 0.9fr 1.1fr;
+        gap: 18px;
+      }
+
+      .map-card {
+        padding: 18px;
+        border-radius: 18px;
+        background: var(--navy);
+        color: #fff;
+      }
+
+      .map-card h3 {
+        margin: 0 0 14px;
+        color: #fff;
+      }
+
+      .node {
+        margin: 10px 0;
+        padding: 12px 14px;
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .node b {
+        display: block;
+        color: #fff;
+      }
+
+      .node span {
+        color: #cfe1ff;
+        font-size: 12px;
+      }
+
+      .evidence-list {
+        display: grid;
+        gap: 12px;
+      }
+
+      .evidence {
+        padding: 16px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: #fff;
+      }
+
+      .evidence h4 {
+        margin: 0 0 6px;
+        font-size: 16px;
+      }
+
+      .feedback {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .mini-btn {
+        min-height: 32px;
+        padding: 0 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fff;
+        font-weight: 900;
+      }
+
+      .mini-btn.good {
+        border-color: #b9efcf;
+        color: #067647;
+        background: #edfff5;
+      }
+
+      .mini-btn.bad {
+        border-color: #ffd2cb;
+        color: var(--red);
+        background: #fff3f1;
+      }
+
+      .queue-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 16px;
+      }
+
+      .tabs {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .tab {
+        padding: 8px 12px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #fff;
+        font-weight: 900;
+      }
+
+      .tab.active {
+        border-color: var(--navy);
+        color: #fff;
+        background: var(--navy);
+      }
+
+      .post-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .post {
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: #fff;
+      }
+
+      .thumb {
+        aspect-ratio: 1.15;
+        display: grid;
+        place-items: center;
+        color: #fff;
+        background:
+          radial-gradient(circle at 30% 28%, rgba(255, 120, 58, 0.75), transparent 26%),
+          linear-gradient(145deg, #071936, #183c7b);
+        font-size: 42px;
+      }
+
+      .post-body {
+        padding: 15px;
+      }
+
+      .post-body h4 {
+        margin: 8px 0;
+        font-size: 16px;
+      }
+
+      .post-body p {
+        margin: 0 0 12px;
+        color: #425671;
+        font-size: 13px;
+      }
+
+      .post-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .post-actions .mini-btn:last-child {
+        grid-column: span 2;
+      }
+
+      .decision {
+        margin-top: 18px;
+        padding: 18px;
+        border-radius: 16px;
+        background: #fff7ed;
+        border: 1px solid #fed7aa;
+      }
+
+      .decision h3 {
+        margin: 0 0 6px;
+      }
+
+      .pdf-row {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 16px;
+      }
+
+      .pdf-item {
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: #fff;
+      }
+
+      .pdf-item b {
+        display: block;
+        color: var(--navy);
+      }
+
+      .pdf-item span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .planner-hero {
+        display: grid;
+        grid-template-columns: 1fr 0.95fr;
+        gap: 18px;
+        align-items: stretch;
+      }
+
+      .progress-card {
+        padding: 20px;
+        border-radius: 18px;
+        color: #fff;
+        background:
+          radial-gradient(circle at 10% 20%, rgba(255, 106, 42, 0.52), transparent 25%),
+          linear-gradient(145deg, var(--navy), #102e63);
+      }
+
+      .progress-card h3 {
+        margin: 0 0 8px;
+        color: #fff;
+      }
+
+      .progress-card p {
+        color: #d8e6ff;
+      }
+
+      .meter {
+        height: 12px;
+        overflow: hidden;
+        margin: 18px 0 12px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.16);
+      }
+
+      .meter span {
+        display: block;
+        width: 42%;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #ff7a3a, #f02d63);
+      }
+
+      .planner-stats {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 16px;
+      }
+
+      .planner-stat {
+        padding: 13px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.09);
+      }
+
+      .planner-stat span {
+        display: block;
+        color: #bbcff0;
+        font-size: 11px;
+        font-weight: 900;
+        text-transform: uppercase;
+      }
+
+      .planner-stat b {
+        display: block;
+        margin-top: 5px;
+        color: #fff;
+        font-size: 24px;
+      }
+
+      .snapshot-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .snapshot {
+        padding: 16px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: #fff;
+      }
+
+      .snapshot h4 {
+        margin: 0 0 8px;
+        font-size: 16px;
+      }
+
+      .snapshot p {
+        color: #4b5f79;
+        font-size: 13px;
+      }
+
+      .score-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 10px;
+        align-items: center;
+        padding: 8px 0;
+        border-top: 1px solid #edf2f7;
+      }
+
+      .score-row:first-of-type {
+        border-top: 0;
+      }
+
+      .score-row b {
+        color: var(--navy);
+      }
+
+      .score-row strong {
+        min-width: 56px;
+        padding: 5px 8px;
+        border-radius: 999px;
+        background: #edf4ff;
+        color: var(--navy);
+        text-align: center;
+      }
+
+      .planner-board {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+        margin-top: 16px;
+      }
+
+      .planner-week {
+        min-height: 220px;
+        padding: 16px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: #fff;
+      }
+
+      .planner-week h4 {
+        margin: 0 0 10px;
+        color: var(--red);
+      }
+
+      .check-item {
+        padding: 10px;
+        margin: 8px 0;
+        border-radius: 12px;
+        background: #f6f8fc;
+        font-size: 13px;
+        font-weight: 750;
+      }
+
+      .check-item.done {
+        background: #ecfdf3;
+        color: #067647;
+      }
+
+      .check-item.late {
+        background: #fff3f1;
+        color: var(--red);
+      }
+
+      .campaign-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+      }
+
+      .campaign-card {
+        padding: 16px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: #fff;
+      }
+
+      .campaign-card h4 {
+        margin: 0 0 12px;
+        font-size: 16px;
+      }
+
+      .metric-line {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 8px 0;
+        border-top: 1px solid #edf2f7;
+      }
+
+      .metric-line:first-of-type {
+        border-top: 0;
+      }
+
+      .metric-line span {
+        color: var(--muted);
+        font-weight: 700;
+      }
+
+      .metric-line b {
+        color: var(--navy);
+      }
+
+      @media (max-width: 1180px) {
+        .shell {
+          grid-template-columns: 88px 1fr;
+        }
+
+        aside {
+          padding: 18px 10px;
+        }
+
+        .brand strong,
+        .brand span,
+        .nav-title,
+        .nav-item span {
+          display: none;
+        }
+
+        .brand-mark {
+          width: 54px;
+          height: 54px;
+        }
+
+        .stats,
+        .origin-grid,
+        .post-grid,
+        .pdf-row,
+        .planner-board,
+        .campaign-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .profile-hero,
+        .two-col,
+        .radar-grid,
+        .planner-hero {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 760px) {
+        .shell {
+          display: block;
+        }
+
+        aside {
+          display: none;
+        }
+
+        header,
+        .content {
+          padding: 16px;
+        }
+
+        header {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .channel-grid,
+        .timeline,
+        .post-grid,
+        .origin-grid,
+        .pdf-row,
+        .planner-board,
+        .campaign-grid,
+        .snapshot-grid,
+        .planner-stats {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <aside>
+        <div class="brand">
+          <div class="brand-mark">🐔</div>
+          <div>
+            <strong>ca<span class="orange">ca</span>re<span class="orange">jar</span></strong>
+            <span>motor de marketing com agentes exclusivos</span>
+          </div>
+        </div>
+
+        <div class="nav-title">Estratégia</div>
+        <div class="nav-item"><span>▦</span><span>Dashboard</span></div>
+        <div class="nav-item active"><span>▣</span><span>Diagnóstico</span></div>
+        <div class="nav-item"><span>⌕</span><span>Radar de Mercado</span></div>
+
+        <div class="nav-title">Criação</div>
+        <div class="nav-item"><span>▧</span><span>Criativos</span></div>
+
+        <div class="nav-title">Veiculação</div>
+        <div class="nav-item"><span>☑</span><span>Aprovação</span></div>
+        <div class="nav-item"><span>↗</span><span>Campanhas</span></div>
+      </aside>
+
+      <main>
+        <header>
+          <div>
+            <h1>Blueprint: diagnóstico multicanal</h1>
+            <p>Proposta visual para transformar análise, Radar e feedbacks em prescrição por canal.</p>
+          </div>
+          <div class="actions">
+            <a class="btn ghost" href="#diagnostico">Diagnóstico</a>
+            <a class="btn ghost" href="#radar">Radar 360</a>
+            <a class="btn ghost" href="#acompanhamento">Acompanhamento</a>
+            <a class="btn primary" href="#aprovacao">Gerar conteúdos por canal</a>
+          </div>
+        </header>
+
+        <div class="content">
+          <section id="diagnostico" class="screen">
+            <div class="screen-label">
+              <div>
+                <h2>Tela 1</h2>
+                <p>Diagnóstico deixa de ser só relatório e passa a ser parecer + prescrição por canal.</p>
+              </div>
+            </div>
+
+            <div class="panel profile-hero">
+              <div class="profile-main">
+                <div class="avatar">R</div>
+                <div>
+                  <h2>Runink</h2>
+                  <p>Transformação digital, tecnologia e eficiência operacional B2B</p>
+                  <div class="source-list">
+                    <span class="source">Site analisado</span>
+                    <span class="source">LinkedIn empresa</span>
+                    <span class="source">Instagram</span>
+                    <span class="source">TikTok</span>
+                    <span class="source">Radar integrado</span>
+                    <span class="source">Feedbacks aplicados</span>
+                  </div>
+                </div>
+              </div>
+              <div class="stats">
+                <div class="stat"><span>LinkedIn</span><strong>Ativo</strong></div>
+                <div class="stat"><span>Instagram</span><strong>Baixo</strong></div>
+                <div class="stat"><span>TikTok</span><strong>Novo</strong></div>
+                <div class="stat"><span>Radar</span><strong>12 hits</strong></div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="two-col">
+                <div>
+                  <div class="section-title">
+                    <div>
+                      <h3>Parecer estratégico</h3>
+                      <p>Conclusão executiva baseada nas fontes e no Radar.</p>
+                    </div>
+                    <span class="tag red">Recalculado com feedbacks</span>
+                  </div>
+                  <p>
+                    A Runink tem oportunidade clara de ocupar autoridade em transformação digital B2B,
+                    mas hoje os canais não cumprem papéis distintos no funil. O LinkedIn deve provar
+                    competência técnica e conectar decisores; o blog deve sustentar notoriedade e SEO; o
+                    Instagram deve humanizar bastidores e prova social; TikTok/Reels deve traduzir dores
+                    complexas em linguagem simples de descoberta.
+                  </p>
+                  <div class="decision">
+                    <h3>Prescrição imediata</h3>
+                    <p>
+                      Criar uma esteira de 30 dias com um tema central por semana: tese no LinkedIn,
+                      artigo técnico no blog, prova visual no Instagram e versão curta no TikTok.
+                    </p>
+                  </div>
+                </div>
+                <div class="note">
+                  <h3>O que mudou com o Radar</h3>
+                  <p><b>Gostei:</b> bastidores técnicos, prova concreta, comparativos e erros caros.</p>
+                  <p><b>Não gostei:</b> posts genéricos de motivação e promessas abstratas.</p>
+                  <p><b>Impacto:</b> a recomendação passa a priorizar autoridade útil e rejeitar conteúdo performático sem aplicação.</p>
+                </div>
+              </div>
+
+              <div class="origin-grid">
+                <div class="origin"><b>Site</b><span>Proposta forte, mas precisa virar pauta técnica e material de busca.</span></div>
+                <div class="origin"><b>LinkedIn 360</b><span>Decisores de TI, operações, compliance e parceiros B2B.</span></div>
+                <div class="origin"><b>Instagram</b><span>Prova social visual e bastidores ainda subaproveitados.</span></div>
+                <div class="origin"><b>TikTok</b><span>Chance de simplificar dores complexas em vídeos curtos.</span></div>
+                <div class="origin"><b>Feedback</b><span>Usuário preferiu autoridade humana e rejeitou fórmula genérica.</span></div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="section-title">
+                <div>
+                  <h3>Prescrição por canal</h3>
+                  <p>Cada canal tem função, conteúdo, CTA e métrica própria.</p>
+                </div>
+                <a class="btn blue" href="#aprovacao">Gerar conteúdos para aprovação</a>
+              </div>
+
+              <div class="channel-grid">
+                <div class="channel">
+                  <div class="channel-top">
+                    <div>
+                      <h4>LinkedIn</h4>
+                      <span class="tag">Autoridade e demanda B2B</span>
+                    </div>
+                    <span class="pill">Prioridade 1</span>
+                  </div>
+                  <ul>
+                    <li><b>Conteúdo:</b> posts de tese, casos, comparativos, bastidores técnicos.</li>
+                    <li><b>CTA:</b> diagnóstico, conversa consultiva, material rico.</li>
+                    <li><b>KPI:</b> comentários qualificados, visitas ao site, leads.</li>
+                  </ul>
+                </div>
+
+                <div class="channel">
+                  <div class="channel-top">
+                    <div>
+                      <h4>Blog / SEO</h4>
+                      <span class="tag">Respaldo técnico e captura de busca</span>
+                    </div>
+                    <span class="pill">Obrigatório no B2B</span>
+                  </div>
+                  <ul>
+                    <li><b>Conteúdo:</b> artigos pilares, glossário, comparativos e guias.</li>
+                    <li><b>CTA:</b> checklist, diagnóstico, contato comercial.</li>
+                    <li><b>KPI:</b> palavras ranqueadas, tráfego orgânico, conversões.</li>
+                  </ul>
+                </div>
+
+                <div class="channel">
+                  <div class="channel-top">
+                    <div>
+                      <h4>Instagram</h4>
+                      <span class="tag">Confiança visual e prova social</span>
+                    </div>
+                    <span class="pill">Humanização</span>
+                  </div>
+                  <ul>
+                    <li><b>Conteúdo:</b> bastidores, equipe, resultados, antes/depois.</li>
+                    <li><b>CTA:</b> direct, WhatsApp, visita ao site.</li>
+                    <li><b>KPI:</b> salvamentos, respostas, cliques.</li>
+                  </ul>
+                </div>
+
+                <div class="channel">
+                  <div class="channel-top">
+                    <div>
+                      <h4>TikTok / Reels</h4>
+                      <span class="tag">Descoberta e simplificação da dor</span>
+                    </div>
+                    <span class="pill">Teste rápido</span>
+                  </div>
+                  <ul>
+                    <li><b>Conteúdo:</b> mitos, erros comuns, analogias e explicações rápidas.</li>
+                    <li><b>CTA:</b> comentar, seguir, ver guia completo.</li>
+                    <li><b>KPI:</b> retenção, compartilhamento, visitas ao perfil.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="section-title">
+                <div>
+                  <h3>Cronograma multicanal</h3>
+                  <p>Não é lista solta: cada semana conecta canais em torno de um tema.</p>
+                </div>
+                <span class="tag green">Pronto para PDF</span>
+              </div>
+
+              <div class="timeline">
+                <div class="week">
+                  <h4>Semana 1 - Dor central</h4>
+                  <div class="task"><b>LinkedIn</b><span>Post de tese: o custo invisível da operação manual.</span></div>
+                  <div class="task"><b>Blog</b><span>Artigo pilar com checklist e termos técnicos.</span></div>
+                  <div class="task"><b>Instagram</b><span>Carrossel visual com bastidor e prova social.</span></div>
+                  <div class="task"><b>TikTok</b><span>Vídeo curto com analogia simples para a dor.</span></div>
+                </div>
+                <div class="week">
+                  <h4>Semana 2 - Prova e comparação</h4>
+                  <div class="task"><b>LinkedIn</b><span>Comparativo antes/depois com métrica operacional.</span></div>
+                  <div class="task"><b>Blog</b><span>FAQ SEO derivado dos comentários e dúvidas.</span></div>
+                  <div class="task"><b>Instagram</b><span>Depoimento ou bastidor de implantação.</span></div>
+                  <div class="task"><b>TikTok</b><span>Mito/verdade sobre transformação digital.</span></div>
+                </div>
+                <div class="week">
+                  <h4>Semana 3 - Autoridade técnica</h4>
+                  <div class="task"><b>LinkedIn</b><span>Post técnico com linguagem de decisor.</span></div>
+                  <div class="task"><b>Blog</b><span>Guia prático com termo técnico ranqueável.</span></div>
+                  <div class="task"><b>Instagram</b><span>Resumo visual do guia.</span></div>
+                  <div class="task"><b>TikTok</b><span>Erro comum explicado em 30 segundos.</span></div>
+                </div>
+                <div class="week">
+                  <h4>Semana 4 - Conversão</h4>
+                  <div class="task"><b>LinkedIn</b><span>Convite para diagnóstico com prova concreta.</span></div>
+                  <div class="task"><b>Blog</b><span>Landing/artigo de fundo para campanha.</span></div>
+                  <div class="task"><b>Instagram</b><span>Stories com perguntas e chamada para contato.</span></div>
+                  <div class="task"><b>TikTok</b><span>Compilado dos aprendizados mais compartilhados.</span></div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section id="radar" class="screen">
+            <div class="screen-label">
+              <div>
+                <h2>Tela 2</h2>
+                <p>Radar vira inteligência colaborativa que recalcula o parecer, não só lista de posts.</p>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="section-title">
+                <div>
+                  <h3>LinkedIn 360 + Radar social</h3>
+                  <p>LinkedIn aprofunda conexões B2B; Instagram/TikTok buscam sinais quentes e formatos vencedores.</p>
+                </div>
+                <div class="actions">
+                  <a class="btn blue" href="#">Refazer Radar com feedback</a>
+                  <a class="btn primary" href="#">Usar feedbacks no parecer</a>
+                </div>
+              </div>
+
+              <div class="radar-grid">
+                <div class="map-card">
+                  <h3>Mapa LinkedIn 360</h3>
+                  <div class="node"><b>Runink</b><span>Empresa analisada: tecnologia e transformação digital.</span></div>
+                  <div class="node"><b>Nível 1</b><span>Fundadores, executivos, página oficial, tecnologias citadas.</span></div>
+                  <div class="node"><b>Nível 2</b><span>Clientes, parceiros, concorrentes e decisores que interagem.</span></div>
+                  <div class="node"><b>Nível 3</b><span>Áreas afins: operações, TI, segurança, compliance, compras B2B.</span></div>
+                </div>
+
+                <div class="evidence-list">
+                  <div class="evidence">
+                    <span class="tag red">LinkedIn</span>
+                    <h4>Autoridade técnica performa quando tem rosto humano</h4>
+                    <p>Posts que unem bastidor real, decisão difícil e consequência operacional geram mais conversa qualificada.</p>
+                    <div class="feedback">
+                      <button class="mini-btn good">Gostei</button>
+                      <button class="mini-btn bad">Não gostei</button>
+                      <button class="mini-btn">Agente decide</button>
+                    </div>
+                  </div>
+                  <div class="evidence">
+                    <span class="tag red">Instagram</span>
+                    <h4>Prova visual precisa explicar o antes/depois</h4>
+                    <p>O mercado responde melhor quando a imagem mostra resultado, equipe ou bastidor verificável.</p>
+                    <div class="feedback">
+                      <button class="mini-btn good">Gostei</button>
+                      <button class="mini-btn bad">Não gostei</button>
+                      <button class="mini-btn">Agente decide</button>
+                    </div>
+                  </div>
+                  <div class="evidence">
+                    <span class="tag red">TikTok</span>
+                    <h4>Dores técnicas precisam de analogia simples</h4>
+                    <p>Vídeos curtos com comparação cotidiana podem abrir demanda para temas que parecem difíceis no B2B.</p>
+                    <div class="feedback">
+                      <button class="mini-btn good">Gostei</button>
+                      <button class="mini-btn bad">Não gostei</button>
+                      <button class="mini-btn">Agente decide</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="section-title">
+                <div>
+                  <h3>Como os feedbacks entram no diagnóstico</h3>
+                  <p>O usuário não precisa saber estratégia; ele sinaliza gosto e o Agente interpreta.</p>
+                </div>
+              </div>
+
+              <div class="pdf-row">
+                <div class="pdf-item"><b>Gostei</b><span>Vira referência de tom, gancho e formato.</span></div>
+                <div class="pdf-item"><b>Não gostei</b><span>Sai da próxima rodada e vira restrição editorial.</span></div>
+                <div class="pdf-item"><b>Agente decide</b><span>O Especialista resolve itens em aberto com base no nicho.</span></div>
+                <div class="pdf-item"><b>Parecer recalculado</b><span>Prescrição, cronograma e PDF absorvem os sinais.</span></div>
+              </div>
+            </div>
+          </section>
+
+          <section id="aprovacao" class="screen">
+            <div class="screen-label">
+              <div>
+                <h2>Tela 3</h2>
+                <p>Produção sai do diagnóstico e entra em Aprovação por canal, com edição e geração de imagem.</p>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="queue-toolbar">
+                <div>
+                  <h3>Conteúdos gerados por canal</h3>
+                  <p>A partir do parecer, prescrição e Radar aprovado.</p>
+                </div>
+                <div class="tabs">
+                  <span class="tab active">Todos 12</span>
+                  <span class="tab">LinkedIn 4</span>
+                  <span class="tab">Blog 2</span>
+                  <span class="tab">Instagram 3</span>
+                  <span class="tab">TikTok 3</span>
+                </div>
+              </div>
+
+              <div class="post-grid">
+                <div class="post">
+                  <div class="thumb">in</div>
+                  <div class="post-body">
+                    <span class="tag">LinkedIn</span>
+                    <h4>O erro caro que ninguém vê na transformação digital</h4>
+                    <p>Post de tese com gancho executivo, prova de operação e CTA para diagnóstico.</p>
+                    <div class="post-actions">
+                      <button class="mini-btn good">Aprovar</button>
+                      <button class="mini-btn bad">Não usar</button>
+                      <button class="mini-btn">Editar / regerar</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="post">
+                  <div class="thumb">SEO</div>
+                  <div class="post-body">
+                    <span class="tag">Blog</span>
+                    <h4>Guia: como reduzir retrabalho operacional com automação</h4>
+                    <p>Artigo pilar para ranquear, sustentar autoridade e receber tráfego de campanha.</p>
+                    <div class="post-actions">
+                      <button class="mini-btn good">Aprovar</button>
+                      <button class="mini-btn bad">Não usar</button>
+                      <button class="mini-btn">Editar / regerar</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="post">
+                  <div class="thumb">◎</div>
+                  <div class="post-body">
+                    <span class="tag">Instagram</span>
+                    <h4>Antes e depois de uma operação sem integração</h4>
+                    <p>Carrossel visual com roteiro, direção de arte e legenda pronta para aprovação.</p>
+                    <div class="post-actions">
+                      <button class="mini-btn good">Aprovar</button>
+                      <button class="mini-btn bad">Não usar</button>
+                      <button class="mini-btn">Editar / regerar</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="decision">
+                <h3>Próxima ação sugerida</h3>
+                <p>
+                  Aprovar os 4 conteúdos de LinkedIn e os 2 artigos de blog primeiro. Eles criam a base de autoridade para
+                  campanhas e para os cortes curtos de Instagram/TikTok.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <section id="acompanhamento" class="screen">
+            <div class="screen-label">
+              <div>
+                <h2>Tela 4</h2>
+                <p>Acompanhamento transforma o cronograma em planner vivo, com fotos de evolução e métricas reais.</p>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="section-title">
+                <div>
+                  <h3>Planner de evolução</h3>
+                  <p>O plano não termina no PDF: ele acompanha execução, compara diagnósticos e corrige a rota.</p>
+                </div>
+                <div class="actions">
+                  <a class="btn blue" href="#">Registrar check-in da semana</a>
+                  <a class="btn primary" href="#">Recalcular prescrição</a>
+                </div>
+              </div>
+
+              <div class="planner-hero">
+                <div class="progress-card">
+                  <h3>Runink - Ciclo de 30 dias</h3>
+                  <p>Semana 2 em andamento. O Agente compara o diagnóstico inicial com a execução feita e os primeiros sinais de campanha.</p>
+                  <div class="meter"><span></span></div>
+                  <p><b>42% executado</b> - 7 de 16 ações concluídas</p>
+
+                  <div class="planner-stats">
+                    <div class="planner-stat"><span>Conteúdos</span><b>7/16</b></div>
+                    <div class="planner-stat"><span>Campanhas</span><b>2</b></div>
+                    <div class="planner-stat"><span>Próximo foco</span><b>SEO</b></div>
+                  </div>
+                </div>
+
+                <div class="snapshot-grid">
+                  <div class="snapshot">
+                    <span class="tag">Foto inicial</span>
+                    <h4>Diagnóstico Semana 0</h4>
+                    <p>Autoridade técnica boa, mas canais desconectados e pouca sustentação de SEO.</p>
+                    <div class="score-row"><b>Clareza de posicionamento</b><strong>62</strong></div>
+                    <div class="score-row"><b>Consistência por canal</b><strong>38</strong></div>
+                    <div class="score-row"><b>Base de autoridade</b><strong>44</strong></div>
+                  </div>
+
+                  <div class="snapshot">
+                    <span class="tag green">Nova foto</span>
+                    <h4>Check-in Semana 2</h4>
+                    <p>LinkedIn ganhou tese e prova. Blog ainda precisa entrar para respaldar o tema técnico.</p>
+                    <div class="score-row"><b>Clareza de posicionamento</b><strong>74</strong></div>
+                    <div class="score-row"><b>Consistência por canal</b><strong>57</strong></div>
+                    <div class="score-row"><b>Base de autoridade</b><strong>51</strong></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="planner-board">
+                <div class="planner-week">
+                  <h4>Semana 1</h4>
+                  <div class="check-item done">LinkedIn: post de dor central publicado</div>
+                  <div class="check-item done">Instagram: carrossel de bastidor publicado</div>
+                  <div class="check-item done">TikTok: analogia simples testada</div>
+                  <div class="check-item late">Blog: artigo pilar atrasado</div>
+                </div>
+
+                <div class="planner-week">
+                  <h4>Semana 2</h4>
+                  <div class="check-item done">LinkedIn: comparativo antes/depois</div>
+                  <div class="check-item done">Campanha: público decisores TI</div>
+                  <div class="check-item">Blog: FAQ SEO por dúvidas</div>
+                  <div class="check-item">Instagram: prova visual do caso</div>
+                </div>
+
+                <div class="planner-week">
+                  <h4>Semana 3</h4>
+                  <div class="check-item">LinkedIn: post técnico de autoridade</div>
+                  <div class="check-item">Blog: guia com termo ranqueável</div>
+                  <div class="check-item">TikTok: erro comum em 30s</div>
+                  <div class="check-item">Revisar Radar com feedbacks</div>
+                </div>
+
+                <div class="planner-week">
+                  <h4>Semana 4</h4>
+                  <div class="check-item">LinkedIn: convite para diagnóstico</div>
+                  <div class="check-item">Landing/artigo de fundo</div>
+                  <div class="check-item">Campanha de remarketing</div>
+                  <div class="check-item">Diagnóstico de fechamento</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="section-title">
+                <div>
+                  <h3>Resultados medidos nas campanhas</h3>
+                  <p>Quando houver tráfego pago, a leitura deixa de ser só editorial e passa a medir resposta real.</p>
+                </div>
+                <span class="tag green">Dados alimentam a próxima rodada</span>
+              </div>
+
+              <div class="campaign-grid">
+                <div class="campaign-card">
+                  <span class="tag">LinkedIn Ads</span>
+                  <h4>Decisores de TI e Operações</h4>
+                  <div class="metric-line"><span>CTR</span><b>1,8%</b></div>
+                  <div class="metric-line"><span>CPL</span><b>R$ 42</b></div>
+                  <div class="metric-line"><span>Leads qualificados</span><b>9</b></div>
+                  <p>Boa aderência. Manter tese técnica e testar prova social no criativo.</p>
+                </div>
+
+                <div class="campaign-card">
+                  <span class="tag">Meta Ads</span>
+                  <h4>Bastidores e prova visual</h4>
+                  <div class="metric-line"><span>CTR</span><b>2,4%</b></div>
+                  <div class="metric-line"><span>CPC</span><b>R$ 1,17</b></div>
+                  <div class="metric-line"><span>Cliques no site</span><b>148</b></div>
+                  <p>Gera curiosidade, mas precisa de página/artigo para converter melhor.</p>
+                </div>
+
+                <div class="campaign-card">
+                  <span class="tag">Conteúdo orgânico</span>
+                  <h4>LinkedIn + Blog</h4>
+                  <div class="metric-line"><span>Comentários qualificados</span><b>14</b></div>
+                  <div class="metric-line"><span>Buscas de marca</span><b>+18%</b></div>
+                  <div class="metric-line"><span>Artigos publicados</span><b>1/2</b></div>
+                  <p>O gargalo é SEO. Próxima prescrição deve priorizar artigo pilar e FAQ.</p>
+                </div>
+              </div>
+
+              <div class="decision">
+                <h3>Nova prescrição do Agente</h3>
+                <p>
+                  A estratégia está evoluindo, mas o blog está atrasando a autoridade técnica. Na Semana 3,
+                  reduzir volume de posts curtos e priorizar um artigo pilar com campanha levando tráfego para ele.
+                  O próximo diagnóstico deve comparar posicionamento, canais e conversão antes de abrir novo ciclo.
+                </p>
+              </div>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+  </body>
+</html>

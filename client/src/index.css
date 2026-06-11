@@ -162,6 +162,49 @@
     box-shadow: 0 14px 28px rgba(7,27,68,.18);
   }
 
+  .btn-quiet {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    border-radius: 12px;
+    padding: 0.625rem 0.875rem;
+    color: #5f6f89;
+    font-size: 0.875rem;
+    font-weight: 800;
+    letter-spacing: 0;
+    transition: background .16s ease, color .16s ease, border-color .16s ease;
+  }
+
+  .btn-quiet:hover:not(:disabled) {
+    background: #f8fafc;
+    color: #071b44;
+  }
+
+  .input-clean {
+    width: 100%;
+    border: 1px solid #e6ebf3;
+    border-radius: 14px;
+    background: #f8fafc;
+    padding: 0.875rem 1rem;
+    color: #071b44;
+    font-size: 0.9375rem;
+    font-weight: 650;
+    outline: none;
+    transition: background .16s ease, border-color .16s ease, box-shadow .16s ease;
+  }
+
+  .input-clean::placeholder {
+    color: #9aa7bd;
+    font-weight: 600;
+  }
+
+  .input-clean:focus {
+    background: #fff;
+    border-color: #ff8a45;
+    box-shadow: 0 0 0 4px rgba(255, 138, 69, .12);
+  }
+
   /* Botão primário vermelho com gradiente */
   .btn-red {
     background: linear-gradient(180deg, #ff421f, #f0200d);

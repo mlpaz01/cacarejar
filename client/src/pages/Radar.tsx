@@ -207,6 +207,42 @@ export default function Radar() {
     >
       {SearchBar}
 
+      {plan?.linkedin360 && (
+        <div className="bg-white rounded-xl border border-[#e6ebf3] p-5 shadow-sm mb-5">
+          <div className="flex items-start justify-between gap-3 flex-wrap mb-4">
+            <div>
+              <h3 className="text-sm font-black text-[#070b17] flex items-center gap-2">
+                <Target className="w-4 h-4 text-[#ff3217]" /> Visao 360 conectada ao diagnostico
+              </h3>
+              <p className="text-[11px] text-[#61708a] mt-1">
+                Use esses sinais para julgar os posts do Radar e para orientar anuncios no LinkedIn.
+              </p>
+            </div>
+            <button onClick={() => navigate("/diagnostico")} className="text-[11px] font-black text-[#071b44] border border-[#e6ebf3] rounded-full px-3 py-1.5 hover:bg-[#f6f8fc]">
+              Ver parecer completo
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {(plan.linkedin360.niveis ?? []).map((nivel: any) => (
+              <div key={nivel.nivel} className="rounded-xl border border-[#e6ebf3] bg-[#fbfcff] p-4">
+                <p className="text-[10px] font-black text-[#ff3217] uppercase tracking-wide">{nivel.nivel}</p>
+                <p className="text-xs font-black text-[#071b44] mt-1">{nivel.descricao}</p>
+                <div className="space-y-1 mt-2">
+                  {(nivel.achados ?? []).slice(0, 2).map((achado: string) => (
+                    <p key={achado} className="text-[11px] text-[#61708a] leading-snug">- {achado}</p>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2 mt-4">
+            {[...(plan.linkedin360.areasAfins ?? []), ...(plan.linkedin360.cargos ?? []), ...(plan.linkedin360.tecnologias ?? [])].slice(0, 12).map((item: string) => (
+              <span key={item} className="text-[10px] font-black text-[#071b44] bg-white border border-[#e6ebf3] rounded-full px-3 py-1">{item}</span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {scan.isPending && (
         <div className="max-w-2xl mx-auto mb-5">
           <AnalysisProgress
