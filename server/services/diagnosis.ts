@@ -1,0 +1,875 @@
+/**
+ * Agente Estrategista — Diagnóstico (nível consultoria).
+ * 1) LÊ o perfil real (ProfileProvider/Apify) — bio, seguidores, posts campeões (com imagem).
+ * 2) EXTRAI o DNA visual da marca VENDO os posts campeões (visão multimodal) — padrão Pomelli.
+ * 3) Monta um plano estratégico profundo + POST IDEAS com prompt memorável de direção de arte
+ *    (padrão Higgsfield: cena, luz, lente, paleta da marca) e roteiro de vídeo (Reels/TikTok).
+ * Cérebro: Claude 3.5 Sonnet via OpenRouter.
+ */
+import { eq } from "drizzle-orm";
+import { getDb } from "../db";
+import { orgProfile, factorDefinitions } from "../../drizzle/schema";
+import { openRouterChat, ContentPart } from "../openrouter";
+import { fetchProfile, fetchSite, profileReadingEnabled, SocialProfile, SiteSnapshot } from "./profileProvider";
+
+const BRAIN = "anthropic/claude-sonnet-4.6";
+const truncate = (s: string, n: number) => (s || "").slice(0, n);
+const archiveId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
+function ensureArchiveIds(archived: any[]) {
+  let changed = false;
+  const next = archived.map((snap, index) => {
+    if (snap?.id) return snap;
+    changed = true;
+    return { ...snap, id: `${snap?.archivedAt ?? Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}` };
+  });
+  return { archived: next, changed };
+}
+const nf = (n?: number) => (typeof n === "number" ? n.toLocaleString("pt-BR") : "—");
+
+function parseJson<T = any>(content: string): T | null {
+  try {
+    const cleaned = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+    const start = cleaned.indexOf("{");
+    const end = cleaned.lastIndexOf("}");
+    return JSON.parse(start >= 0 ? cleaned.slice(start, end + 1) : cleaned);
+  } catch {
+    return null;
+  }
+}
+
+/** Mantém só valores de fator que existem na taxonomia; usa `base` como fallback. */
+async function sanitizeFactors(suggested: Record<string, string>, base: Record<string, string>): Promise<Record<string, string>> {
+  const db = await getDb();
+  const valid = new Map<string, Set<string>>();
+  if (db) {
+    const defs = await db.select().from(factorDefinitions);
+    for (const d of defs) valid.set(d.key, new Set((d.values as any[]).map(v => v.key)));
+  }
+  const out: Record<string, string> = { ...base };
+  for (const [k, v] of Object.entries(suggested ?? {})) {
+    const set = valid.get(k);
+    if (set && set.has(v)) out[k] = v;
+  }
+  return out;
+}
+
+// ───────────────────────── tipos ─────────────────────────
+export interface PostIdea {
+  titulo: string;
+  pilar: string;
+  formato: "imagem" | "reels" | "carrossel";
+  angulo: "dor" | "desejo" | "transformacao";
+  gancho: string;          // gancho de 3 segundos
+  copy: string;            // legenda
+  hashtags: string[];
+  cta: string;
+  visualPrompt: string;    // prompt memorável (EN) para a imagem
+  roteiro?: { gancho3s: string; cenas: { tempo: string; acao: string; audio: string }[]; cta: string };
+}
+export interface BrandDNA {
+  paleta: string[];        // hex
+  tipografia: string;
+  estiloFoto: string;
+  motivos: string[];
+  tom: string;
+  resumoVisual: string;
+}
+export interface PostInterest {
+  nome: string;
+  categoria: "dor" | "desejo" | "tecnologia" | "persona" | "conteudo";
+  score: number;
+  sinal: string;
+  porQueImporta: string;
+  conteudoLinkedIn: string;
+  targeting: string[];
+  evidencias: { fonte: string; trecho: string; url?: string; hotScore?: number }[];
+}
+export interface CacaPlan {
+  // consultoria
+  sumarioExecutivo: string;
+  situacao: { fator: string; analise: string }[];
+  objetivoPrincipal: string;
+  brandDNA: BrandDNA;
+  pilaresEstrategicos: { titulo: string; objetivo: string; acoes: { acao: string; detalhe: string }[] }[];
+  cronograma: { periodo: string; foco: string; meta: string }[];
+  conclusao: string;
+  postIdeas: PostIdea[];
+  interessesPosts?: PostInterest[];
+  // legado / seções extras
+  resumo: string;
+  diagnostico: string[];
+  publicoAlvo: string[];
+  dnaOrganico: string[];
+  pilaresConteudo: string[];
+  oportunidades: string[];
+  analiseTopPosts: string[];
+  estrategia: { canal: string; funil: string; angulos: string[]; oferta: string };
+  planoAcao: { dia: string; foco: string }[];
+  kpis: string[];
+  suggestedFactors: Record<string, string>;
+  produto: string;
+  lente: "dor" | "desejo";
+  nicho: string;
+  perfilLido?: boolean;
+  profile?: SocialProfile | null;
+  siteLido?: boolean;
+  site?: SiteSnapshot | null;
+  linkedin?: string | null;
+}
+
+// ───────────────────────── nicho / fatores ─────────────────────────
+const PALETAS: Record<string, string[]> = {
+  laranja: ["#FF6B35", "#F7931E", "#FFF1E6"],
+  azul: ["#0D2A5E", "#3B82F6", "#EAF2FF"],
+  verde: ["#18B85C", "#0E7C45", "#EAF8F0"],
+  rosa: ["#FF5C8A", "#FFB3C8", "#FFF0F5"],
+  roxo: ["#7C3AED", "#A78BFA", "#F3EEFF"],
+  vermelho: ["#E11D48", "#FB7185", "#FFF1F2"],
+};
+
+function detectNicho(produto: string, profile?: SocialProfile | null) {
+  const p = `${produto} ${profile?.bio ?? ""} ${profile?.category ?? ""}`.toLowerCase();
+  const has = (...ks: string[]) => ks.some(k => p.includes(k));
+  if (has("confeit", "bolo", "doce", "marmita", "comida", "gastron", "receita"))
+    return { nicho: "alimentação & gastronomia", cor: "laranja", tipo: "alimento", idade: "adulto_26_40", sexo: "feminino" };
+  if (has("emagrec", "fitness", "treino", "academia", "muscula", "dieta", "shape", "saúde"))
+    return { nicho: "fitness & saúde", cor: "verde", tipo: "pessoa", idade: "jovem_18_25", sexo: "ambos" };
+  if (has("beleza", "estétic", "maquia", "cabelo", "unha", "skincare", "cosmétic"))
+    return { nicho: "beleza & estética", cor: "rosa", tipo: "pessoa", idade: "adulto_26_40", sexo: "feminino" };
+  if (has("curso", "mentoria", "aula", "ebook", "e-book", "infoproduto", "treinamento", "aprender"))
+    return { nicho: "educação & infoprodutos", cor: "azul", tipo: "pessoa", idade: "adulto_26_40", sexo: "ambos" };
+  if (has("money", "dinheiro", "renda", "investi", "financ", "trading", "cripto", "lucro", "artesanato", "diy"))
+    return { nicho: p.includes("artesanato") || p.includes("diy") ? "artesanato & DIY" : "finanças & renda", cor: "verde", tipo: "tecnologico", idade: "jovem_18_25", sexo: "ambos" };
+  if (has("moda", "roupa", "loja", "vestuár", "calçad", "acessóri"))
+    return { nicho: "moda & varejo", cor: "roxo", tipo: "pessoa", idade: "jovem_18_25", sexo: "feminino" };
+  if (has("imóv", "imobiliár", "aluguel", "apart"))
+    return { nicho: "imobiliário", cor: "azul", tipo: "cenario", idade: "maduro_41_60", sexo: "ambos" };
+  return { nicho: "negócios & serviços", cor: "laranja", tipo: "pessoa", idade: "adulto_26_40", sexo: "ambos" };
+}
+
+function suggestFactors(produto: string, objetivo: string, profile?: SocialProfile | null) {
+  const n = detectNicho(produto, profile);
+  const angulo = objetivo === "leads" ? "curiosidade" : objetivo === "lancar" ? "transformacao" : "desejo";
+  const lente: "dor" | "desejo" = objetivo === "leads" ? "dor" : "desejo";
+  const factors: Record<string, string> = {
+    img_tipo: n.tipo, img_cor_predominante: n.cor, img_pessoa_idade: n.idade, img_pessoa_sexo: n.sexo,
+    img_estilo: "foto_realista", copy_tom: "emocional", copy_formato: "prova_social",
+    copy_gatilho: "prova_social", copy_cta: objetivo === "leads" ? "baixe_gratis" : "comece_agora", of_angulo: angulo,
+  };
+  return { factors, lente, nicho: n.nicho, cor: n.cor };
+}
+
+const INTEREST_DEFS: Array<{
+  nome: string;
+  categoria: PostInterest["categoria"];
+  termos: string[];
+  sinal: string;
+  porQueImporta: string;
+  conteudoLinkedIn: string;
+  targeting: string[];
+}> = [
+  { nome: "Transformacao profissional", categoria: "desejo", termos: ["carreira", "curriculo", "emprego", "linkedin", "profissional", "transicao", "pdi", "cargo", "gestor", "lideranca"], sinal: "Posts sobre virada de carreira, status profissional e proximo passo geram leitura e salvamento.", porQueImporta: "No LinkedIn, este interesse conversa com decisores e profissionais em momento ativo de mudanca.", conteudoLinkedIn: "Use narrativas de antes/depois profissional, checklist de decisao e prova concreta do resultado.", targeting: ["Cargos de gestao", "Recursos humanos", "Desenvolvimento profissional", "LinkedIn ativo"] },
+  { nome: "Aprendizagem e educacao aplicada", categoria: "conteudo", termos: ["aprendizagem", "educacao", "curso", "aula", "ensino", "escola", "professor", "aluno", "tdah", "dislexia", "neurodivergente", "treinamento"], sinal: "Conteudos que traduzem um conceito dificil em situacao pratica tendem a performar melhor.", porQueImporta: "Ajuda a construir autoridade sem parecer anuncio direto, especialmente em B2B consultivo.", conteudoLinkedIn: "Crie posts didaticos com exemplo real, erro comum e um framework facil de repetir.", targeting: ["Educacao", "Treinamento e desenvolvimento", "Edtech", "Gestores pedagogicos"] },
+  { nome: "Automacao, agentes e produtividade", categoria: "tecnologia", termos: ["ia", "agente", "automacao", "automação", "api", "crm", "erp", "software", "plataforma", "sistema", "dados", "dashboard", "produtividade"], sinal: "Tecnologia performa quando aparece como ganho concreto, nao como novidade abstrata.", porQueImporta: "Permite falar com compradores que buscam eficiencia, reducao de custo e menos trabalho manual.", conteudoLinkedIn: "Mostre o processo antes/depois: tarefa manual, agente executando, ganho mensuravel.", targeting: ["Tecnologia", "Operacoes", "SaaS", "Transformacao digital", "Produtividade"] },
+  { nome: "Seguranca, confianca e risco", categoria: "dor", termos: ["seguranca", "segurança", "lgpd", "juridico", "jurídico", "risco", "compliance", "assinatura", "documento", "contrato", "privacidade"], sinal: "Posts com risco claro e consequencia concreta ativam urgencia sem depender de promessa exagerada.", porQueImporta: "Bom para decisores que precisam justificar compra por reducao de risco e conformidade.", conteudoLinkedIn: "Use comparativos de risco, checklist de conformidade e casos de custo evitado.", targeting: ["Juridico", "Compliance", "Seguranca da informacao", "Operacoes", "Administrativo"] },
+  { nome: "Prova social e autoridade humana", categoria: "persona", termos: ["case", "depoimento", "cliente", "resultado", "prova", "antes", "depois", "historia", "história", "bastidor", "rosto", "familia", "equipe"], sinal: "Rosto humano, historia real e evidencia especifica tendem a gerar confianca e comentario.", porQueImporta: "Reduz a distancia entre marca e comprador, principalmente quando a oferta exige confianca.", conteudoLinkedIn: "Transforme clientes, fundadores e bastidores em posts com tese, contexto e aprendizado.", targeting: ["Fundadores", "Tomadores de decisao", "Clientes semelhantes", "Comunidades profissionais"] },
+  { nome: "Dor operacional e decisao de compra", categoria: "dor", termos: ["erro", "problema", "dificuldade", "travar", "manual", "tempo", "custo", "perda", "retrabalho", "urgente", "nao sei", "não sei"], sinal: "Conteudos que nomeiam uma dor especifica parecem escritos para a pessoa certa.", porQueImporta: "E o caminho mais curto para anuncio: dor reconhecida, consequencia e solucao.", conteudoLinkedIn: "Abra com o erro caro, mostre o impacto e feche com um diagnostico simples.", targeting: ["Operacoes", "Administracao", "Gestores de area", "Pequenas empresas", "B2B"] },
+];
+
+function postTextSignals(plan: Partial<CacaPlan>, profile?: SocialProfile | null, radar?: any) {
+  const rows: { fonte: string; trecho: string; url?: string; hotScore?: number; weight: number }[] = [];
+  for (const p of profile?.posts ?? []) {
+    if (p.caption) rows.push({ fonte: `@${profile?.handle ?? "perfil"}`, trecho: p.caption, url: (p as any).url, weight: 1 + Math.log10((p.likes ?? 0) + (p.comments ?? 0) * 4 + 1) });
+  }
+  for (const p of profile?.topPosts ?? []) {
+    if (p.caption) rows.push({ fonte: `@${profile?.handle ?? "perfil"} - top post`, trecho: p.caption, url: (p as any).url, weight: 1.4 + Math.log10((p.likes ?? 0) + (p.comments ?? 0) * 4 + 1) });
+  }
+  for (const h of radar?.hits ?? []) {
+    const text = [h.caption, h.why, h.theme, h.mechanism].filter(Boolean).join(" ");
+    if (text) rows.push({ fonte: `@${h.ownerUsername ?? "radar"}`, trecho: text, url: h.url, hotScore: h.hotScore, weight: 1.2 + ((h.hotScore ?? 50) / 80) });
+  }
+  for (const i of radar?.ideas ?? []) {
+    const text = [i.titulo, i.gancho, i.copy, i.opportunityTitle, i.patternTitle].filter(Boolean).join(" ");
+    if (text) rows.push({ fonte: i.fonte ? `Ideia Radar - @${i.fonte}` : "Ideia Radar", trecho: text, url: i.fonteUrl, hotScore: i.priorityScore, weight: i.diagnosisDecision === "use" ? 2 : i.diagnosisDecision === "skip" ? 0.25 : 1 });
+  }
+  for (const i of plan.postIdeas ?? []) {
+    const text = [i.titulo, i.pilar, i.gancho, i.copy, ...(i.hashtags ?? [])].filter(Boolean).join(" ");
+    rows.push({ fonte: "Post sugerido", trecho: text, weight: 0.8 });
+  }
+  return rows;
+}
+
+function inferPostInterests(plan: Partial<CacaPlan>, profile?: SocialProfile | null, radar?: any): PostInterest[] {
+  const signals = postTextSignals(plan, profile, radar);
+  const baseText = `${plan.produto ?? ""} ${plan.nicho ?? ""} ${plan.sumarioExecutivo ?? ""} ${plan.linkedin ?? ""}`.toLowerCase();
+  return INTEREST_DEFS.map(def => {
+    const evidencias: PostInterest["evidencias"] = [];
+    let score = 0;
+    const terms = def.termos.map(t => t.toLowerCase());
+    for (const s of signals) {
+      const text = (s.trecho || "").toLowerCase();
+      const hits = terms.filter(t => text.includes(t)).length;
+      if (!hits) continue;
+      score += hits * 12 * s.weight + (s.hotScore ?? 0) / 8;
+      if (evidencias.length < 3) {
+        evidencias.push({ fonte: s.fonte, trecho: truncate(s.trecho.replace(/\s+/g, " "), 150), url: s.url, hotScore: s.hotScore });
+      }
+    }
+    score += terms.filter(t => baseText.includes(t)).length * 10;
+    return { ...def, score: Math.min(99, Math.max(0, Math.round(score))), evidencias };
+  })
+    .filter(i => i.score >= 18 || i.evidencias.length)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 6);
+}
+
+// ───────────────────────── DNA visual (visão) ─────────────────────────
+async function analyzeBrandDNA(profile: SocialProfile | null, produto: string, site?: SiteSnapshot | null): Promise<{ brandDNA: BrandDNA; analiseTopPosts: string[] }> {
+  const { cor } = suggestFactors(produto, "vender", profile);
+  const fallback: BrandDNA = {
+    paleta: PALETAS[cor] ?? PALETAS.laranja,
+    tipografia: "Sans-serif moderna, títulos em peso bold",
+    estiloFoto: "Foto lifestyle autêntica, luz natural, aspecto real (não banco de imagens)",
+    motivos: ["pessoas reais", "produto em destaque", "cenário cotidiano"],
+    tom: "próximo, confiável e aspiracional",
+    resumoVisual: "Visual autêntico e acolhedor, com a cara de quem fala de igual pra igual.",
+  };
+  const imgs = (profile?.topPosts ?? []).map(p => p.img).filter(Boolean).slice(0, 3) as string[];
+  // Sem perfil mas COM site: extrai DNA da OG image + texto do site
+  if (imgs.length === 0 && site && process.env.OPENROUTER_API_KEY) {
+    try {
+      const parts: ContentPart[] = [
+        { type: "text", text: `Você é diretor de arte. Esta é a presença ONLINE da marca (sem Instagram). Extraia o DNA VISUAL e o tom a partir do que estiver visível (logo, og:image, título, descrição, texto da landing). Mesmo com pouca info, dê um direcionamento útil — não fique genérico.
+SITE: ${site.url}
+TÍTULO: ${site.title ?? "—"}
+DESCRIÇÃO: ${site.description ?? "—"}
+H1: ${site.h1 ?? "—"}
+TRECHO: ${(site.excerpt ?? "").slice(0, 600)}
+PRODUTO: ${produto}
+Retorne SOMENTE JSON: {"brandDNA":{"paleta":["#hex","#hex","#hex"],"tipografia":string,"estiloFoto":string,"motivos":[string,string,string],"tom":string,"resumoVisual":string}}` },
+      ];
+      if (site.ogImage) parts.push({ type: "image_url", image_url: { url: site.ogImage } });
+      const content = await openRouterChat([{ role: "user", content: parts }], { model: BRAIN, temperature: 0.5, maxTokens: 900 });
+      const parsed = parseJson<{ brandDNA: BrandDNA }>(content);
+      if (parsed?.brandDNA) return { brandDNA: { ...fallback, ...parsed.brandDNA }, analiseTopPosts: [] };
+      console.error("[diagnosis] brandDNA(site): JSON não parseado");
+    } catch (e) { console.error("[diagnosis] brandDNA(site) falhou:", (e as any)?.message); }
+    return { brandDNA: fallback, analiseTopPosts: [] };
+  }
+  if (!process.env.OPENROUTER_API_KEY || imgs.length === 0) {
+    const analiseTopPosts = (profile?.topPosts ?? []).map(p => `${nf(p.likes)} curtidas, ${nf(p.comments)} comentários — ${truncate(p.caption || "conteúdo visual forte", 70)}`);
+    return { brandDNA: fallback, analiseTopPosts };
+  }
+  try {
+    const parts: ContentPart[] = [
+      { type: "text", text: `Você é diretor de arte. Analise os ${imgs.length} posts de MAIOR engajamento desta marca (${profile?.handle ?? ""}, nicho próximo a "${produto}") e extraia o DNA VISUAL para replicarmos a estética que já funciona.
+Retorne SOMENTE JSON:
+{"brandDNA":{"paleta":["#hex","#hex","#hex"],"tipografia":string,"estiloFoto":string,"motivos":[string,string,string],"tom":string,"resumoVisual":string},"analiseTopPosts":[string]}
+- "paleta": 3-4 cores DOMINANTES reais que você vê (hex aproximado).
+- "estiloFoto": descreva o estilo (ex.: "selfie autêntica, luz natural, fundo de papel craft, doodles desenhados à mão").
+- "analiseTopPosts": 1 comentário perspicaz POR imagem (na ordem), explicando por que engajou e o que replicar.` },
+    ];
+    profile?.topPosts.slice(0, 3).forEach((p, i) => {
+      parts.push({ type: "text", text: `Post ${i + 1}: ${nf(p.likes)} curtidas, ${nf(p.comments)} comentários. Legenda: "${truncate(p.caption || "(sem legenda)", 120)}"` });
+      if (p.img) parts.push({ type: "image_url", image_url: { url: p.img } });
+    });
+    const content = await openRouterChat([{ role: "user", content: parts }], { model: BRAIN, temperature: 0.4, maxTokens: 1600 });
+    const parsed = parseJson<{ brandDNA: BrandDNA; analiseTopPosts: string[] }>(content);
+    if (parsed?.brandDNA) {
+      return {
+        brandDNA: { ...fallback, ...parsed.brandDNA },
+        analiseTopPosts: parsed.analiseTopPosts?.length ? parsed.analiseTopPosts : fallback.motivos,
+      };
+    }
+    console.error("[diagnosis] brandDNA: JSON não parseado (len=" + content.length + ", início=" + content.slice(0, 60) + ")");
+  } catch (e) {
+    console.error("[diagnosis] brandDNA vision falhou:", (e as any)?.message);
+  }
+  const analiseTopPosts = (profile?.topPosts ?? []).map(p => `${nf(p.likes)} curtidas, ${nf(p.comments)} comentários — ${truncate(p.caption || "conteúdo visual forte", 70)}`);
+  return { brandDNA: fallback, analiseTopPosts };
+}
+
+// ───────────────────────── template (fallback sem LLM) ─────────────────────────
+function buildFallbackVisualPrompt(produto: string, pilar: string, dna: BrandDNA): string {
+  const cores = dna.paleta.join(", ");
+  return `Editorial lifestyle photo for a social media post about "${produto}" — theme: ${pilar}. ${dna.estiloFoto}. Color palette ${cores}. Real, authentic mood (${dna.tom}). Shot on 50mm, shallow depth of field, soft natural light, rule-of-thirds composition. Leave clean negative space at the top for a headline. No text in the image, high quality.`;
+}
+
+function templatePlan(produto: string, objetivo: string, redes: Record<string, string>, profile: SocialProfile | null, dna: BrandDNA): CacaPlan {
+  const { factors, lente, nicho } = suggestFactors(produto, objetivo, profile);
+  const objLabel: Record<string, string> = { vender: "vender mais", leads: "gerar leads", seguidores: "crescer seguidores", lancar: "lançar o produto" };
+
+  const pilares = ["Prova social (resultados/depoimentos)", "Bastidores e autenticidade", "Educação rápida (dica que resolve)", "Oferta/CTA claro"];
+  const angulos: PostIdea["angulo"][] = ["desejo", "transformacao", "dor", "desejo"];
+  const formatos: PostIdea["formato"][] = ["imagem", "reels", "carrossel", "imagem"];
+  const postIdeas: PostIdea[] = [0, 1, 2, 3].map(i => ({
+    titulo: `${pilares[i]} de ${produto}`.slice(0, 60),
+    pilar: pilares[i],
+    formato: formatos[i],
+    angulo: angulos[i],
+    gancho: i === 0 ? `O resultado que você não esperava com ${produto.toLowerCase()}` : i === 1 ? `Antes x depois: o que mudou com ${produto.toLowerCase()}` : i === 2 ? `O erro que te impede de ter resultado com ${produto.toLowerCase()}` : `O convite direto para começar com ${produto.toLowerCase()}`,
+    copy: `${pilares[i]} — mostre por que ${produto} entrega o que promete. Fale com quem busca ${objLabel[objetivo] ?? "resultado"}.`,
+    hashtags: ["#" + nicho.split(" ")[0].replace(/[^a-zA-Z]/g, ""), "#dica", "#resultado"],
+    cta: objetivo === "leads" ? "Baixe grátis" : "Comece agora",
+    visualPrompt: buildFallbackVisualPrompt(produto, pilares[i], dna),
+    roteiro: formatos[i] === "reels" ? {
+      gancho3s: `Para nos 3 primeiros segundos: "${i === 1 ? "Antes eu também travava nisso…" : "Ninguém te conta isso sobre " + produto.toLowerCase()}"`,
+      cenas: [
+        { tempo: "0-3s", acao: "Gancho na câmera, plano fechado no rosto", audio: "Áudio em alta + fala do gancho" },
+        { tempo: "3-12s", acao: "Mostra o processo/resultado (B-roll)", audio: "Narração explicando o valor" },
+        { tempo: "12-20s", acao: "Prova (print/depoimento/antes-depois)", audio: "ASMR do produto / trilha" },
+        { tempo: "20-25s", acao: "Chamada para ação na tela", audio: "CTA falado" },
+      ],
+      cta: objetivo === "leads" ? "Comenta 'EU QUERO' que te mando o material" : "Toca no link e garante o seu",
+    } : undefined,
+  }));
+
+  const plan: CacaPlan = {
+    nicho, produto, lente, perfilLido: !!profile, profile, brandDNA: dna, linkedin: redes.linkedin || null,
+    sumarioExecutivo: `Você atua em ${nicho} e quer ${objLabel[objetivo] ?? "vender mais"}.${profile ? ` Analisamos seu perfil @${profile.handle} (${nf(profile.followers)} seguidores, engajamento ~${profile.engajamentoPct ?? "—"}%).` : ""} Há audiência e conteúdo que engaja — o que falta é transformar isso em vendas com criativos na sua identidade visual, um funil direto e o Teste A/Z para achar o "ovo de ouro".`,
+    resumo: `Plano para transformar sua audiência em vendas, com a cara da sua marca.`,
+    objetivoPrincipal: `${(objLabel[objetivo] ?? "Vender mais")} de forma previsível, encontrando os criativos campeões e escalando o que dá retorno.`,
+    situacao: [
+      { fator: "Perfil", analise: profile ? `@${profile.handle} · ${nf(profile.followers)} seguidores${profile.category ? ` · ${profile.category}` : ""}` : "Análise pelo que foi descrito (perfil não lido)" },
+      { fator: "Engajamento", analise: profile?.engajamentoPct ? `~${profile.engajamentoPct}% (média ${nf(profile.avgLikes)} curtidas/post) — sinal de audiência aquecida.` : "A medir após conectar o perfil." },
+      { fator: "Ponto forte", analise: "Conteúdo autêntico com identidade visual definida — base ideal para anúncios que não parecem anúncio." },
+      { fator: "Principal desafio", analise: "Converter alcance/engajamento em venda direta (falta anúncio pago + CTA + funil)." },
+    ],
+    diagnostico: [
+      `Nicho: ${nicho}.`,
+      profile ? `Perfil @${profile.handle}: ${nf(profile.followers)} seguidores.` : "Sem perfil lido.",
+      "Gargalo provável: audiência sem oferta/anúncio estruturado.",
+    ],
+    publicoAlvo: [
+      `Faixa principal: ${factors.img_pessoa_idade.replace(/_/g, " ")}, ${factors.img_pessoa_sexo}.`,
+      "Já consome seu conteúdo — público quente para remarketing.",
+      "Busca transformação/resultado no tema do nicho.",
+    ],
+    dnaOrganico: [dna.resumoVisual, `Tom: ${dna.tom}.`, `Estilo: ${dna.estiloFoto}.`],
+    pilaresConteudo: pilares,
+    pilaresEstrategicos: [
+      { titulo: "Conteúdo que vende", objetivo: "Criativos na identidade da marca, prontos para anúncio.", acoes: [
+        { acao: "Replicar o que já funciona", detalhe: "Transformar os posts campeões em anúncios (mesma estética)." },
+        { acao: "Teste A/Z", detalhe: "Variar ângulo (dor/desejo/transformação) e formato para achar o vencedor." },
+        { acao: "Gancho de 3s", detalhe: "Todo criativo abre com um gancho forte que prende a atenção." },
+      ] },
+      { titulo: "Funil & oferta", objetivo: "Caminho claro do anúncio até a compra.", acoes: [
+        { acao: "Funil direto", detalhe: "Anúncio → página simples → WhatsApp/Checkout." },
+        { acao: "Oferta + downsell", detalhe: "Oferta principal com parcelamento e uma isca barata para quem não comprar." },
+      ] },
+      { titulo: "Otimização contínua", objetivo: "Escalar o que dá retorno e cortar o que não dá.", acoes: [
+        { acao: "Ovos de Ouro", detalhe: "A verba migra sozinha para o criativo vencedor (Thompson Sampling)." },
+        { acao: "Leitura semanal", detalhe: "Acompanhar CPL/ROAS e dobrar a aposta no campeão." },
+      ] },
+    ],
+    oportunidades: [
+      "Transformar os posts campeões em anúncios pagos.",
+      "Criar um funil simples (anúncio → página → WhatsApp).",
+      "Testar ângulos (Teste A/Z) para achar o que mais vende.",
+    ],
+    analiseTopPosts: (profile?.topPosts ?? []).map(p => `${nf(p.likes)} curtidas, ${nf(p.comments)} comentários — ${truncate(p.caption || "conteúdo visual forte", 70)}`),
+    estrategia: {
+      canal: "Meta (Instagram/Facebook) + Reels",
+      funil: "Anúncio → Landing simples → WhatsApp/Checkout",
+      angulos: lente === "dor" ? ["Dor (o problema)", "Desejo (a transformação)", "Prova social"] : ["Desejo (o resultado)", "Transformação", "Prova social"],
+      oferta: "Oferta principal + parcelamento + downsell.",
+    },
+    cronograma: [
+      { periodo: "Semana 1", foco: "Gerar 6 criativos (Teste A/Z), aprovar e publicar.", meta: "Campanha no ar" },
+      { periodo: "Semana 2", foco: "Acompanhar Ovos de Ouro; a verba migra para o que vende.", meta: "1º criativo vencedor" },
+      { periodo: "Semana 3", foco: "Escalar o vencedor e gerar variações do ângulo campeão.", meta: "ROAS positivo" },
+      { periodo: "Semana 4", foco: "Novos ângulos + remarketing do público quente.", meta: "Escala sustentável" },
+    ],
+    planoAcao: [
+      { dia: "Dia 1", foco: "Gerar 6 criativos no Estúdio (Teste A/Z)." },
+      { dia: "Dia 2", foco: "Aprovar e publicar; deixar o público aquecer." },
+      { dia: "Dia 4", foco: "Acompanhar os Ovos de Ouro." },
+      { dia: "Dia 7", foco: "Escalar o vencedor e variar o ângulo campeão." },
+    ],
+    kpis: ["CPL (custo por lead)", "ROAS", "Conversão da página", "Nº de vendas", "Ovos de ouro encontrados"],
+    conclusao: "O caminho é consistência + método: criar na identidade da marca, testar ângulos, deixar a verba migrar para o vencedor e escalar. Com disciplina, o crescimento vira consequência.",
+    suggestedFactors: factors,
+    postIdeas,
+  };
+  plan.interessesPosts = inferPostInterests(plan, profile);
+  return plan;
+}
+
+// ───────────────────────── plano via LLM (cérebro) ─────────────────────────
+async function llmPlan(produto: string, objetivo: string, redes: Record<string, string>, profile: SocialProfile | null, dna: BrandDNA, sobre?: string, site?: SiteSnapshot | null): Promise<CacaPlan | null> {
+  if (!process.env.OPENROUTER_API_KEY) return null;
+  try {
+    const base = templatePlan(produto, objetivo, redes, profile, dna);
+    const linkedinTxt = redes.linkedin
+      ? `\nLINKEDIN INFORMADO: ${redes.linkedin}\nUse como contexto estrategico para linguagem B2B, areas afins e hipoteses de segmentacao. Nao finja ter lido posts, conexoes ou pessoas relacionadas do LinkedIn se esses dados nao estiverem no texto.`
+      : "";
+    const perfilTxt = profile
+      ? `PERFIL (@${profile.handle}): ${nf(profile.followers)} seguidores; bio: "${profile.bio ?? ""}"; categoria: ${profile.category ?? "-"}; engajamento ~${profile.engajamentoPct ?? "?"}%.
+POSTS RECENTES (legenda | curtidas | comentarios):
+${profile.posts.slice(0, 8).map(p => `- ${(p.caption || "(sem legenda)").slice(0, 80)} | ${p.likes} | ${p.comments}`).join("\n")}${linkedinTxt}`
+      : site && (site.title || site.excerpt)
+        ? `PERFIL SOCIAL: ainda nao tem (ou nao informado).
+SITE OFICIAL: ${site.url}
+TITULO: ${site.title ?? "-"}
+DESCRICAO: ${site.description ?? "-"}
+H1: ${site.h1 ?? "-"}
+TRECHO DA LANDING: ${(site.excerpt ?? "").slice(0, 800)}${linkedinTxt}`
+        : `PERFIL: nao lido automaticamente.${linkedinTxt}`;
+
+    const sys = `Você é o Agente Estrategista da Cacarejar — consultor sênior de marketing (nível de agência de elite) que escreve planos como uma consultoria de verdade e dirige a arte dos criativos. PT-BR. Use DADOS REAIS (cite números). Seja específico, confiável e acionável.
+
+DNA VISUAL DA MARCA (já extraído dos posts campeões — RESPEITE em todo visualPrompt):
+${JSON.stringify(dna)}
+
+Retorne SOMENTE JSON válido com EXATAMENTE estas chaves:
+{
+ "sumarioExecutivo": string (3-5 frases, cita números reais),
+ "situacao": [{"fator":string,"analise":string}] (4-5 linhas: Perfil, Engajamento, Ponto forte, Desafio, Oportunidade),
+ "objetivoPrincipal": string,
+ "publicoAlvo": [string] (3-4),
+ "oportunidades": [string] (3),
+ "pilaresEstrategicos": [{"titulo":string,"objetivo":string,"acoes":[{"acao":string,"detalhe":string}]}] (3-4 pilares, 2-3 ações cada),
+ "cronograma": [{"periodo":string,"foco":string,"meta":string}] (4 períodos),
+ "conclusao": string,
+ "postIdeas": [{"titulo":string,"pilar":string,"formato":"imagem"|"reels"|"carrossel","angulo":"dor"|"desejo"|"transformacao","gancho":string,"copy":string,"hashtags":[string],"cta":string,"visualPrompt":string,"roteiro":{"gancho3s":string,"cenas":[{"tempo":string,"acao":string,"audio":string}],"cta":string}}] (EXATAMENTE 4 ideias),
+ "suggestedFactors": object,
+ "lente": "dor"|"desejo",
+ "nicho": string
+}
+
+REGRAS DOS POST IDEAS (o mais importante):
+- 3 ideias com ângulos DIFERENTES e ao menos 1 formato "reels".
+- "visualPrompt": UM prompt de geração de imagem MEMORÁVEL, em INGLÊS, 50-90 palavras. DEVE conter: sujeito + ação concreta; cenário; composição/enquadramento; iluminação; câmera/lente (ex.: shot on 35mm, shallow depth of field); a PALETA da marca (use os hex do DNA); mood alinhado ao tom da marca; estilo fotográfico alinhado a estiloFoto do DNA; e TERMINE com "leave clean negative space at the top for a headline". Não escreva texto dentro da imagem. Nada genérico — deve parecer um post REAL desta marca.
+- "roteiro" (só nos formatos reels/carrossel): gancho de 3s + 3-4 cenas (tempo/ação/áudio, com ASMR ou POV quando fizer sentido) + CTA.
+- "gancho": frase de 3 segundos que prende (pergunta intrigante, número surpreendente, promessa).
+- suggestedFactors usa chaves: img_tipo,img_cor_predominante,img_pessoa_idade,img_pessoa_sexo,img_estilo,copy_tom,copy_formato,copy_gatilho,copy_cta,of_angulo (valores snake_case).`;
+
+    const usr = `Produto/oferta: ${produto}
+Objetivo: ${objetivo}
+Redes: ${JSON.stringify(redes)}
+${perfilTxt}
+O cliente também contou: ${sobre || "(nada além)"}
+Fatores válidos de referência: ${JSON.stringify(base.suggestedFactors)}.`;
+
+    const content = await openRouterChat([{ role: "system", content: sys }, { role: "user", content: usr }], { model: BRAIN, temperature: 0.7, maxTokens: 8192 });
+    const parsed = parseJson<Partial<CacaPlan>>(content);
+    if (!parsed) { console.error("[diagnosis] plano: JSON não parseado (len=" + content.length + ", fim=" + content.slice(-60) + ")"); return null; }
+
+    // monta o plano final: base garante TODOS os campos legados; LLM enriquece os de consultoria.
+    const plan: CacaPlan = {
+      ...base,
+      ...parsed,
+      brandDNA: dna,
+      analiseTopPosts: base.analiseTopPosts,
+      profile,
+      linkedin: redes.linkedin || null,
+      produto,
+      perfilLido: !!profile,
+      suggestedFactors: { ...base.suggestedFactors, ...(parsed.suggestedFactors ?? {}) },
+      postIdeas: ([...((parsed.postIdeas?.length ? parsed.postIdeas : []) as PostIdea[]), ...base.postIdeas].slice(0, 4)) as PostIdea[],
+      pilaresEstrategicos: parsed.pilaresEstrategicos?.length ? parsed.pilaresEstrategicos : base.pilaresEstrategicos,
+      cronograma: parsed.cronograma?.length ? parsed.cronograma : base.cronograma,
+      situacao: parsed.situacao?.length ? parsed.situacao : base.situacao,
+    };
+    plan.interessesPosts = inferPostInterests(plan, profile);
+    return plan;
+  } catch (e) {
+    console.error("[diagnosis] llmPlan falhou:", (e as any)?.message);
+    return null;
+  }
+}
+
+const REFRESH_WINDOW_MS = 24 * 60 * 60 * 1000; // 24h
+const REFRESH_LIMIT_PER_HANDLE = 3;
+const cleanHandle = (h: string) => (h || "").trim().replace(/^@/, "").replace(/^https?:\/\/(www\.)?instagram\.com\//i, "").replace(/\/$/, "").toLowerCase();
+
+/** Verifica se o cliente pode atualizar o estudo do MESMO @ — 3 atualizações por 24h.
+ *  Retorna { allowed, used, limit, resetAt } sem mutar nada. */
+export async function checkRefreshAllowance(orgId: number, handle: string) {
+  const db = await getDb();
+  const h = cleanHandle(handle);
+  if (!db || !h) return { allowed: true, used: 0, limit: REFRESH_LIMIT_PER_HANDLE, resetAt: 0 };
+  const rows = await db.select().from(orgProfile).where(eq(orgProfile.organizationId, orgId)).limit(1);
+  const history = ((rows[0]?.refreshHistory as any[]) ?? []).filter(r => r?.handle === h && Date.now() - r.at < REFRESH_WINDOW_MS);
+  const used = history.length;
+  const oldest = history.length ? Math.min(...history.map(r => r.at)) : 0;
+  return { allowed: used < REFRESH_LIMIT_PER_HANDLE, used, limit: REFRESH_LIMIT_PER_HANDLE, resetAt: oldest + REFRESH_WINDOW_MS };
+}
+
+export async function analyze(params: {
+  orgId: number; produto: string; objetivo: string; redes?: Record<string, string>; sobre?: string;
+}): Promise<CacaPlan> {
+  const redes = params.redes ?? {};
+  // Rate limit do MESMO @ — 3x/24h. Outros @ passam livre (fluxo de troca já tem confirmação).
+  const handleNovo = cleanHandle(redes.instagram || "");
+  if (handleNovo) {
+    const check = await checkRefreshAllowance(params.orgId, handleNovo);
+    if (!check.allowed) {
+      const horas = Math.max(1, Math.ceil((check.resetAt - Date.now()) / (60 * 60 * 1000)));
+      throw new Error(`Você já atualizou o estudo de @${handleNovo} ${check.used}x nas últimas 24h (limite ${check.limit}). Tente novamente em ~${horas}h.`);
+    }
+  }
+  // Lê IG + SITE em paralelo. Site é fallback útil quando o cliente ainda não tem IG.
+  const [profile, site] = await Promise.all([
+    fetchProfile(redes).catch(() => null),
+    redes.site ? fetchSite(redes.site).catch(() => null) : Promise.resolve(null),
+  ]);
+  const { brandDNA, analiseTopPosts } = await analyzeBrandDNA(profile, params.produto, site);
+
+  const plan = (await llmPlan(params.produto, params.objetivo, redes, profile, brandDNA, params.sobre, site))
+    ?? templatePlan(params.produto, params.objetivo, redes, profile, brandDNA);
+  plan.analiseTopPosts = analiseTopPosts;
+  plan.brandDNA = brandDNA;
+  plan.site = site ?? undefined;
+  plan.siteLido = !!site?.title || !!site?.description;
+  plan.linkedin = redes.linkedin || null;
+  plan.interessesPosts = inferPostInterests(plan, profile);
+
+  const base = suggestFactors(params.produto, params.objetivo, profile).factors;
+  plan.suggestedFactors = await sanitizeFactors(plan.suggestedFactors, base);
+
+  const db = await getDb();
+  if (db) {
+    const existing = await db.select().from(orgProfile).where(eq(orgProfile.organizationId, params.orgId)).limit(1);
+    const row = {
+      organizationId: params.orgId, nicho: plan.nicho, produto: params.produto, objetivo: params.objetivo, redes,
+      dnaOrganico: { itens: plan.dnaOrganico, perfil: profile ?? undefined },
+      publicoAlvo: { idade: plan.suggestedFactors.img_pessoa_idade, sexo: plan.suggestedFactors.img_pessoa_sexo },
+      resumoDiagnostico: plan.sumarioExecutivo ?? plan.resumo, planoJson: plan as any, radarJson: null as any,
+    };
+    // registra a atualização (para rate limit por @)
+    const history = ((existing[0]?.refreshHistory as any[]) ?? []).filter(r => Date.now() - r.at < REFRESH_WINDOW_MS);
+    if (handleNovo) history.push({ at: Date.now(), handle: handleNovo });
+    (row as any).refreshHistory = history.slice(-20);
+
+    if (existing.length) await db.update(orgProfile).set(row).where(eq(orgProfile.organizationId, params.orgId));
+    else await db.insert(orgProfile).values(row);
+  }
+  return plan;
+}
+
+/** Anexa as imagens geradas (creativeId + imageUrl) às postIdeas do plano salvo,
+ *  para que sobrevivam à navegação (sem precisar regerar). Match por ordem. */
+export async function attachCreativesToPostIdeas(orgId: number, creatives: { id: number; imageUrl: string }[]) {
+  const db = await getDb();
+  if (!db) return;
+  const rows = await db.select().from(orgProfile).where(eq(orgProfile.organizationId, orgId)).limit(1);
+  const plan = rows[0]?.planoJson as any;
+  if (!plan?.postIdeas?.length) return;
+  for (let i = 0; i < Math.min(creatives.length, plan.postIdeas.length); i++) {
+    plan.postIdeas[i] = { ...plan.postIdeas[i], creativeId: creatives[i].id, imageUrl: creatives[i].imageUrl };
+  }
+  await db.update(orgProfile).set({ planoJson: plan }).where(eq(orgProfile.organizationId, orgId));
+}
+
+/** Arquiva o plano + radar atuais em archivedPlans[] e ZERA planoJson/radarJson.
+ *  Usado quando o cliente regera o diagnóstico para outro perfil. */
+export async function archiveCurrentPlan(orgId: number, reason = "user-requested") {
+  const db = await getDb();
+  if (!db) return { archived: false };
+  const rows = await db.select().from(orgProfile).where(eq(orgProfile.organizationId, orgId)).limit(1);
+  const row = rows[0];
+  if (!row?.planoJson) return { archived: false };
+  const archived = Array.isArray(row.archivedPlans) ? row.archivedPlans : [];
+  archived.push({
+    id: archiveId(), archivedAt: Date.now(), reason,
+    nicho: row.nicho ?? undefined, produto: row.produto ?? undefined,
+    redes: (row.redes as any) ?? undefined,
+    dnaOrganico: (row.dnaOrganico as any) ?? undefined,
+    publicoAlvo: (row.publicoAlvo as any) ?? undefined,
+    planoJson: row.planoJson, radarJson: row.radarJson ?? undefined,
+  });
+  // mantém últimos 10 snapshots
+  const trimmed = archived.slice(-10);
+  await db.update(orgProfile).set({ archivedPlans: trimmed as any, planoJson: null as any, radarJson: null as any, resumoDiagnostico: null }).where(eq(orgProfile.organizationId, orgId));
+  return { archived: true, totalSnapshots: trimmed.length };
+}
+
+/** Lista snapshots arquivados (sem o JSON pesado — só metadados). */
+export async function listArchives(orgId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db.select().from(orgProfile).where(eq(orgProfile.organizationId, orgId)).limit(1);
+  const row = rows[0];
+  const normalized = ensureArchiveIds((row?.archivedPlans as any[]) ?? []);
+  const archived = normalized.archived;
+  if (row && normalized.changed) {
+    await db.update(orgProfile).set({ archivedPlans: archived as any }).where(eq(orgProfile.organizationId, orgId));
+  }
+  return archived.map((a, i) => ({
+    id: a.id, index: i, archivedAt: a.archivedAt, reason: a.reason,
+    nicho: a.nicho, produto: a.produto,
+    handle: a.planoJson?.profile?.handle ?? null,
+    summary: a.planoJson?.sumarioExecutivo?.slice(0, 160) ?? null,
+    hasRadar: !!a.radarJson,
+    postCount: Array.isArray(a.planoJson?.postIdeas) ? a.planoJson.postIdeas.length : 0,
+    radarIdeasCount: Array.isArray(a.radarJson?.ideas) ? a.radarJson.ideas.length : 0,
+  }));
+}
+
+/** Exclui um snapshot arquivado. */
+export async function deleteArchive(orgId: number, id: string) {
+  const db = await getDb();
+  if (!db) return { ok: false };
+  const rows = await db.select().from(orgProfile).where(eq(orgProfile.organizationId, orgId)).limit(1);
+  const archived = ensureArchiveIds(((rows[0]?.archivedPlans as any[]) ?? []).slice()).archived;
+  const index = archived.findIndex(snap => snap?.id === id);
+  if (index < 0) return { ok: false };
+  archived.splice(index, 1);
+  await db.update(orgProfile).set({ archivedPlans: archived as any }).where(eq(orgProfile.organizationId, orgId));
+  return { ok: true, remaining: archived.length };
+}
+
+/** Restaura um snapshot arquivado (volta a ser o plano/radar atuais). */
+export async function restoreArchive(orgId: number, id: string) {
+  const db = await getDb();
+  if (!db) return { ok: false };
+  const rows = await db.select().from(orgProfile).where(eq(orgProfile.organizationId, orgId)).limit(1);
+  const archived = ensureArchiveIds(((rows[0]?.archivedPlans as any[]) ?? []).slice()).archived;
+  const index = archived.findIndex(snap => snap?.id === id);
+  const snap = archived[index];
+  if (!snap) return { ok: false };
+  archived.splice(index, 1);
+
+  const snapPlan = (snap.planoJson as any) ?? null;
+  const snapRedes = (snap.redes as any) ?? {};
+  const snapHandle = String(snapPlan?.profile?.handle ?? snapRedes?.instagram ?? "").replace(/^@/, "");
+  const snapRadar = snap.radarJson
+    ? {
+        ...(snap.radarJson as any),
+        baseHandle: ((snap.radarJson as any).baseHandle ?? snapHandle) || undefined,
+        baseProduto: ((snap.radarJson as any).baseProduto ?? snap.produto ?? snapPlan?.produto) || undefined,
+      }
+    : null;
+
+  // Arquiva o atual antes de restaurar para nao perder o estado vigente.
+  if (rows[0]?.planoJson) {
+    archived.push({
+      id: archiveId(), archivedAt: Date.now(), reason: "auto-before-restore",
+      nicho: rows[0].nicho ?? undefined, produto: rows[0].produto ?? undefined,
+      redes: (rows[0].redes as any) ?? undefined,
+      dnaOrganico: (rows[0].dnaOrganico as any) ?? undefined,
+      publicoAlvo: (rows[0].publicoAlvo as any) ?? undefined,
+      planoJson: rows[0].planoJson, radarJson: rows[0].radarJson ?? undefined,
+    });
+  }
+
+  await db.update(orgProfile).set({
+    nicho: snap.nicho ?? null,
+    produto: snap.produto ?? null,
+    redes: snap.redes ?? null,
+    dnaOrganico: (snap as any).dnaOrganico ?? null,
+    publicoAlvo: (snap as any).publicoAlvo ?? null,
+    planoJson: snapPlan,
+    radarJson: snapRadar,
+    archivedPlans: archived.slice(-10) as any,
+    resumoDiagnostico: snapPlan?.sumarioExecutivo ?? null,
+  }).where(eq(orgProfile.organizationId, orgId));
+  return { ok: true };
+}
+
+export async function recalibrateWithRadar(orgId: number, feedback?: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(orgProfile).where(eq(orgProfile.organizationId, orgId)).limit(1);
+  const row = rows[0];
+  const plan = row?.planoJson as any;
+  const radar = row?.radarJson as any;
+  if (!plan) throw new Error("Faca o diagnostico primeiro");
+  if (!radar?.ideas?.length) throw new Error("Gere o Radar de Mercado antes de recalibrar o diagnostico");
+  const savedProfile = (row?.dnaOrganico as any)?.perfil;
+  const savedHandle = (row?.redes as any)?.instagram;
+  const preservedProfile = plan.profile ?? savedProfile ?? (savedHandle ? { handle: String(savedHandle).replace(/^@/, "") } : null);
+
+  const ideas = (radar.ideas as any[]).map((idea, index) => ({
+    index,
+    titulo: idea.titulo,
+    gancho: idea.gancho,
+    copy: idea.copy,
+    formato: idea.formato,
+    opportunityTitle: idea.opportunityTitle,
+    patternTitle: idea.patternTitle,
+    priorityScore: idea.priorityScore,
+    fonte: idea.fonte,
+    decision: idea.diagnosisDecision ?? "agent",
+    userFeedback: idea.diagnosisFeedback ?? "",
+  }));
+  const explicitUse = ideas.filter(i => i.decision === "use");
+  const explicitSkip = ideas.filter(i => i.decision === "skip");
+  const undecided = ideas.filter(i => i.decision === "agent");
+
+  const fallbackSelected = (explicitUse.length ? explicitUse : [...undecided].sort((a, b) => (b.priorityScore ?? 0) - (a.priorityScore ?? 0)).slice(0, 2));
+  let patch: any = {
+    radarContribuicoes: {
+      recalibratedAt: Date.now(),
+      feedback: feedback?.trim() || "",
+      resumo: "O Agente Especialista priorizou os sinais do Radar que melhor reforcam o plano atual.",
+      recomendacao: "Use as ideias aprovadas como complemento do diagnostico e descarte as rejeitadas para manter foco.",
+      ideias: fallbackSelected.map(i => ({
+        index: i.index,
+        status: "use",
+        reason: i.decision === "use" ? "Marcada pelo usuario para entrar no diagnostico." : "Escolhida pelo Agente Especialista por aderencia e prioridade.",
+      })),
+    },
+  };
+
+  if (process.env.OPENROUTER_API_KEY) {
+    try {
+      const content = await openRouterChat([
+        {
+          role: "system",
+          content: `Voce e o Agente Especialista da Cacarejar. Recalibre um diagnostico existente usando as escolhas do usuario e o Radar de Mercado.
+Use sempre o termo Agente, nunca "IA". Respeite escolhas explicitas:
+- decision "use": precisa entrar no diagnostico.
+- decision "skip": precisa ficar fora.
+- decision "agent": voce decide se entra ou nao.
+Retorne SOMENTE JSON valido:
+{
+ "sumarioExecutivo": string,
+ "objetivoPrincipal": string,
+ "pilaresEstrategicos": [{"titulo":string,"objetivo":string,"acoes":[{"acao":string,"detalhe":string}]}],
+ "cronograma": [{"periodo":string,"foco":string,"meta":string}],
+ "conclusao": string,
+ "oportunidades": [string],
+ "radarContribuicoes": {
+   "resumo": string,
+   "recomendacao": string,
+   "ideias": [{"index":number,"status":"use"|"skip","reason":string}]
+ }
+}
+Atualize plano, cronograma e conclusao para refletir o Radar, sem destruir a estrategia original.`,
+        },
+        {
+          role: "user",
+          content: `DIAGNOSTICO ATUAL:
+${JSON.stringify({
+  produto: plan.produto,
+  nicho: plan.nicho,
+  sumarioExecutivo: plan.sumarioExecutivo,
+  objetivoPrincipal: plan.objetivoPrincipal,
+  pilaresEstrategicos: plan.pilaresEstrategicos,
+  cronograma: plan.cronograma,
+  conclusao: plan.conclusao,
+  oportunidades: plan.oportunidades,
+})}
+
+RADAR:
+${JSON.stringify({
+  marketSummary: radar.marketSummary,
+  patterns: radar.patterns,
+  opportunities: radar.opportunities,
+  ideas,
+  explicitUse,
+  explicitSkip,
+  undecided,
+})}
+
+OBSERVACAO DO USUARIO:
+${feedback?.trim() || "(sem observacao)"}`,
+        },
+      ], { model: BRAIN, temperature: 0.45, maxTokens: 7000 });
+      const parsed = parseJson<any>(content);
+      if (parsed?.radarContribuicoes?.ideias?.length) {
+        patch = {
+          ...(typeof parsed.sumarioExecutivo === "string" ? { sumarioExecutivo: parsed.sumarioExecutivo } : {}),
+          ...(typeof parsed.objetivoPrincipal === "string" ? { objetivoPrincipal: parsed.objetivoPrincipal } : {}),
+          ...(Array.isArray(parsed.pilaresEstrategicos) ? { pilaresEstrategicos: parsed.pilaresEstrategicos } : {}),
+          ...(Array.isArray(parsed.cronograma) ? { cronograma: parsed.cronograma } : {}),
+          ...(typeof parsed.conclusao === "string" ? { conclusao: parsed.conclusao } : {}),
+          ...(Array.isArray(parsed.oportunidades) ? { oportunidades: parsed.oportunidades } : {}),
+          radarContribuicoes: {
+            ...parsed.radarContribuicoes,
+            recalibratedAt: Date.now(),
+            feedback: feedback?.trim() || "",
+          },
+        };
+      }
+    } catch (e) {
+      console.error("[diagnosis] recalibrateWithRadar falhou:", (e as any)?.message);
+    }
+  }
+
+  const contributionIdeas = [...(patch.radarContribuicoes?.ideias ?? [])];
+  for (const idea of explicitUse) {
+    const existing = contributionIdeas.find((i: any) => i.index === idea.index);
+    if (existing) existing.status = "use";
+    else contributionIdeas.push({ index: idea.index, status: "use", reason: "Marcada pelo usuario para entrar no diagnostico." });
+  }
+  for (const idea of explicitSkip) {
+    const existing = contributionIdeas.find((i: any) => i.index === idea.index);
+    if (existing) existing.status = "skip";
+    else contributionIdeas.push({ index: idea.index, status: "skip", reason: "Marcada pelo usuario para nao entrar no diagnostico." });
+  }
+  patch.radarContribuicoes = { ...patch.radarContribuicoes, ideias: contributionIdeas };
+
+  const selectedIndexes = new Set(contributionIdeas.filter((i: any) => i.status === "use").map((i: any) => i.index));
+  const reasons = new Map(contributionIdeas.map((i: any) => [i.index, i.reason]));
+  radar.ideas = radar.ideas.map((idea: any, index: number) => ({
+    ...idea,
+    diagnosisDecision: idea.diagnosisDecision === "skip" ? "skip" : selectedIndexes.has(index) ? "use" : (idea.diagnosisDecision ?? "agent"),
+    diagnosisReason: reasons.get(index) ?? idea.diagnosisReason,
+    diagnosisDecidedAt: Date.now(),
+  }));
+
+  const nextPlan = {
+    ...plan,
+    ...patch,
+    radarContribuicoes: patch.radarContribuicoes,
+    produto: plan.produto,
+    nicho: plan.nicho,
+    lente: plan.lente,
+    profile: preservedProfile,
+    perfilLido: plan.perfilLido ?? !!preservedProfile,
+    brandDNA: plan.brandDNA,
+    postIdeas: plan.postIdeas,
+    analiseTopPosts: plan.analiseTopPosts,
+  };
+  nextPlan.interessesPosts = inferPostInterests(nextPlan, preservedProfile, radar);
+  await db.update(orgProfile).set({
+    planoJson: nextPlan as any,
+    radarJson: radar as any,
+    resumoDiagnostico: nextPlan.sumarioExecutivo ?? plan.sumarioExecutivo ?? null,
+  }).where(eq(orgProfile.organizationId, orgId));
+  return nextPlan;
+}
+
+export async function getPlan(orgId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(orgProfile).where(eq(orgProfile.organizationId, orgId)).limit(1);
+  if (!rows.length) return null;
+  const row = rows[0] as any;
+  const plan = row.planoJson as any;
+  if (!plan) return null;
+  const savedHandle = String(row.redes?.instagram ?? "").replace(/^@/, "");
+  if (!plan.linkedin && row.redes?.linkedin) {
+    plan.linkedin = row.redes.linkedin;
+  }
+  const savedProfileRaw = row.dnaOrganico?.perfil;
+  const savedProfileHandle = String(savedProfileRaw?.handle ?? "").replace(/^@/, "");
+  const savedProfile = !savedProfileRaw || !savedHandle || !savedProfileHandle || savedProfileHandle === savedHandle
+    ? savedProfileRaw
+    : null;
+  if (!plan.profile && (savedProfile || savedHandle)) {
+    const healed = {
+      ...plan,
+      profile: savedProfile ?? { handle: savedHandle },
+      perfilLido: plan.perfilLido ?? !!savedProfile,
+      produto: plan.produto ?? row.produto,
+      nicho: plan.nicho ?? row.nicho,
+    };
+    if (!Array.isArray(healed.interessesPosts) || !healed.interessesPosts.length) {
+      healed.interessesPosts = inferPostInterests(healed, savedProfile ?? healed.profile, row.radarJson);
+    }
+    await db.update(orgProfile).set({ planoJson: healed as any }).where(eq(orgProfile.organizationId, orgId));
+    return healed as unknown as CacaPlan;
+  }
+  if (!Array.isArray(plan.interessesPosts) || !plan.interessesPosts.length) {
+    plan.interessesPosts = inferPostInterests(plan, plan.profile ?? savedProfile, row.radarJson);
+    await db.update(orgProfile).set({ planoJson: plan as any }).where(eq(orgProfile.organizationId, orgId));
+  }
+  return plan as unknown as CacaPlan | null;
+}
+
+export function readingEnabled() { return profileReadingEnabled(); }

@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Preços — Cacarejar</title>
+  <meta name="theme-color" content="#071b44">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/landing.css">
+  <style>
+    /* ── Reset de seção ── */
+    .precos-hero { padding: 48px 0 40px; border-bottom: 1px solid var(--line); }
+    .precos-hero-grid {
+      display: grid;
+      grid-template-columns: 1fr 520px;
+      gap: 40px;
+      align-items: center;
+    }
+    .precos-hero h1 { margin: 0 0 12px; font-size: clamp(36px,4vw,52px); line-height:1.08; font-weight:900; color:var(--navy); }
+    .precos-hero h1 span { color:var(--red); }
+    .precos-hero p { margin:0 0 20px; font-size:15px; line-height:1.7; color:#263754; max-width:480px; }
+    .trust-badges { display:flex; gap:28px; font-size:12px; font-weight:800; color:#20304b; }
+    .trust-badges span::before { content:"✓ "; color:var(--red); }
+
+    /* Hero art side */
+    .hero-art-col { display:flex; gap:16px; align-items:flex-start; }
+    .hero-img { width:240px; flex-shrink:0; }
+    .hero-img img { width:100%; border-radius:12px; }
+    .hero-bullets { display:flex; flex-direction:column; gap:12px; flex:1; }
+    .hero-bullet {
+      display:flex; align-items:flex-start; gap:12px;
+      background:#fff; border:1px solid var(--line); border-radius:8px;
+      padding:12px 14px; font-size:13px; font-weight:700; color:var(--navy);
+      box-shadow:0 2px 8px rgba(7,27,68,.05);
+    }
+    .hero-bullet-icon {
+      width:32px; height:32px; border-radius:8px; background:#fff1ef;
+      display:flex; align-items:center; justify-content:center; flex-shrink:0;
+      font-size:16px;
+    }
+
+    /* Toggle */
+    .toggle-wrap { display:flex; align-items:center; justify-content:center; gap:16px; padding:32px 0 28px; }
+    .toggle-label { font-size:14px; font-weight:800; color:#22304b; }
+    .toggle-label.active { color:var(--navy); }
+    .toggle-switch {
+      position:relative; width:48px; height:26px;
+      background:var(--red); border-radius:99px; cursor:pointer; flex-shrink:0;
+    }
+    .toggle-switch::after {
+      content:""; position:absolute; top:3px; right:3px;
+      width:20px; height:20px; border-radius:50%; background:#fff;
+      transition:.2s;
+    }
+    .toggle-switch.monthly::after { right:auto; left:3px; }
+    .badge-save {
+      background:#fff3e0; color:#b85c00; font-size:11px; font-weight:900;
+      padding:4px 10px; border-radius:99px; border:1px solid #ffd8a0;
+    }
+
+    /* Plans grid */
+    .plans-grid {
+      display:grid;
+      grid-template-columns: repeat(5,1fr);
+      gap:16px;
+      padding-bottom:48px;
+    }
+    .plan-card {
+      background:#fff; border:1px solid var(--line);
+      border-radius:12px; padding:24px 20px;
+      display:flex; flex-direction:column;
+      box-shadow:0 2px 12px rgba(7,27,68,.05);
+      position:relative;
+    }
+    .plan-card.featured {
+      border-color:var(--red); border-width:2px;
+      box-shadow:0 8px 32px rgba(255,50,23,.12);
+    }
+    .plan-badge {
+      position:absolute; top:-14px; left:50%; transform:translateX(-50%);
+      background:var(--red); color:#fff; font-size:11px; font-weight:900;
+      padding:5px 14px; border-radius:99px; white-space:nowrap;
+    }
+    .plan-name { font-size:15px; font-weight:900; color:var(--navy); margin:0 0 4px; }
+    .plan-desc { font-size:11px; color:var(--muted); line-height:1.5; margin:0 0 16px; font-weight:600; min-height:40px; }
+    .plan-price { margin:0 0 4px; }
+    .plan-price b { font-size:34px; font-weight:900; color:var(--navy); }
+    .plan-price span { font-size:14px; color:var(--muted); font-weight:700; }
+    .plan-installment { font-size:11px; color:var(--muted); font-weight:600; margin:0 0 20px; }
+    .plan-cta {
+      display:block; text-align:center; padding:13px;
+      border-radius:8px; font-size:13px; font-weight:900;
+      border:1.5px solid var(--line); color:var(--navy);
+      background:#fff; margin-bottom:20px; cursor:pointer;
+      text-decoration:none;
+      transition:all .15s;
+    }
+    .plan-cta:hover { border-color:var(--navy); }
+    .plan-cta.red {
+      background:linear-gradient(180deg,#ff421f,#f0200d);
+      color:#fff; border-color:transparent;
+      box-shadow:0 6px 18px rgba(255,49,22,.25);
+    }
+    .plan-cta.red:hover { opacity:.92; }
+    .plan-features { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
+    .plan-features li { font-size:12px; font-weight:700; color:#263754; display:flex; align-items:flex-start; gap:8px; }
+    .plan-features li::before { content:"✓"; color:var(--red); font-weight:900; flex-shrink:0; }
+    .plan-sep { border:none; border-top:1px solid var(--line); margin:16px 0; }
+
+    /* Compare table */
+    .compare-section { padding:48px 0; border-top:1px solid var(--line); }
+    .compare-section h2 { font-size:clamp(22px,2.2vw,28px); font-weight:900; color:var(--navy); margin:0 0 24px; }
+    .compare-table { width:100%; border-collapse:collapse; }
+    .compare-table th, .compare-table td {
+      padding:12px 16px; text-align:center; border-bottom:1px solid var(--line);
+      font-size:13px;
+    }
+    .compare-table th { font-weight:900; color:var(--navy); background:#f7f9fc; }
+    .compare-table th:first-child, .compare-table td:first-child {
+      text-align:left; font-weight:700; color:#22304b;
+    }
+    .compare-table .col-featured { color:var(--red); font-weight:900; }
+    .compare-table .col-featured-bg { background:#fff8f7; }
+    .compare-table td { color:#263754; font-weight:600; }
+    .compare-table .check { color:var(--red); font-size:16px; font-weight:900; }
+    .compare-table .dash { color:#ccc; }
+    .compare-table .icon-cell { display:flex; align-items:center; gap:8px; }
+    .row-icon { font-size:14px; }
+
+    /* FAQ */
+    .faq-section { padding:48px 0; border-top:1px solid var(--line); }
+    .faq-section h2 { font-size:clamp(22px,2.2vw,28px); font-weight:900; color:var(--navy); margin:0 0 24px; }
+    .faq-grid { display:grid; grid-template-columns:1fr 1fr; gap:0 32px; }
+    .faq-item { border-bottom:1px solid var(--line); }
+    .faq-q {
+      display:flex; justify-content:space-between; align-items:center;
+      padding:16px 0; font-size:14px; font-weight:800; color:var(--navy);
+      cursor:pointer; gap:12px;
+    }
+    .faq-q span { font-size:18px; color:var(--muted); flex-shrink:0; }
+    .faq-a { display:none; padding:0 0 16px; font-size:13px; color:#263754; line-height:1.7; font-weight:600; }
+    .faq-item.open .faq-a { display:block; }
+    .faq-item.open .faq-q span { transform:rotate(45deg); }
+
+    /* CTA final */
+    .final-cta-precos {
+      margin:8px 0 0;
+      border:1px solid #f2d3bd; border-radius:12px;
+      background:#fffdfb;
+      display:grid;
+      grid-template-columns:220px 1fr auto;
+      align-items:center;
+      gap:20px 32px;
+      padding:0 48px 0 0;
+      overflow:hidden;
+    }
+    .final-cta-precos img { width:200px; align-self:flex-end; margin-bottom:-8px; }
+    .final-cta-precos h2 { font-size:clamp(22px,2.5vw,30px); font-weight:900; color:var(--navy); margin:0 0 6px; }
+    .final-cta-precos h2 span { color:var(--red); }
+    .final-cta-precos p { font-size:14px; color:#263754; margin:0; }
+    .final-cta-precos-actions { display:flex; flex-direction:column; gap:10px; align-items:flex-start; }
+    .link-specialist { font-size:13px; font-weight:800; color:var(--navy); text-decoration:none; display:flex; align-items:center; gap:6px; }
+    .link-specialist:hover { color:var(--red); }
+
+    /* Footer top bar */
+    .footer-trust {
+      border-top:1px solid var(--line); margin-top:24px;
+      display:flex; justify-content:space-around; flex-wrap:wrap;
+      gap:12px; padding:16px 0 8px;
+      font-size:12px; font-weight:800; color:#253853;
+    }
+
+    @media (max-width:1100px) {
+      .plans-grid { grid-template-columns:repeat(3,1fr); }
+      .precos-hero-grid { grid-template-columns:1fr; }
+      .hero-art-col { justify-content:center; }
+      .faq-grid { grid-template-columns:1fr; }
+      .final-cta-precos { grid-template-columns:160px 1fr; padding:0 32px 0 0; }
+    }
+    @media (max-width:700px) {
+      .plans-grid { grid-template-columns:1fr; }
+      .compare-table { font-size:11px; }
+      .final-cta-precos { grid-template-columns:1fr; padding:24px; text-align:center; }
+      .final-cta-precos img { width:140px; margin:0 auto; }
+      .final-cta-precos-actions { align-items:center; }
+    }
+  </style>
+</head>
+<body>
+<main class="page">
+
+  <!-- ── NAV ── -->
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Cacarejar">
+      <img src="/assets/logo.png" alt="Cacarejar" style="height:62px;width:auto;object-fit:contain;margin-left:-6px;">
+    </a>
+    <nav class="nav">
+      <a href="/">Início</a>
+      <a href="/precos" class="active">Preços</a>
+      <a href="/empresa">Empresa</a>
+    </nav>
+    <div class="header-actions">
+      <a class="login" href="/login">Entrar</a>
+      <a class="button primary small" href="/register">Começar grátis</a>
+    </div>
+  </header>
+
+  <!-- ── HERO ── -->
+  <section class="precos-hero">
+    <div class="precos-hero-grid">
+      <div>
+        <h1>Planos que fazem seu marketing<br><span>cacarejar resultados.</span></h1>
+        <p>Escolha o plano ideal para o seu negócio e conte com agentes exclusivos para criar, testar e otimizar campanhas que geram mais vendas.</p>
+        <div class="trust-badges">
+          <span>Teste grátis por 14 dias</span>
+          <span>Sem cartão de crédito</span>
+        </div>
+      </div>
+      <div class="hero-art-col">
+        <div class="hero-img">
+          <img src="/assets/hero-visual.png" alt="Cacarejar">
+        </div>
+        <div class="hero-bullets">
+          <div class="hero-bullet">
+            <div class="hero-bullet-icon">🤖</div>
+            <span>Agentes exclusivos trabalhando para você</span>
+          </div>
+          <div class="hero-bullet">
+            <div class="hero-bullet-icon">⚡</div>
+            <span>Testes e otimização automática</span>
+          </div>
+          <div class="hero-bullet">
+            <div class="hero-bullet-icon">📊</div>
+            <span>Distribuição inteligente de investimento</span>
+          </div>
+          <div class="hero-bullet">
+            <div class="hero-bullet-icon">🎯</div>
+            <span>Relatórios claros com foco em resultado</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── TOGGLE ── -->
+  <div class="toggle-wrap">
+    <span class="toggle-label" id="label-monthly">Mensal</span>
+    <div class="toggle-switch monthly" id="billing-toggle" onclick="toggleBilling()"></div>
+    <span class="toggle-label active" id="label-annual">Anual</span>
+    <span class="badge-save">Economize até 20%</span>
+  </div>
+
+  <!-- ── PLANS ── -->
+  <div class="plans-grid">
+
+    <!-- Starter -->
+    <div class="plan-card">
+      <p class="plan-name">Starter</p>
+      <p class="plan-desc">Para quem está começando e quer validar ideias.</p>
+      <div class="plan-price"><b id="price-starter">R$ 99</b><span>/mês</span></div>
+      <p class="plan-installment" id="install-starter">ou 12x de R$9,90</p>
+      <a class="plan-cta" href="/register">Começar grátis</a>
+      <ul class="plan-features">
+        <li>Até 3 campanhas ativas</li>
+        <li>Até 10 landing pages</li>
+        <li>Até 10 criativos</li>
+        <li>1 agente exclusivo</li>
+        <li>Testes automáticos básicos</li>
+        <li>Relatórios essenciais</li>
+        <li>Suporte por e-mail</li>
+      </ul>
+    </div>
+
+    <!-- Crescimento -->
+    <div class="plan-card">
+      <p class="plan-name">Crescimento</p>
+      <p class="plan-desc">Para negócios em expansão que buscam mais resultados.</p>
+      <div class="plan-price"><b id="price-crescimento">R$ 249</b><span>/mês</span></div>
+      <p class="plan-installment" id="install-crescimento">ou 12x de R$24,90</p>
+      <a class="plan-cta" href="/register">Começar grátis</a>
+      <ul class="plan-features">
+        <li>Até 15 campanhas ativas</li>
+        <li>Até 50 landing pages</li>
+        <li>Até 50 criativos</li>
+        <li>3 agentes exclusivos</li>
+        <li>Testes automáticos avançados</li>
+        <li>Distribuição inteligente de investimento</li>
+        <li>Relatórios avançados</li>
+        <li>Suporte prioritário</li>
+      </ul>
+    </div>
+
+    <!-- Escala (featured) -->
+    <div class="plan-card featured">
+      <div class="plan-badge">Mais recomendado</div>
+      <p class="plan-name" style="color:var(--red)">Escala</p>
+      <p class="plan-desc">Para empresas que querem escalar com eficiência.</p>
+      <div class="plan-price"><b id="price-escala">R$ 599</b><span>/mês</span></div>
+      <p class="plan-installment" id="install-escala">ou 12x de R$59,90</p>
+      <a class="plan-cta red" href="/register">Começar grátis</a>
+      <ul class="plan-features">
+        <li>Campanhas ilimitadas</li>
+        <li>Landing pages ilimitadas</li>
+        <li>Criativos ilimitados</li>
+        <li>6 agentes exclusivos</li>
+        <li>Testes automáticos avançados</li>
+        <li>Distribuição inteligente de investimento</li>
+        <li>Relatórios personalizados</li>
+        <li>Suporte prioritário via chat e e-mail</li>
+      </ul>
+    </div>
+
+    <!-- Agência -->
+    <div class="plan-card">
+      <p class="plan-name">Agência</p>
+      <p class="plan-desc">Para agências que gerenciam múltiplos clientes.</p>
+      <div class="plan-price"><b id="price-agencia">R$ 1.199</b><span>/mês</span></div>
+      <p class="plan-installment" id="install-agencia">ou 12x de R$119,90</p>
+      <a class="plan-cta" href="/register">Começar grátis</a>
+      <ul class="plan-features">
+        <li>Campanhas ilimitadas</li>
+        <li>Landing pages ilimitadas</li>
+        <li>Criativos ilimitados</li>
+        <li>12 agentes exclusivos</li>
+        <li>Testes automáticos avançados</li>
+        <li>Distribuição inteligente de investimento</li>
+        <li>Relatórios white label</li>
+        <li>Gestão de múltiplos clientes</li>
+        <li>Suporte dedicado</li>
+      </ul>
+    </div>
+
+    <!-- Enterprise -->
+    <div class="plan-card">
+      <p class="plan-name">Enterprise</p>
+      <p class="plan-desc">Para grandes empresas com demandas personalizadas.</p>
+      <div class="plan-price"><b style="font-size:24px">Sob consulta</b></div>
+      <p class="plan-installment">Fale com nosso time</p>
+      <a class="plan-cta" href="mailto:contato@cacarejar.com.br">Falar com especialista</a>
+      <ul class="plan-features">
+        <li>Tudo do plano Agência</li>
+        <li>Soluções personalizadas</li>
+        <li>Integrações avançadas</li>
+        <li>SSO e permissões avançadas</li>
+        <li>Onboarding dedicado</li>
+        <li>SLA e suporte dedicado</li>
+        <li>Treinamentos exclusivos</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <!-- ── COMPARE TABLE ── -->
+  <section class="compare-section">
+    <h2>Compare os principais recursos</h2>
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th style="text-align:left">Recursos</th>
+          <th>Starter</th>
+          <th>Crescimento</th>
+          <th class="col-featured">Escala</th>
+          <th>Agência</th>
+          <th>Enterprise</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="icon-cell"><span class="row-icon">📣</span> Campanhas ativas</span></td>
+          <td>Até 3</td><td>Até 15</td>
+          <td class="col-featured-bg col-featured">Ilimitadas</td>
+          <td>Ilimitadas</td><td>Ilimitadas</td>
+        </tr>
+        <tr>
+          <td><span class="icon-cell"><span class="row-icon">🌐</span> Landing pages</span></td>
+          <td>Até 10</td><td>Até 50</td>
+          <td class="col-featured-bg col-featured">Ilimitadas</td>
+          <td>Ilimitadas</td><td>Ilimitadas</td>
+        </tr>
+        <tr>
+          <td><span class="icon-cell"><span class="row-icon">🎨</span> Criativos</span></td>
+          <td>Até 10</td><td>Até 50</td>
+          <td class="col-featured-bg col-featured">Ilimitados</td>
+          <td>Ilimitados</td><td>Ilimitados</td>
+        </tr>
+        <tr>
+          <td><span class="icon-cell"><span class="row-icon">🤖</span> Agentes exclusivos</span></td>
+          <td>1</td><td>3</td>
+          <td class="col-featured-bg col-featured">6</td>
+          <td>12</td><td>Personalizado</td>
+        </tr>
+        <tr>
+          <td><span class="icon-cell"><span class="row-icon">⚡</span> Testes automáticos</span></td>
+          <td>Básicos</td><td>Avançados</td>
+          <td class="col-featured-bg col-featured">Avançados</td>
+          <td>Avançados</td><td>Avançados</td>
+        </tr>
+        <tr>
+          <td><span class="icon-cell"><span class="row-icon">💰</span> Distribuição inteligente de investimento</span></td>
+          <td class="dash">—</td>
+          <td class="check">✓</td>
+          <td class="col-featured-bg check">✓</td>
+          <td class="check">✓</td>
+          <td class="check">✓</td>
+        </tr>
+        <tr>
+          <td><span class="icon-cell"><span class="row-icon">📊</span> Relatórios</span></td>
+          <td>Essenciais</td><td>Avançados</td>
+          <td class="col-featured-bg col-featured">Personalizados</td>
+          <td>White label</td><td>Personalizados</td>
+        </tr>
+        <tr>
+          <td><span class="icon-cell"><span class="row-icon">💬</span> Suporte</span></td>
+          <td>E-mail</td><td>Prioritário</td>
+          <td class="col-featured-bg col-featured">Chat e e-mail</td>
+          <td>Dedicado</td><td>Dedicado</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ── FAQ ── -->
+  <section class="faq-section">
+    <h2>Perguntas frequentes sobre os planos</h2>
+    <div class="faq-grid">
+      <div>
+        <div class="faq-item">
+          <div class="faq-q" onclick="toggleFaq(this)">
+            Posso mudar de plano a qualquer momento? <span>+</span>
+          </div>
+          <div class="faq-a">Sim! Você pode fazer upgrade ou downgrade do seu plano a qualquer momento pelo painel. Mudanças são aplicadas imediatamente com ajuste proporcional na cobrança.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q" onclick="toggleFaq(this)">
+            O que são agentes exclusivos? <span>+</span>
+          </div>
+          <div class="faq-a">Agentes exclusivos são IAs especializadas (Estrategista, Criativo, Audiência, Mídia, Analista, Caçador de Ovos de Ouro) que trabalham de forma autônoma para criar, testar e otimizar suas campanhas.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q" onclick="toggleFaq(this)">
+            A cobrança é recorrente? <span>+</span>
+          </div>
+          <div class="faq-a">Sim, a cobrança é mensal ou anual (com desconto de até 20%). Você pode cancelar a qualquer momento antes do próximo ciclo.</div>
+        </div>
+      </div>
+      <div>
+        <div class="faq-item">
+          <div class="faq-q" onclick="toggleFaq(this)">
+            Posso cancelar quando quiser? <span>+</span>
+          </div>
+          <div class="faq-a">Sim, sem multa e sem burocracia. Basta cancelar no painel antes da renovação. Seus dados ficam disponíveis por 30 dias após o cancelamento.</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q" onclick="toggleFaq(this)">
+            Vocês oferecem desconto no plano anual? <span>+</span>
+          </div>
+          <div class="faq-a">Sim! No plano anual você economiza até 20% em comparação ao plano mensal. O desconto é aplicado automaticamente ao escolher a opção "Anual".</div>
+        </div>
+        <div class="faq-item">
+          <div class="faq-q" onclick="toggleFaq(this)">
+            Meus dados e campanhas estão seguros? <span>+</span>
+          </div>
+          <div class="faq-a">Absolutamente. Utilizamos criptografia de ponta a ponta, servidores certificados e estamos em conformidade com a LGPD. Seus dados nunca são compartilhados com terceiros.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── CTA FINAL ── -->
+  <div class="final-cta-precos">
+    <img src="/assets/footer-chicken.png" alt="">
+    <div>
+      <h2>Pronto para colocar seu marketing para <span>cacarejar?</span></h2>
+      <p>Comece grátis por 14 dias e veja seus resultados decolarem.</p>
+      <div style="display:flex;gap:14px;margin-top:8px;font-size:12px;font-weight:800;color:#20304b;">
+        <span>✓ Sem cartão de crédito</span>
+        <span>✓ Cancelamento fácil</span>
+      </div>
+    </div>
+    <div class="final-cta-precos-actions">
+      <a class="button primary" href="/register" style="min-width:220px">Começar grátis agora</a>
+      <a class="link-specialist" href="mailto:contato@cacarejar.com.br">Falar com especialista →</a>
+    </div>
+  </div>
+
+  <!-- ── FOOTER ── -->
+  <div class="footer-trust">
+    <span>🛡 Mais de 14.600 empresas já confiam no Cacarejar</span>
+    <span>🔒 Dados protegidos com segurança de ponta</span>
+    <span>🎧 Suporte humano de verdade</span>
+  </div>
+  <footer class="footer" style="border-top:1px solid var(--line);padding-top:14px;margin-top:8px;justify-content:space-between;">
+    <span style="font-size:12px;color:var(--muted)">Segurança e Conformidade</span>
+    <span style="font-size:12px;color:var(--muted)">Termos de Uso</span>
+    <span style="font-size:12px;color:var(--muted)">Política de Privacidade</span>
+    <span style="font-size:12px;color:var(--muted)">LGPD</span>
+    <span style="font-size:12px;color:var(--muted)">© 2025 Cacarejar. Todos os direitos reservados.</span>
+  </footer>
+</main>
+
+<script>
+  // ── Billing toggle ──
+  const PRICES = {
+    monthly:  { starter:'R$ 99', crescimento:'R$ 249', escala:'R$ 599', agencia:'R$ 1.199' },
+    annual:   { starter:'R$ 79', crescimento:'R$ 199', escala:'R$ 479', agencia:'R$ 959'  },
+    installMonthly: {
+      starter:'ou 12x de R$9,90', crescimento:'ou 12x de R$24,90',
+      escala:'ou 12x de R$59,90', agencia:'ou 12x de R$119,90'
+    },
+    installAnnual: {
+      starter:'cobrado R$948/ano', crescimento:'cobrado R$2.388/ano',
+      escala:'cobrado R$5.748/ano', agencia:'cobrado R$11.508/ano'
+    },
+  };
+  let isAnnual = true;
+
+  function toggleBilling() {
+    isAnnual = !isAnnual;
+    const toggle = document.getElementById('billing-toggle');
+    const lm = document.getElementById('label-monthly');
+    const la = document.getElementById('label-annual');
+    toggle.classList.toggle('monthly', !isAnnual);
+    lm.classList.toggle('active', !isAnnual);
+    la.classList.toggle('active', isAnnual);
+    const mode = isAnnual ? 'annual' : 'monthly';
+    const inst = isAnnual ? 'installAnnual' : 'installMonthly';
+    ['starter','crescimento','escala','agencia'].forEach(p => {
+      document.getElementById('price-'+p).textContent = PRICES[mode][p];
+      document.getElementById('install-'+p).textContent = PRICES[inst][p];
+    });
+  }
+
+  // ── FAQ toggle ──
+  function toggleFaq(el) {
+    el.parentElement.classList.toggle('open');
+  }
+
+  // ── Header flutuante ──
+  (function () {
+    var tb = document.querySelector('.topbar');
+    if (!tb) return;
+    var onScroll = function () { tb.classList.toggle('scrolled', window.scrollY > 8); };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  })();
+</script>
+</body>
+</html>
