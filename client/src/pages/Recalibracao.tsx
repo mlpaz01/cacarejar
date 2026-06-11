@@ -1,331 +1,295 @@
-import { AppLayout } from "@/components/AppLayout";
-import { StatusBadge } from "@/components/ui/StatusBadge";
-import { trpc } from "@/lib/trpc";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "wouter";
 import {
-  Zap,
+  BarChart3,
+  CalendarDays,
+  CheckCircle2,
+  Circle,
+  ClipboardCheck,
+  FileText,
   Loader2,
-  CheckCircle,
-  XCircle,
-  DollarSign,
-  Users,
-  ImageIcon,
   Megaphone,
-  ChevronDown,
-  ChevronUp,
-  Brain,
-  AlertTriangle,
+  RefreshCcw,
+  Sparkles,
+  Target,
+  TrendingUp,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { format } from "date-fns";
-import { ptBR } from "date-fns/locale";
-type CalibrationSuggestion = {
-  tipo: string;
-  descricao: string;
-  valorAtual?: string;
-  valorSugerido?: string;
-  impactoEstimado?: string;
+import { AppLayout } from "@/components/AppLayout";
+import { trpc } from "@/lib/trpc";
+
+type PlannerItem = { texto: string; status: "done" | "todo" | "late" };
+type PlannerWeek = { semana: string; itens: PlannerItem[] };
+
+const statusStyle: Record<PlannerItem["status"], string> = {
+  done: "bg-[#eafff1] text-[#087a32] border-[#bfeccb]",
+  todo: "bg-white text-[#61708a] border-[#e6ebf3]",
+  late: "bg-[#fff1ef] text-[#c20f00] border-[#ffd0c8]",
 };
-
-const SUGGESTION_ICONS: Record<string, any> = {
-  orcamento: DollarSign,
-  publico_alvo: Users,
-  criativo: ImageIcon,
-  canal: Megaphone,
-};
-
-const SUGGESTION_LABELS: Record<string, string> = {
-  orcamento: "Orçamento",
-  publico_alvo: "Público-alvo",
-  criativo: "Criativo",
-  canal: "Canal",
-};
-
-function SuggestionCard({ s }: { s: CalibrationSuggestion }) {
-  const Icon = SUGGESTION_ICONS[s.tipo] ?? Zap;
-  return (
-    <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/40 border border-border/50">
-      <div className="p-2 rounded-lg bg-primary/10 flex-shrink-0 mt-0.5">
-        <Icon className="w-3.5 h-3.5 text-primary" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-xs font-semibold text-primary uppercase tracking-wide">
-            {SUGGESTION_LABELS[s.tipo] ?? s.tipo}
-          </span>
-        </div>
-        <p className="text-xs text-foreground leading-relaxed">{s.descricao}</p>
-        {(s.valorAtual || s.valorSugerido) && (
-          <div className="flex items-center gap-3 mt-2 text-[10px]">
-            {s.valorAtual && (
-              <span className="text-muted-foreground">
-                Atual: <span className="text-foreground font-medium">{s.valorAtual}</span>
-              </span>
-            )}
-            {s.valorSugerido && (
-              <span className="text-muted-foreground">
-                Sugerido: <span className="text-primary font-medium">{s.valorSugerido}</span>
-              </span>
-            )}
-          </div>
-        )}
-        {s.impactoEstimado && (
-          <p className="text-[10px] text-emerald-400 mt-1.5 flex items-center gap-1">
-            <CheckCircle className="w-3 h-3" />
-            {s.impactoEstimado}
-          </p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function CalibrationEntry({ log, campaigns }: { log: any; campaigns: any[] }) {
-  const [expanded, setExpanded] = useState(false);
-  const campaign = campaigns.find((c) => c.id === log.campaignId);
-  const suggestions = log.suggestions as CalibrationSuggestion[];
-
-  return (
-    <div className="card-premium overflow-hidden">
-      <div className="p-5">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2.5 mb-2">
-              <div className="p-1.5 rounded-lg bg-primary/10">
-                <Brain className="w-4 h-4 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground">
-                  {campaign?.name ?? `Campanha #${log.campaignId}`}
-                </p>
-                <p className="text-[10px] text-muted-foreground">
-                  {format(new Date(log.createdAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                </p>
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">{log.analysis}</p>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <StatusBadge status={log.status} />
-            <button
-              onClick={() => setExpanded((e) => !e)}
-              className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground"
-            >
-              {expanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-            </button>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 mt-3">
-          <span className="text-xs text-muted-foreground">
-            {suggestions.length} sugestão{suggestions.length !== 1 ? "ões" : ""}
-          </span>
-          <div className="flex gap-1">
-            {Array.from(new Set(suggestions.map((s) => s.tipo))).map((tipo) => {
-              const Icon = SUGGESTION_ICONS[tipo] ?? Zap;
-              return (
-                <span key={tipo} className="p-1 rounded bg-muted text-muted-foreground">
-                  <Icon className="w-3 h-3" />
-                </span>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {expanded && (
-        <div className="border-t border-border px-5 pb-5 pt-4 space-y-3">
-          <p className="text-xs text-muted-foreground leading-relaxed">{log.analysis}</p>
-          <div className="space-y-2">
-            {suggestions.map((s, i) => (
-              <SuggestionCard key={i} s={s} />
-            ))}
-          </div>
-          {log.status === "pendente" && <CalibrationActions logId={log.id} />}
-          {log.status === "aplicado" && log.appliedAt && (
-            <p className="text-xs text-emerald-400 flex items-center gap-1.5">
-              <CheckCircle className="w-3.5 h-3.5" />
-              Aplicado em {format(new Date(log.appliedAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-            </p>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function CalibrationActions({ logId }: { logId: number }) {
-  const utils = trpc.useUtils();
-  const applyMutation = trpc.calibration.markApplied.useMutation({
-    onSuccess: () => {
-      utils.calibration.list.invalidate();
-      toast.success("Sugestões marcadas como aplicadas!");
-    },
-  });
-  const ignoreMutation = trpc.calibration.ignore.useMutation({
-    onSuccess: () => {
-      utils.calibration.list.invalidate();
-      toast.info("Sugestões ignoradas.");
-    },
-  });
-
-  return (
-    <div className="flex items-center gap-2 pt-1">
-      <Button
-        size="sm"
-        className="gap-1.5 text-xs h-8"
-        onClick={() => applyMutation.mutate({ id: logId })}
-        disabled={applyMutation.isPending}
-      >
-        <CheckCircle className="w-3.5 h-3.5" />
-        Aplicar sugestões
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        className="gap-1.5 text-xs h-8 text-muted-foreground"
-        onClick={() => ignoreMutation.mutate({ id: logId })}
-        disabled={ignoreMutation.isPending}
-      >
-        <XCircle className="w-3.5 h-3.5" />
-        Ignorar
-      </Button>
-    </div>
-  );
-}
 
 export default function Recalibracao() {
+  const [, navigate] = useLocation();
   const utils = trpc.useUtils();
-  const { data: calibrations, isLoading } = trpc.calibration.list.useQuery();
-  const { data: campaigns } = trpc.campaigns.list.useQuery();
+  const diagnosis = trpc.diagnosis.get.useQuery();
+  const campaigns = trpc.campaigns.list.useQuery();
+  const metrics = trpc.metrics.all.useQuery({});
+  const plan: any = diagnosis.data;
 
-  const [selectedCampaign, setSelectedCampaign] = useState<number | null>(null);
-  const [analyzing, setAnalyzing] = useState(false);
+  const [planner, setPlanner] = useState<any>(null);
+  const [feedback, setFeedback] = useState("");
 
-  const analyzeMutation = trpc.calibration.analyze.useMutation({
-    onSuccess: (data) => {
-      utils.calibration.list.invalidate();
-      setAnalyzing(false);
-      toast.success("Análise concluída! Novas sugestões disponíveis.");
+  useEffect(() => {
+    if (plan?.acompanhamento) setPlanner(plan.acompanhamento);
+  }, [plan?.acompanhamento]);
+
+  const updatePlanner = trpc.diagnosis.updateAcompanhamento.useMutation({
+    onSuccess: data => {
+      setPlanner((data as any)?.acompanhamento);
+      utils.diagnosis.get.invalidate();
+      toast.success("Acompanhamento salvo.");
     },
-    onError: (e) => {
-      setAnalyzing(false);
-      toast.error(`Erro na análise: ${e.message}`);
-    },
+    onError: e => toast.error(e.message || "Erro ao salvar acompanhamento"),
   });
 
-  function handleAnalyze() {
-    if (!selectedCampaign) {
-      toast.error("Selecione uma campanha para analisar.");
-      return;
-    }
-    setAnalyzing(true);
-    analyzeMutation.mutate({ campaignId: selectedCampaign });
+  const recalibrate = trpc.diagnosis.recalibrate.useMutation({
+    onSuccess: () => {
+      utils.diagnosis.get.invalidate();
+      toast.success("Diagnostico recalculado com a evolucao.");
+      navigate("/diagnostico");
+    },
+    onError: e => toast.error(e.message || "Erro ao recalcular diagnostico"),
+  });
+
+  const totals = useMemo(() => {
+    const rows = metrics.data ?? [];
+    const impressions = rows.reduce((s: number, m: any) => s + (m.impressions ?? 0), 0);
+    const clicks = rows.reduce((s: number, m: any) => s + (m.clicks ?? 0), 0);
+    const conversions = rows.reduce((s: number, m: any) => s + (m.conversions ?? 0), 0);
+    const spend = rows.reduce((s: number, m: any) => s + Number(m.spend ?? 0), 0);
+    const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
+    const cpl = conversions > 0 ? spend / conversions : 0;
+    return { impressions, clicks, conversions, spend, ctr, cpl };
+  }, [metrics.data]);
+
+  const progress = planner?.progresso ?? 0;
+  const contentDone = planner?.conteudos?.feitos ?? 0;
+  const contentTotal = planner?.conteudos?.total ?? 0;
+
+  const setItemStatus = (weekIndex: number, itemIndex: number, status: PlannerItem["status"]) => {
+    setPlanner((prev: any) => {
+      const source = prev ?? plan?.acompanhamento;
+      if (!source) return prev;
+      const semanas = (source.semanas ?? []).map((week: PlannerWeek, wi: number) => ({
+        ...week,
+        itens: (week.itens ?? []).map((item: PlannerItem, ii: number) => wi === weekIndex && ii === itemIndex ? { ...item, status } : item),
+      }));
+      const items = semanas.flatMap((week: PlannerWeek) => week.itens ?? []);
+      const done = items.filter((item: PlannerItem) => item.status === "done").length;
+      const total = items.length || 1;
+      return { ...source, semanas, progresso: Math.round((done / total) * 100), conteudos: { total, feitos: done } };
+    });
+  };
+
+  const savePlanner = async () => {
+    if (!planner) return;
+    await updatePlanner.mutateAsync({ acompanhamento: planner, feedback });
+    setFeedback("");
+  };
+
+  const recalibrateWithProgress = async () => {
+    if (!planner) return;
+    await updatePlanner.mutateAsync({ acompanhamento: planner, feedback });
+    await recalibrate.mutateAsync({ feedback: feedback || "Recalcular o parecer usando o acompanhamento, os itens executados e os resultados de campanha." });
+  };
+
+  if (diagnosis.isLoading) {
+    return (
+      <AppLayout title="Acompanhamento" subtitle="Carregando o plano de execucao">
+        <div className="bg-white border border-[#e6ebf3] rounded-2xl p-10 text-center text-sm font-bold text-[#61708a]">Carregando...</div>
+      </AppLayout>
+    );
   }
 
-  const pending = (calibrations ?? []).filter((c) => c.status === "pendente");
-  const history = (calibrations ?? []).filter((c) => c.status !== "pendente");
+  if (!plan) {
+    return (
+      <AppLayout title="Acompanhamento" subtitle="Primeiro gere um diagnostico para abrir o planner.">
+        <div className="bg-white border border-[#e6ebf3] rounded-2xl p-10 text-center shadow-sm">
+          <ClipboardCheck className="w-11 h-11 text-[#c7d1e0] mx-auto mb-3" />
+          <p className="text-base font-black text-[#071b44]">Nenhum diagnostico ativo</p>
+          <p className="text-sm text-[#61708a] mt-1">O acompanhamento nasce do parecer estrategico e do cronograma multicanal.</p>
+          <button onClick={() => navigate("/diagnostico")} className="btn-action-primary mt-5 px-5 py-3 text-sm inline-flex items-center gap-2">
+            <Sparkles className="w-4 h-4" /> Criar diagnostico
+          </button>
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout
-      title="Motor de Recalibração"
-      subtitle="Análise inteligente e otimização automática de campanhas"
+      title="Acompanhamento"
+      subtitle="Transforme o diagnostico em execucao, registre a evolucao e recalcule a rota."
+      actions={
+        <div className="flex gap-2 flex-wrap justify-end">
+          <button onClick={() => navigate("/diagnostico")} className="btn-quiet">
+            <FileText className="w-4 h-4" /> Ver diagnostico
+          </button>
+          <button onClick={savePlanner} disabled={!planner || updatePlanner.isPending} className="rounded-xl border border-[#e6ebf3] bg-white px-4 py-2.5 text-sm font-black text-[#071b44] hover:bg-[#f8fafc] flex items-center gap-2 disabled:opacity-50">
+            {updatePlanner.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />} Salvar check-in
+          </button>
+          <button onClick={recalibrateWithProgress} disabled={!planner || updatePlanner.isPending || recalibrate.isPending} className="btn-action-primary px-5 py-2.5 text-sm flex items-center gap-2 disabled:opacity-50">
+            {recalibrate.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCcw className="w-4 h-4" />} Recalcular com evolucao
+          </button>
+        </div>
+      }
     >
-      {/* Analyze panel */}
-      <div className="card-premium p-6 mb-6">
-        <div className="flex items-start gap-4">
-          <div className="p-3 rounded-xl bg-primary/10 flex-shrink-0">
-            <Brain className="w-6 h-6 text-primary" />
-          </div>
-          <div className="flex-1">
-            <h2 className="text-sm font-semibold text-foreground mb-1">Analisar Campanha com IA</h2>
-            <p className="text-xs text-muted-foreground leading-relaxed mb-4">
-              O motor de IA analisa as métricas da campanha selecionada e gera sugestões personalizadas de
-              otimização de orçamento, público-alvo, criativos e canais para maximizar o ROI.
-            </p>
-            <div className="flex items-center gap-3">
-              <select
-                value={selectedCampaign ?? ""}
-                onChange={(e) => setSelectedCampaign(Number(e.target.value) || null)}
-                className="h-9 px-3 rounded-lg bg-background border border-border text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring flex-1 max-w-xs"
-              >
-                <option value="">Selecione uma campanha</option>
-                {(campaigns ?? []).map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-              <Button
-                className="gap-2"
-                onClick={handleAnalyze}
-                disabled={analyzing || analyzeMutation.isPending || !selectedCampaign}
-              >
-                {analyzing || analyzeMutation.isPending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Analisando...
-                  </>
-                ) : (
-                  <>
-                    <Zap className="w-4 h-4" />
-                    Analisar Agora
-                  </>
-                )}
-              </Button>
+      <section className="grid grid-cols-1 xl:grid-cols-[.85fr_1.15fr] gap-5 mb-5">
+        <div className="rounded-3xl bg-[#071b44] text-white p-6 shadow-sm">
+          <p className="text-xs font-black text-white/60 uppercase tracking-widest">{planner?.ciclo || "Ciclo de execucao"}</p>
+          <div className="mt-5 flex items-end justify-between">
+            <div>
+              <p className="text-sm font-bold text-white/70">Progresso do cronograma</p>
+              <p className="text-5xl font-black mt-1">{progress}%</p>
+            </div>
+            <div className="text-right">
+              <p className="text-sm font-bold text-white/70">Conteudos feitos</p>
+              <p className="text-2xl font-black">{contentDone}/{contentTotal || "-"}</p>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Pending suggestions */}
-      {pending.length > 0 && (
-        <div className="mb-6">
-          <div className="flex items-center gap-2 mb-3">
-            <AlertTriangle className="w-4 h-4 text-amber-400" />
-            <h2 className="text-sm font-semibold text-foreground">
-              Sugestões Pendentes
-              <span className="ml-2 text-xs font-normal text-amber-400">({pending.length})</span>
-            </h2>
+          <div className="h-3 rounded-full bg-white/15 mt-5 overflow-hidden">
+            <div className="h-full bg-[#ff3217]" style={{ width: `${Math.min(100, progress)}%` }} />
           </div>
-          <div className="space-y-3">
-            {pending.map((log) => (
-              <CalibrationEntry key={log.id} log={log} campaigns={campaigns ?? []} />
-            ))}
+          <div className="rounded-2xl border border-white/10 bg-white/8 p-4 mt-5">
+            <p className="text-xs font-black text-white/60 uppercase">Proximo foco</p>
+            <p className="text-base font-black mt-1">{planner?.proximoFoco || "Executar a primeira semana"}</p>
+            <p className="text-sm text-white/72 mt-2">{planner?.novaPrescricao || "Registre o que foi feito para o Agente ajustar a proxima rota."}</p>
           </div>
         </div>
-      )}
 
-      {/* History */}
-      <div>
-        <h2 className="text-sm font-semibold text-foreground mb-3">
-          Histórico de Recalibrações
-          {history.length > 0 && (
-            <span className="ml-2 text-xs font-normal text-muted-foreground">({history.length})</span>
-          )}
-        </h2>
+        <div className="bg-white rounded-3xl border border-[#e6ebf3] p-6 shadow-sm">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <h2 className="text-xl font-black text-[#070b17] flex items-center gap-2"><BarChart3 className="w-5 h-5 text-[#ff3217]" /> Sinais de resultado</h2>
+              <p className="text-sm text-[#61708a] mt-1">Leitura inicial para comparar com a Semana 2 e as campanhas aprovadas.</p>
+            </div>
+            <span className="rounded-full bg-[#f8fafc] border border-[#e6ebf3] px-3 py-1 text-xs font-black text-[#071b44]">{campaigns.data?.length ?? 0} campanha(s)</span>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-5">
+            <Metric label="Impressoes" value={formatNumber(totals.impressions)} icon={Megaphone} />
+            <Metric label="Cliques" value={formatNumber(totals.clicks)} icon={Target} />
+            <Metric label="Conversoes" value={formatNumber(totals.conversions)} icon={TrendingUp} />
+            <Metric label="CTR" value={`${totals.ctr.toFixed(2)}%`} icon={BarChart3} />
+          </div>
+          <textarea
+            value={feedback}
+            onChange={e => setFeedback(e.target.value)}
+            placeholder="O que aconteceu desde o diagnostico? Ex.: publiquei 3 posts, o LinkedIn gerou comentarios bons, o Instagram nao respondeu, a campanha teve CPL alto..."
+            className="input-clean min-h-[112px] resize-none mt-5"
+          />
+        </div>
+      </section>
 
-        {isLoading ? (
-          <div className="space-y-3">
-            {[1, 2].map((i) => (
-              <div key={i} className="h-28 bg-card animate-pulse rounded-xl border border-border" />
-            ))}
+      <section className="bg-white rounded-3xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h2 className="text-xl font-black text-[#070b17] flex items-center gap-2"><CalendarDays className="w-5 h-5 text-[#ff3217]" /> Planner do diagnostico</h2>
+            <p className="text-sm text-[#61708a] mt-1">Marque o que foi executado. Isso vira contexto para o Agente recalcular a prescricao.</p>
           </div>
-        ) : history.length === 0 && pending.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <Brain className="w-12 h-12 text-muted-foreground/30 mb-4" />
-            <p className="text-base font-medium text-muted-foreground">Nenhuma análise realizada ainda</p>
-            <p className="text-sm text-muted-foreground/60 mt-1">
-              Selecione uma campanha acima e clique em "Analisar Agora" para começar.
-            </p>
+          <div className="flex gap-2">
+            <StatusPill label="Feito" status="done" />
+            <StatusPill label="A fazer" status="todo" />
+            <StatusPill label="Atrasado" status="late" />
           </div>
-        ) : (
-          <div className="space-y-3">
-            {history.map((log) => (
-              <CalibrationEntry key={log.id} log={log} campaigns={campaigns ?? []} />
-            ))}
-          </div>
-        )}
-      </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-5">
+          {(planner?.semanas ?? []).map((week: PlannerWeek, wi: number) => (
+            <article key={`${week.semana}-${wi}`} className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-5">
+              <span className="rounded-full bg-[#071b44] text-white text-xs font-black px-3 py-1">{week.semana}</span>
+              <div className="space-y-2 mt-4">
+                {(week.itens ?? []).map((item, ii) => (
+                  <div key={`${item.texto}-${ii}`} className={`rounded-xl border p-3 ${statusStyle[item.status ?? "todo"]}`}>
+                    <div className="flex items-start gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setItemStatus(wi, ii, item.status === "done" ? "todo" : "done")}
+                        className="mt-0.5"
+                        title={item.status === "done" ? "Marcar como a fazer" : "Marcar como feito"}
+                      >
+                        {item.status === "done" ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
+                      </button>
+                      <p className="text-sm font-bold leading-relaxed flex-1">{item.texto}</p>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 mt-3">
+                      {(["done", "todo", "late"] as const).map(status => (
+                        <button
+                          key={status}
+                          onClick={() => setItemStatus(wi, ii, status)}
+                          className={`rounded-lg border px-2 py-1.5 text-[10px] font-black ${item.status === status ? statusStyle[status] : "bg-white text-[#61708a] border-[#e6ebf3]"}`}
+                        >
+                          {status === "done" ? "feito" : status === "late" ? "atrasado" : "a fazer"}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="bg-white rounded-3xl border border-[#e6ebf3] p-6 shadow-sm">
+        <h2 className="text-xl font-black text-[#070b17] flex items-center gap-2"><Sparkles className="w-5 h-5 text-[#ff3217]" /> Snapshots de evolucao</h2>
+        <p className="text-sm text-[#61708a] mt-1">Compare a foto inicial com o check-in para saber se a prescricao esta melhorando a execucao.</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
+          {(planner?.snapshots ?? []).map((snap: any) => (
+            <div key={snap.label} className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-5">
+              <h3 className="text-base font-black text-[#071b44]">{snap.label}</h3>
+              <p className="text-sm text-[#61708a] mt-2 line-clamp-5">{snap.resumo}</p>
+              <div className="space-y-3 mt-4">
+                {(snap.scores ?? []).map((score: any) => (
+                  <Score key={score.nome} label={score.nome} value={score.valor} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
     </AppLayout>
   );
+}
+
+function Metric({ label, value, icon: Icon }: { label: string; value: string; icon: any }) {
+  return (
+    <div className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-4">
+      <Icon className="w-4 h-4 text-[#ff3217] mb-2" />
+      <p className="text-[10px] font-black text-[#61708a] uppercase tracking-wide">{label}</p>
+      <p className="text-xl font-black text-[#071b44] mt-1">{value}</p>
+    </div>
+  );
+}
+
+function StatusPill({ label, status }: { label: string; status: PlannerItem["status"] }) {
+  return <span className={`rounded-full border px-3 py-1 text-[10px] font-black ${statusStyle[status]}`}>{label}</span>;
+}
+
+function Score({ label, value }: { label: string; value: number }) {
+  return (
+    <div>
+      <div className="flex items-center justify-between text-xs font-bold">
+        <span className="text-[#61708a]">{label}</span>
+        <span className="text-[#071b44]">{value}/100</span>
+      </div>
+      <div className="h-2 rounded-full bg-[#edf1f7] mt-1 overflow-hidden">
+        <div className="h-full bg-[#ff3217]" style={{ width: `${Math.min(100, value)}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function formatNumber(n: number) {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n || 0);
 }

@@ -55,7 +55,7 @@ const navGroups = [
     title: "Resultados",
     items: [
       { href: "/metricas", icon: BarChart3, label: "Métricas" },
-      { href: "/recalibracao", icon: Zap, label: "Recalibração" },
+      { href: "/recalibracao", icon: Zap, label: "Acompanhamento" },
     ],
   },
   {

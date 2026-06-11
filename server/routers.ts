@@ -822,6 +822,13 @@ const diagnosisRouter = router({
       if (!orgId) throw new Error("Organizacao nao encontrada");
       return diagnosisService.recalibrateWithRadar(orgId, input?.feedback);
     }),
+  updateAcompanhamento: protectedProcedure
+    .input(z.object({ acompanhamento: z.any(), feedback: z.string().optional() }))
+    .mutation(({ ctx, input }) => {
+      const orgId = ctx.user.organizationId;
+      if (!orgId) throw new Error("Organizacao nao encontrada");
+      return diagnosisService.updateAcompanhamento(orgId, input.acompanhamento, input.feedback);
+    }),
 });
 
 // ─── Radar de Mercado Router ──────────────────────────────────────────────────

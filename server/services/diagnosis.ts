@@ -1189,4 +1189,37 @@ export async function getPlan(orgId: number) {
   return plan as unknown as CacaPlan | null;
 }
 
+export async function updateAcompanhamento(orgId: number, acompanhamentoPatch: any, feedback?: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB indisponivel");
+  const rows = await db.select().from(orgProfile).where(eq(orgProfile.organizationId, orgId)).limit(1);
+  const row = rows[0];
+  const plan = row?.planoJson as unknown as CacaPlan | undefined;
+  if (!plan) throw new Error("Faca o diagnostico primeiro");
+
+  const current: any = plan.acompanhamento ?? buildPlanner(plan);
+  const next = {
+    ...current,
+    ...(acompanhamentoPatch ?? {}),
+    updatedAt: Date.now(),
+  };
+  const weeks = Array.isArray(next.semanas) ? next.semanas : [];
+  const items = weeks.flatMap((w: any) => Array.isArray(w.itens) ? w.itens : []);
+  const done = items.filter((it: any) => it.status === "done").length;
+  const total = items.length || current.conteudos?.total || 1;
+  next.progresso = Math.round((done / total) * 100);
+  next.conteudos = { total, feitos: done };
+  if (feedback?.trim()) {
+    next.feedbacks = [
+      ...((current as any).feedbacks ?? []),
+      { at: Date.now(), texto: feedback.trim() },
+    ].slice(-12);
+    next.novaPrescricao = `Feedback registrado: ${truncate(feedback.trim(), 180)}. Recalcule o diagnostico com esse contexto quando quiser ajustar a rota.`;
+  }
+
+  const updatedPlan = enhancePlanV2({ ...plan, acompanhamento: next }, row.redes ?? {}, row.radarJson);
+  await db.update(orgProfile).set({ planoJson: updatedPlan as any }).where(eq(orgProfile.organizationId, orgId));
+  return updatedPlan;
+}
+
 export function readingEnabled() { return profileReadingEnabled(); }

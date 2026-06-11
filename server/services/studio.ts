@@ -70,6 +70,53 @@ async function generateCopy(produto: string, fv: Record<string, string>): Promis
 
 const COR = ["laranja", "azul", "verde", "roxo", "rosa", "vermelho"];
 
+function channelId(canal?: string): string {
+  const c = String(canal || "").toLowerCase();
+  if (c.includes("linkedin")) return "linkedin";
+  if (c.includes("tiktok") || c.includes("reels")) return "tiktok";
+  if (c.includes("instagram")) return "instagram";
+  if (c.includes("blog") || c.includes("seo")) return "google";
+  return "instagram";
+}
+
+function channelIdeasFromPlan(plan: any, produto: string, baseFactors: Record<string, string>) {
+  const prescriptions = Array.isArray(plan?.prescricoesPorCanal) ? plan.prescricoesPorCanal : [];
+  if (!prescriptions.length) return [];
+  const palette = Array.isArray(plan?.brandDNA?.paleta) ? plan.brandDNA.paleta.join(", ") : "";
+  return prescriptions.slice(0, 4).map((p: any, index: number) => {
+    const canal = String(p.canal || "Conteudo");
+    const contents = Array.isArray(p.conteudos) ? p.conteudos : [];
+    const content = contents[index % Math.max(1, contents.length)] || p.funcao || produto;
+    const isVideo = /tiktok|reels/i.test(canal);
+    const isCarousel = /linkedin|blog|seo/i.test(canal);
+    const formato = isVideo ? "reels" : isCarousel ? "carrossel" : "imagem";
+    const angulo = /dor|risco|erro|problema|obje/i.test(`${content} ${p.funcao}`) ? "dor" : index % 3 === 1 ? "transformacao" : "desejo";
+    return {
+      titulo: `${canal}: ${p.funcao || content}`,
+      pilar: p.origem || canal,
+      canal,
+      channels: [channelId(canal)],
+      formato,
+      angulo,
+      gancho: content,
+      copy: `${content}\n\nCTA: ${p.cta || "Saiba mais."}`,
+      hashtags: canal.toLowerCase().includes("linkedin") ? ["#linkedin", "#autoridade", "#negocios"] : ["#conteudo", "#marketing", "#crescimento"],
+      cta: p.cta || "Saiba mais",
+      roteiro: isVideo || isCarousel ? {
+        gancho3s: content,
+        cenas: [
+          { tempo: "0-3s", acao: "Abrir com a dor central em uma frase curta.", audio: "Voz direta e confiante." },
+          { tempo: "3-12s", acao: "Mostrar o antes/depois ou a consequencia pratica.", audio: "Ritmo didatico." },
+          { tempo: "12-25s", acao: "Fechar com prova, exemplo ou proximo passo.", audio: "CTA claro." },
+        ],
+        cta: p.cta || "Saiba mais",
+      } : undefined,
+      visualPrompt: `Professional social media visual for ${produto}, channel ${canal}. Show a concrete business moment connected to: ${content}. Clean premium composition, editorial lighting, modern Brazilian brand aesthetic, ${palette ? `brand palette ${palette},` : ""} realistic but polished, strong focal point, no readable text in the image, leave clean negative space at the top for a headline.`,
+      suggestedFactors: { ...baseFactors, of_angulo: angulo },
+    };
+  });
+}
+
 /**
  * Gera variações. Se az=true, varia automaticamente ângulo × formato × cor de forma
  * balanceada para alimentar o Teste A/Z. Cada variação debita créditos (hold→settle).
@@ -159,7 +206,8 @@ export async function generateProposals(params: { orgId: number; userId: number;
   for (const [k, v] of Object.entries(plan.suggestedFactors ?? {})) if (v) baseFactors[k] = String(v);
 
   // ideias do plano (sempre existem; o diagnóstico produz fallback). Limita a 4.
-  const ideas: any[] = (plan.postIdeas ?? []).slice(0, 4);
+  const generatedChannelIdeas = channelIdeasFromPlan(plan, produto, baseFactors);
+  const ideas: any[] = (generatedChannelIdeas.length ? generatedChannelIdeas : (plan.postIdeas ?? [])).slice(0, 4);
   if (ideas.length === 0) ideas.push({ titulo: produto, pilar: "conteúdo", formato: "imagem", angulo: "desejo", copy: "", visualPrompt: buildImagePrompt(produto, baseFactors, new Map()) });
 
   const provider = getImageProvider();
@@ -190,13 +238,13 @@ export async function generateProposals(params: { orgId: number; userId: number;
         const lente = (job.fv.of_angulo === "dor" ? "dor" : "desejo") as "dor" | "desejo";
         const meta = {
           model: img.model, visualPrompt: idea.visualPrompt, clonedFrom: job.ref ?? null,
-          titulo: idea.titulo, pilar: idea.pilar, formato: idea.formato, angulo: idea.angulo,
+          titulo: idea.titulo, pilar: idea.pilar, formato: idea.formato, angulo: idea.angulo, canal: idea.canal ?? null,
           gancho: idea.gancho ?? null, hashtags: idea.hashtags ?? [], cta: idea.cta ?? null, roteiro: idea.roteiro ?? null,
         };
         const ins = await db.insert(creatives).values({
           organizationId: params.orgId, userId: params.userId, briefing: `${idea.titulo || produto}`,
           copy, imageUrl: img.imageUrl, ratio: "1:1", lente, formato: idea.formato || "imagem",
-          factorValues: job.fv, generationMeta: meta, status: "rascunho",
+          factorValues: job.fv, generationMeta: meta, channels: idea.channels ?? [channelId(idea.canal)], status: "rascunho",
         });
         const id = credits.insertIdOf(ins);
         await credits.settle(params.orgId, job.holdId, img.realCostUsdMicros);
