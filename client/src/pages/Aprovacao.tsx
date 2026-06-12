@@ -3,7 +3,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
-import { Loader2, CheckCircle2, Inbox, ShieldCheck, Coins, TrendingUp, Check, Pencil } from "lucide-react";
+import { Loader2, CheckCircle2, Inbox, ShieldCheck, Coins, TrendingUp, Check, Pencil, Layers3, Send } from "lucide-react";
 
 const BUDGETS = [
   { cents: 2000, label: "Conservador", note: "R$ 20/dia" },
@@ -12,6 +12,21 @@ const BUDGETS = [
 ] as const;
 
 const brl = (cents: number) => (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const channelLabel = (channels?: string[] | null, fallback?: string) => {
+  const c = String(channels?.[0] || fallback || "meta").toLowerCase();
+  if (c.includes("linkedin")) return "LinkedIn";
+  if (c.includes("tiktok")) return "TikTok";
+  if (c.includes("google")) return "Google / SEO";
+  if (c.includes("instagram")) return "Instagram";
+  return "Meta Ads";
+};
+const originLabel = (c: any) => {
+  const meta = c?.generationMeta ?? {};
+  if (meta.fonte) return "Radar de Mercado";
+  if (meta.canal) return "Diagnostico por canal";
+  if (c?.experimentId) return "Conteudo em teste";
+  return "Estudio";
+};
 
 export default function Aprovacao() {
   const [, navigate] = useLocation();
@@ -62,14 +77,20 @@ export default function Aprovacao() {
         pending.data.map((exp: any) => {
           const selectedIds = exp.variants.filter((v: any) => sel[v.id]).map((v: any) => v.id);
           const budgetDailyCents = budgetByExp[exp.id] ?? 3000;
+          const channels = Array.from(new Set(exp.variants.map((v: any) => channelLabel(v.creative?.channels, exp.channel))));
+          const origins = Array.from(new Set(exp.variants.map((v: any) => originLabel(v.creative))));
           return (
             <div key={exp.id} className="bg-white rounded-xl border border-[#e6ebf3] p-5 shadow-sm mb-6">
               <div className="flex items-start justify-between gap-4 flex-wrap mb-4">
                 <div>
                   <h3 className="text-base font-black text-[#070b17]">{exp.name}</h3>
                   <p className="text-xs text-[#61708a] mt-1">
-                    {selectedIds.length} de {exp.variants.length} posts selecionados · canal {exp.channel}
+                    {selectedIds.length} de {exp.variants.length} posts selecionados para revisao final.
                   </p>
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[#f6f8fc] border border-[#e6ebf3] px-3 py-1 text-[10px] font-black text-[#071b44]"><Layers3 className="w-3 h-3" /> {channels.join(" + ")}</span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-[#fff1ef] border border-[#ffd0c8] px-3 py-1 text-[10px] font-black text-[#ff3217]"><Send className="w-3 h-3" /> {origins.join(" + ")}</span>
+                  </div>
                 </div>
                 <button
                   disabled={selectedIds.length === 0 || approve.isPending}
@@ -119,6 +140,10 @@ export default function Aprovacao() {
                             </span>
                           </div>
                           <div className="p-3 bg-white">
+                            <div className="flex flex-wrap gap-1.5 mb-2">
+                              <span className="text-[9px] font-black text-[#071b44] bg-[#eef4ff] border border-[#dbe8ff] rounded px-1.5 py-0.5">{channelLabel(c.channels, exp.channel)}</span>
+                              <span className="text-[9px] font-black text-[#ff3217] bg-[#fff1ef] border border-[#ffd0c8] rounded px-1.5 py-0.5">{originLabel(c)}</span>
+                            </div>
                             <p className="text-xs text-[#22304b] font-semibold leading-snug min-h-[116px] line-clamp-8">{c.copy}</p>
                             <div className="flex flex-wrap gap-1 mt-2">
                               {c.lente && <Tag>{c.lente}</Tag>}
