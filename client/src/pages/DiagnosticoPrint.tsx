@@ -45,6 +45,8 @@ export default function DiagnosticoPrint() {
   const prof = shown.profile;
   const parecer = shown.parecerEstrategico ?? {};
   const fontes = shown.fontesUsadas ?? [];
+  const metodo = shown.metodoDiagnostico ?? [];
+  const acoesImediatas = shown.acoesImediatas ?? [];
   const prescricoes = shown.prescricoesPorCanal ?? [];
   const timeline = shown.cronogramaMulticanal ?? [];
   const interests = shown.interessesPosts ?? [];
@@ -129,6 +131,37 @@ export default function DiagnosticoPrint() {
           <section className="section">
             <h3>Fontes usadas</h3>
             <div className="grid2">{fontes.map((f: any, i: number) => <Info key={i} title={f.canal} text={f.origem} note={f.sinal} />)}</div>
+          </section>
+        )}
+
+        {metodo.length > 0 && (
+          <section className="section">
+            <h3>Metodo do diagnostico</h3>
+            <div className="grid2">
+              {metodo.map((m: any, i: number) => (
+                <div className="mini" key={i}>
+                  <h4 style={{ color: "#071b44", fontSize: 11.5, fontWeight: 950 }}>{m.etapa}</h4>
+                  <p className="small" style={{ marginTop: 4 }}>{m.leitura}</p>
+                  <p style={{ fontSize: 9.3, color: "#22304b", fontWeight: 750, marginTop: 4 }}><strong>Decisao:</strong> {m.decisao}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {acoesImediatas.length > 0 && (
+          <section className="section">
+            <h3>Acoes imediatas</h3>
+            <div className="grid2">
+              {acoesImediatas.map((a: any, i: number) => (
+                <div className="mini" key={i}>
+                  <span className="pill" style={{ color: "#fff", background: "#ff3217" }}>{a.prioridade}</span>
+                  <h4 style={{ color: "#071b44", fontSize: 12, fontWeight: 950, marginTop: 6 }}>{a.canal}</h4>
+                  <p className="text" style={{ fontSize: 10, marginTop: 4 }}>{a.acao}</p>
+                  <p className="small" style={{ marginTop: 4 }}>{a.motivo}</p>
+                </div>
+              ))}
+            </div>
           </section>
         )}
 

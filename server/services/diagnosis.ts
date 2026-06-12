@@ -118,12 +118,23 @@ export interface CacaPlan {
   linkedin?: string | null;
   redes?: Record<string, string>;
   fontesUsadas?: { canal: string; origem: string; sinal: string; impacto: string; status?: string }[];
+  metodoDiagnostico?: {
+    etapa: string;
+    leitura: string;
+    decisao: string;
+  }[];
   parecerEstrategico?: {
     titulo: string;
     analise: string;
     prescricaoImediata: string;
     radarImpacto?: string;
   };
+  acoesImediatas?: {
+    prioridade: string;
+    canal: string;
+    acao: string;
+    motivo: string;
+  }[];
   prescricoesPorCanal?: {
     canal: "LinkedIn" | "Blog / SEO" | "Instagram" | "TikTok / Reels";
     funcao: string;
@@ -429,6 +440,49 @@ function buildChannelPrescriptions(plan: Partial<CacaPlan>, radar?: any): CacaPl
   ];
 }
 
+function buildDiagnosticMethod(plan: Partial<CacaPlan>, radar?: any): CacaPlan["metodoDiagnostico"] {
+  const sources = plan.fontesUsadas?.length ? plan.fontesUsadas : buildSources(plan, plan.redes ?? {}, radar);
+  const channels = (plan.prescricoesPorCanal ?? buildChannelPrescriptions(plan, radar) ?? []).map(p => p.canal);
+  const sourceNames = sources.map(s => s.canal).join(", ") || "briefing informado";
+  return [
+    {
+      etapa: "1. Coleta multicanal",
+      leitura: `O Agente cruzou ${sourceNames} para evitar uma leitura baseada em um unico canal.`,
+      decisao: "Separar diagnostico de prescricao: primeiro entender o contexto, depois definir o papel de cada canal.",
+    },
+    {
+      etapa: "2. Leitura de mercado",
+      leitura: radar?.marketSummary
+        ? truncate(radar.marketSummary, 260)
+        : "O Radar ainda nao foi usado ou nao possui sinais recentes para este diagnostico.",
+      decisao: radar?.marketSummary
+        ? "Usar o que esta quente como referencia, sem copiar: adaptar mecanismo, linguagem e oportunidade."
+        : "Gerar a primeira prescricao com base no diagnostico e atualizar quando o Radar trouxer sinais vivos.",
+    },
+    {
+      etapa: "3. Prescricao por canal",
+      leitura: channels.length ? `Canais com funcao definida: ${channels.join(", ")}.` : "Os canais principais ainda precisam ser priorizados.",
+      decisao: "Cada canal recebe uma tarefa: autoridade, descoberta, prova social, SEO ou conversao.",
+    },
+    {
+      etapa: "4. Execucao e recalculo",
+      leitura: "O plano vira cronograma, conteudos aprovaveis e acompanhamento semanal.",
+      decisao: "Recalcular o parecer com feedbacks, posts aprovados e resultados de campanha, nao apenas por intuicao.",
+    },
+  ];
+}
+
+function buildImmediateActions(plan: Partial<CacaPlan>, radar?: any): CacaPlan["acoesImediatas"] {
+  const prescriptions = plan.prescricoesPorCanal ?? buildChannelPrescriptions(plan, radar) ?? [];
+  const top = prescriptions.slice(0, 4);
+  return top.map((p, index) => ({
+    prioridade: index === 0 ? "Agora" : index === 1 ? "Proxima acao" : index === 2 ? "Apoio" : "Teste",
+    canal: p.canal,
+    acao: p.conteudos?.[0] || p.funcao,
+    motivo: p.origem ? `Baseado em ${p.origem}. KPI principal: ${p.kpis?.[0] ?? "sinal qualificado"}.` : p.funcao,
+  }));
+}
+
 function buildMultichannelTimeline(plan: Partial<CacaPlan>): CacaPlan["cronogramaMulticanal"] {
   const theme = plan.nicho || plan.produto || "tema central";
   return [
@@ -526,6 +580,8 @@ function enhancePlanV2(plan: CacaPlan, redes: Record<string, string> = {}, radar
   next.fontesUsadas = next.fontesUsadas?.length ? next.fontesUsadas : buildSources(next, next.redes, radar);
   next.linkedin360 = next.linkedin360 ?? buildLinkedIn360(next, next.redes, radar);
   next.prescricoesPorCanal = next.prescricoesPorCanal?.length ? next.prescricoesPorCanal : buildChannelPrescriptions(next, radar);
+  next.metodoDiagnostico = next.metodoDiagnostico?.length ? next.metodoDiagnostico : buildDiagnosticMethod(next, radar);
+  next.acoesImediatas = next.acoesImediatas?.length ? next.acoesImediatas : buildImmediateActions(next, radar);
   next.cronogramaMulticanal = next.cronogramaMulticanal?.length ? next.cronogramaMulticanal : buildMultichannelTimeline(next);
   next.parecerEstrategico = next.parecerEstrategico ?? {
     titulo: "Parecer estrategico",

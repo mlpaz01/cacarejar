@@ -363,7 +363,9 @@ export default function Diagnostico() {
 
   const prof = shown.profile;
   const fontes = shown.fontesUsadas ?? [];
+  const metodo = shown.metodoDiagnostico ?? [];
   const parecer = shown.parecerEstrategico ?? {};
+  const acoesImediatas = shown.acoesImediatas ?? [];
   const prescricoes = shown.prescricoesPorCanal ?? [];
   const timeline = shown.cronogramaMulticanal ?? [];
   const linkedin360 = shown.linkedin360;
@@ -431,6 +433,45 @@ export default function Diagnostico() {
           </div>
         </div>
       </section>
+
+      {metodo.length > 0 && (
+        <section className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
+          <HeaderLine icon={Search} title="Metodo do diagnostico" subtitle="Como o Agente transformou canais, mercado e briefing em uma prescricao." />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-5">
+            {metodo.map((m: any) => (
+              <article key={m.etapa} className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-5">
+                <p className="text-xs font-black text-[#ff3217] uppercase tracking-wide">{m.etapa}</p>
+                <p className="text-sm font-bold text-[#071b44] leading-relaxed mt-2">{m.leitura}</p>
+                <div className="mt-3 rounded-xl bg-white border border-[#e6ebf3] p-3">
+                  <p className="text-[10px] font-black text-[#61708a] uppercase">Decisao</p>
+                  <p className="text-xs font-bold text-[#22304b] leading-relaxed mt-1">{m.decisao}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {acoesImediatas.length > 0 && (
+        <section className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
+          <HeaderLine icon={BadgeCheck} title="Acoes imediatas" subtitle="O que executar primeiro antes de abrir novas frentes." />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-5">
+            {acoesImediatas.map((a: any) => (
+              <article key={`${a.prioridade}-${a.canal}`} className="rounded-2xl border border-[#e6ebf3] bg-white p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-black text-[#ff3217] uppercase">{a.prioridade}</p>
+                    <h3 className="text-lg font-black text-[#071b44] mt-1">{a.canal}</h3>
+                  </div>
+                  <span className="rounded-full bg-[#071b44] text-white text-[10px] font-black px-3 py-1">fazer</span>
+                </div>
+                <p className="text-sm font-bold text-[#22304b] leading-relaxed mt-3">{a.acao}</p>
+                <p className="text-xs text-[#61708a] leading-relaxed mt-2">{a.motivo}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
         <HeaderLine icon={Target} title="Prescricao por canal" subtitle="Cada canal recebe uma funcao clara, conteudos e KPIs proprios." />
