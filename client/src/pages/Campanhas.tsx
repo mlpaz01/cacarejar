@@ -1,4 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
+import { JourneyGuide } from "@/components/JourneyGuide";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ChannelBadge } from "@/components/ui/ChannelBadge";
 import { trpc } from "@/lib/trpc";
@@ -14,6 +15,7 @@ import {
   Pause,
   Archive,
   Eye,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -132,6 +134,18 @@ export default function Campanhas() {
   });
 
   const statusOptions = ["todos", "ativa", "pausada", "rascunho", "concluida", "arquivada"];
+  const totals = (campaigns ?? []).reduce(
+    (acc, campaign) => {
+      const total = parseFloat(String(campaign.budgetTotal ?? 0));
+      const spent = parseFloat(String(campaign.budgetSpent ?? 0));
+      if (campaign.status === "ativa") acc.active += 1;
+      acc.totalBudget += total;
+      acc.spent += spent;
+      return acc;
+    },
+    { active: 0, totalBudget: 0, spent: 0 }
+  );
+  const remaining = Math.max(0, totals.totalBudget - totals.spent);
 
   return (
     <AppLayout
@@ -144,6 +158,32 @@ export default function Campanhas() {
         </Button>
       }
     >
+      <JourneyGuide active="campanhas" />
+
+      <section className="grid grid-cols-1 xl:grid-cols-[1.1fr_.9fr] gap-5 mb-6">
+        <div className="rounded-3xl bg-[#071b44] text-white p-6 shadow-sm">
+          <p className="text-xs font-black text-white/60 uppercase tracking-widest">Sala de controle</p>
+          <h2 className="text-2xl font-black mt-2">Campanhas conectadas ao plano</h2>
+          <p className="text-sm text-white/75 mt-2 max-w-2xl">
+            Acompanhe o que saiu da aprovação, quanto já consumiu e qual canal precisa de ajuste antes de escalar verba.
+          </p>
+          <div className="flex flex-wrap gap-2 mt-5">
+            <Link href="/aprovacao">
+              <a className="rounded-xl bg-white text-[#071b44] px-4 py-2 text-xs font-black inline-flex items-center gap-2">Revisar posts <ArrowRight className="w-3.5 h-3.5" /></a>
+            </Link>
+            <Link href="/metricas">
+              <a className="rounded-xl border border-white/20 text-white px-4 py-2 text-xs font-black inline-flex items-center gap-2">Ver métricas <ArrowRight className="w-3.5 h-3.5" /></a>
+            </Link>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <ControlMetric label="Ativas" value={String(totals.active)} />
+          <ControlMetric label="Verba usada" value={formatCurrency(totals.spent)} />
+          <ControlMetric label="Saldo do plano" value={formatCurrency(remaining)} />
+          <ControlMetric label="Campanhas" value={String(campaigns?.length ?? 0)} />
+        </div>
+      </section>
+
       {/* Filters */}
       <div className="flex items-center gap-3 mb-6">
         <div className="relative flex-1 max-w-xs">
@@ -393,5 +433,14 @@ export default function Campanhas() {
         </DialogContent>
       </Dialog>
     </AppLayout>
+  );
+}
+
+function ControlMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-[#e6ebf3] bg-white p-4 shadow-sm">
+      <p className="text-[10px] font-black uppercase tracking-wide text-[#61708a]">{label}</p>
+      <p className="text-xl font-black text-[#071b44] mt-1">{value}</p>
+    </div>
   );
 }

@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { AppLayout } from "@/components/AppLayout";
+import { JourneyGuide } from "@/components/JourneyGuide";
 import { trpc } from "@/lib/trpc";
 
 type PlannerItem = { texto: string; status: "done" | "todo" | "late" };
@@ -143,6 +144,7 @@ export default function Recalibracao() {
         </div>
       }
     >
+      <JourneyGuide active="acompanhamento" />
       <section className="grid grid-cols-1 xl:grid-cols-[.85fr_1.15fr] gap-5 mb-5">
         <div className="rounded-3xl bg-[#071b44] text-white p-6 shadow-sm">
           <p className="text-xs font-black text-white/60 uppercase tracking-widest">{planner?.ciclo || "Ciclo de execucao"}</p>

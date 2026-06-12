@@ -67,7 +67,11 @@ export default function DiagnosticoPrint() {
         .doc * { box-sizing: border-box; }
         h1, h2, h3, h4, p { margin: 0; }
         p { line-height: 1.48; }
-        .cover { background: linear-gradient(135deg,#071b44,#0d2a5e); color: #fff; border-radius: 16px; padding: 22px; margin-bottom: 12px; break-inside: avoid; }
+        .cover { position: relative; overflow: hidden; background: radial-gradient(circle at 86% 10%, rgba(255,50,23,.28), transparent 30%), linear-gradient(135deg,#06173b,#0d2a5e); color: #fff; border-radius: 20px; padding: 24px; margin-bottom: 12px; break-inside: avoid; }
+        .cover:after { content: ""; position: absolute; right: -35mm; bottom: -35mm; width: 92mm; height: 92mm; border-radius: 50%; border: 1px solid rgba(255,255,255,.12); }
+        .agent-strip { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+        .agent-chip { border: 1px solid rgba(255,255,255,.18); background: rgba(255,255,255,.08); color: rgba(255,255,255,.88); border-radius: 999px; padding: 5px 8px; font-size: 8.8px; font-weight: 950; }
+        .cover-card { margin-top: 16px; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.08); border-radius: 14px; padding: 13px; }
         .section { border: 1px solid #e6ebf3; border-radius: 12px; padding: 14px; margin-bottom: 10px; break-inside: avoid; background: #fff; }
         .section h3 { font-size: 11px; font-weight: 950; color: #ff3217; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 7px; }
         .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -89,15 +93,27 @@ export default function DiagnosticoPrint() {
 
       <main className="doc">
         <section className="cover">
-          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16 }}>
-            <img src="/assets/logo-dark.png" alt="Cacarejar" style={{ height: 58, width: 170, objectFit: "contain" }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16, position: "relative", zIndex: 1 }}>
+            <img src="/assets/logo-dark.png" alt="Cacarejar" style={{ height: 64, width: 190, objectFit: "contain" }} />
             <span style={{ marginLeft: "auto", fontSize: 9, fontWeight: 900, color: "rgba(255,255,255,.72)", border: "1px solid rgba(255,255,255,.18)", borderRadius: 999, padding: "5px 9px" }}>{today}</span>
           </div>
-          <div style={{ width: 42, height: 3, borderRadius: 999, background: "#ff3217", marginBottom: 10 }} />
-          <h1 style={{ color: "#fff", fontSize: 28, lineHeight: 1.05, fontWeight: 950 }}>Parecer estrategico</h1>
-          <p style={{ color: "rgba(255,255,255,.84)", fontSize: 12.5, fontWeight: 650, marginTop: 7 }}>
-            Diagnostico multicanal feito pelo Agente Estrategista{prof?.handle ? ` para @${prof.handle}` : ""}.
-          </p>
+          <div style={{ position: "relative", zIndex: 1 }}>
+            <div style={{ width: 46, height: 3, borderRadius: 999, background: "#ff3217", marginBottom: 10 }} />
+            <h1 style={{ color: "#fff", fontSize: 30, lineHeight: 1.02, fontWeight: 950 }}>Parecer estratégico de crescimento</h1>
+            <p style={{ color: "rgba(255,255,255,.84)", fontSize: 12.5, fontWeight: 650, marginTop: 7, maxWidth: "136mm" }}>
+              Diagnóstico multicanal feito pelo Agente Estrategista{prof?.handle ? ` para @${prof.handle}` : ""}, cruzando canais, Radar de Mercado, Visão 360 e plano de acompanhamento.
+            </p>
+            <div className="agent-strip">
+              <span className="agent-chip">Agente Estrategista</span>
+              <span className="agent-chip">Agente Radar</span>
+              <span className="agent-chip">Visão 360 LinkedIn</span>
+              <span className="agent-chip">Acompanhamento</span>
+            </div>
+            <div className="cover-card">
+              <p style={{ fontSize: 9, color: "rgba(255,255,255,.6)", fontWeight: 950, textTransform: "uppercase", letterSpacing: ".04em" }}>Foco do plano</p>
+              <p style={{ fontSize: 12, color: "#fff", fontWeight: 850, marginTop: 4 }}>{parecer.prescricaoImediata || shown.objetivoPrincipal || "Executar a primeira semana, medir sinais por canal e recalcular a rota com dados reais."}</p>
+            </div>
+          </div>
         </section>
 
         <section className="section" style={{ background: "#fbfcff" }}>

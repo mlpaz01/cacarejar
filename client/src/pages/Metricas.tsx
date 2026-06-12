@@ -1,4 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
+import { JourneyGuide } from "@/components/JourneyGuide";
 import { ChannelBadge } from "@/components/ui/ChannelBadge";
 import { trpc } from "@/lib/trpc";
 import { useState, useMemo } from "react";
@@ -19,8 +20,9 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { BarChart3, TrendingUp, MousePointerClick, Eye, ShoppingCart, DollarSign } from "lucide-react";
+import { BarChart3, TrendingUp, MousePointerClick, Eye, ShoppingCart, DollarSign, RefreshCcw, ArrowRight } from "lucide-react";
 import { MetricCard } from "@/components/ui/MetricCard";
+import { Link } from "wouter";
 
 const CHANNEL_COLORS: Record<string, string> = {
   linkedin: "oklch(0.62 0.22 240)",
@@ -131,12 +133,22 @@ export default function Metricas() {
 
   const roi = totals.spend > 0 ? ((totals.revenue - totals.spend) / totals.spend) * 100 : 0;
   const ctr = totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : 0;
+  const cpl = totals.conversions > 0 ? totals.spend / totals.conversions : 0;
+  const leitura = totals.impressions === 0
+    ? "Ainda não há volume suficiente. Aprove posts, publique campanhas e volte para medir a primeira leitura."
+    : ctr < 0.8
+      ? "O alcance existe, mas o gancho ainda não está puxando clique. Priorize teste de promessa, primeira frase e imagem."
+      : totals.conversions === 0
+        ? "Os criativos chamam atenção, mas a conversão ainda não apareceu. Revise oferta, página e CTA."
+        : "Já existe sinal de conversão. A próxima decisão é proteger o vencedor e reduzir verba dos criativos fracos.";
 
   return (
     <AppLayout
       title="Métricas & Resultados"
       subtitle="Análise de performance por canal, campanha e período"
     >
+      <JourneyGuide active="metricas" />
+
       {/* Period selector */}
       <div className="flex items-center gap-3 mb-6">
         <div className="flex items-center gap-1.5">
@@ -182,6 +194,29 @@ export default function Metricas() {
         <MetricCard label="CTR" value={`${ctr.toFixed(2)}%`} icon={MousePointerClick} loading={isLoading} />
         <MetricCard label="CPC Médio" value={totals.clicks > 0 ? formatCurrency(totals.spend / totals.clicks) : "R$ 0"} icon={BarChart3} loading={isLoading} />
       </div>
+
+      <section className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+        <div className="lg:col-span-2 rounded-3xl bg-[#071b44] text-white p-6 shadow-sm">
+          <p className="text-xs font-black text-white/60 uppercase tracking-widest">Leitura do Agente</p>
+          <h2 className="text-2xl font-black mt-2">O que os números estão dizendo</h2>
+          <p className="text-sm text-white/80 mt-3 leading-relaxed">{leitura}</p>
+          <div className="flex flex-wrap gap-2 mt-5">
+            <Link href="/recalibracao">
+              <a className="rounded-xl bg-white text-[#071b44] px-4 py-2 text-xs font-black inline-flex items-center gap-2">
+                Abrir acompanhamento <ArrowRight className="w-3.5 h-3.5" />
+              </a>
+            </Link>
+          </div>
+        </div>
+        <div className="rounded-3xl border border-[#e6ebf3] bg-white p-6 shadow-sm">
+          <RefreshCcw className="w-5 h-5 text-[#ff3217] mb-3" />
+          <p className="text-xs font-black text-[#61708a] uppercase tracking-wide">Próxima decisão</p>
+          <p className="text-lg font-black text-[#071b44] mt-2">{cpl > 0 ? `CPL atual: ${formatCurrency(cpl)}` : "Aguardando conversão"}</p>
+          <p className="text-sm text-[#61708a] mt-2">
+            Use esta leitura no check-in para recalcular o plano com dados reais, não só intenção.
+          </p>
+        </div>
+      </section>
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">

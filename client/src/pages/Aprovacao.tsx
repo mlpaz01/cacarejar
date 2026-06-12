@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
+import { JourneyGuide } from "@/components/JourneyGuide";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
@@ -65,6 +66,7 @@ export default function Aprovacao() {
 
   return (
     <AppLayout title="Revisar e publicar" subtitle="A última conferência antes dos Agentes colocarem dinheiro em mídia.">
+      <JourneyGuide active="aprovacao" />
       {pending.isLoading ? (
         <p className="text-sm text-[#61708a]">Carregando...</p>
       ) : !pending.data || pending.data.length === 0 ? (

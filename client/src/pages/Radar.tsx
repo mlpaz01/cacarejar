@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { AppLayout } from "@/components/AppLayout";
+import { JourneyGuide } from "@/components/JourneyGuide";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import {
@@ -206,6 +207,7 @@ export default function Radar() {
       }
     >
       {SearchBar}
+      <JourneyGuide active="radar" compact />
 
       {plan?.linkedin360 && (
         <div className="bg-white rounded-xl border border-[#e6ebf3] p-5 shadow-sm mb-5">
@@ -222,7 +224,7 @@ export default function Radar() {
               Ver parecer completo
             </button>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {(plan.linkedin360.niveis ?? []).map((nivel: any) => (
               <div key={nivel.nivel} className="rounded-xl border border-[#e6ebf3] bg-[#fbfcff] p-4">
                 <p className="text-[10px] font-black text-[#ff3217] uppercase tracking-wide">{nivel.nivel}</p>
@@ -241,7 +243,7 @@ export default function Radar() {
             ))}
           </div>
           {!!plan.linkedin360.publicosAnuncio?.length && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mt-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-4">
               {plan.linkedin360.publicosAnuncio.map((p: any) => (
                 <div key={p.nome} className="rounded-xl border border-[#e6ebf3] bg-white p-4">
                   <p className="text-xs font-black text-[#071b44]">{p.nome}</p>

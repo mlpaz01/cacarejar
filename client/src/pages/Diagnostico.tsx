@@ -28,6 +28,7 @@ import {
 import { toast } from "sonner";
 import { AppLayout } from "@/components/AppLayout";
 import { AnalysisProgress, pickDiagnosisSteps, RADAR_STEPS } from "@/components/AnalysisProgress";
+import { JourneyGuide } from "@/components/JourneyGuide";
 import { trpc } from "@/lib/trpc";
 
 const OBJETIVOS = [
@@ -391,6 +392,8 @@ export default function Diagnostico() {
         </div>
       }
     >
+      <JourneyGuide active="diagnostico" />
+
       {scanRadar.isPending && (
         <div className="max-w-3xl mx-auto mb-5">
           <AnalysisProgress steps={RADAR_STEPS} active title="Atualizando Radar de Mercado..." subtitle="O Agente Radar esta buscando sinais quentes para reforcar o parecer." />
