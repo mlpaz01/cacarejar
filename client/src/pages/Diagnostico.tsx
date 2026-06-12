@@ -523,6 +523,35 @@ export default function Diagnostico() {
                 <ChipBox title="Cargos" items={linkedin360.cargos} />
                 <ChipBox title="Tecnologias" items={linkedin360.tecnologias} />
               </div>
+              {!!linkedin360.publicosAnuncio?.length && (
+                <div className="mt-5">
+                  <p className="text-xs font-black text-[#ff3217] uppercase tracking-wide">Publicos para LinkedIn Ads</p>
+                  <div className="grid grid-cols-1 gap-3 mt-3">
+                    {linkedin360.publicosAnuncio.map((p: any) => (
+                      <div key={p.nome} className="rounded-2xl border border-[#e6ebf3] bg-white p-4">
+                        <h3 className="text-sm font-black text-[#071b44]">{p.nome}</h3>
+                        <p className="text-xs text-[#22304b] font-bold leading-relaxed mt-2">{p.mensagem}</p>
+                        <div className="flex flex-wrap gap-1.5 mt-3">{(p.alvo ?? []).map((a: string) => <Tag key={a}>{a}</Tag>)}</div>
+                        <p className="text-[11px] text-[#61708a] font-bold mt-3"><span className="text-[#ff3217]">Oferta:</span> {p.oferta}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {!!linkedin360.mensagensPorNivel?.length && (
+                <div className="mt-5">
+                  <p className="text-xs font-black text-[#ff3217] uppercase tracking-wide">Mensagem por nivel</p>
+                  <div className="space-y-2 mt-3">
+                    {linkedin360.mensagensPorNivel.map((m: any) => (
+                      <div key={m.nivel} className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-4">
+                        <p className="text-xs font-black text-[#071b44]">{m.nivel} - {m.abordagem}</p>
+                        <p className="text-xs text-[#61708a] leading-relaxed mt-2"><b>Conteudo:</b> {m.conteudo}</p>
+                        <p className="text-xs text-[#61708a] leading-relaxed mt-1"><b>Anuncio:</b> {m.anuncio}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           ) : <EmptyText>Informe LinkedIn ou rode o Radar para enriquecer esta visao.</EmptyText>}
         </div>

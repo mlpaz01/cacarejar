@@ -240,6 +240,17 @@ export default function Radar() {
               <span key={item} className="text-[10px] font-black text-[#071b44] bg-white border border-[#e6ebf3] rounded-full px-3 py-1">{item}</span>
             ))}
           </div>
+          {!!plan.linkedin360.publicosAnuncio?.length && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mt-4">
+              {plan.linkedin360.publicosAnuncio.map((p: any) => (
+                <div key={p.nome} className="rounded-xl border border-[#e6ebf3] bg-white p-4">
+                  <p className="text-xs font-black text-[#071b44]">{p.nome}</p>
+                  <p className="text-[11px] text-[#61708a] leading-snug mt-2">{p.mensagem}</p>
+                  <p className="text-[10px] text-[#ff3217] font-black mt-2">{p.oferta}</p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

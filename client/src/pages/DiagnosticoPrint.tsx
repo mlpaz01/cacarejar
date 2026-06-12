@@ -201,6 +201,17 @@ export default function DiagnosticoPrint() {
                 <span key={item} className="pill" style={{ color: "#071b44", background: "#fff", border: "1px solid #e6ebf3" }}>{item}</span>
               ))}
             </div>
+            {!!linkedin360.publicosAnuncio?.length && (
+              <div className="grid2" style={{ marginTop: 8 }}>
+                {linkedin360.publicosAnuncio.slice(0, 4).map((p: any, i: number) => (
+                  <div className="mini" key={i}>
+                    <h4 style={{ color: "#071b44", fontSize: 11.5, fontWeight: 950 }}>{p.nome}</h4>
+                    <p className="small" style={{ marginTop: 4 }}>{p.mensagem}</p>
+                    <p style={{ fontSize: 9.2, color: "#22304b", fontWeight: 750, marginTop: 4 }}><strong>Oferta:</strong> {p.oferta}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
         )}
 

@@ -156,6 +156,8 @@ export interface CacaPlan {
     areasAfins: string[];
     cargos: string[];
     tecnologias: string[];
+    publicosAnuncio?: { nome: string; alvo: string[]; mensagem: string; oferta: string }[];
+    mensagensPorNivel?: { nivel: string; abordagem: string; conteudo: string; anuncio: string }[];
   };
   acompanhamento?: {
     ciclo: string;
@@ -352,6 +354,15 @@ function buildLinkedIn360(plan: Partial<CacaPlan>, redes: Record<string, string>
   const targeting = Array.from(new Set(interesses.flatMap(i => i.targeting ?? []))).slice(0, 8);
   const techInterest = interesses.find(i => i.categoria === "tecnologia");
   const riskInterest = interesses.find(i => i.nome.toLowerCase().includes("seguranca"));
+  const produto = plan.produto || empresa;
+  const dor = interesses.find(i => i.categoria === "dor")?.nome || "dor operacional";
+  const autoridade = interesses.find(i => i.categoria === "persona")?.nome || "prova social e autoridade";
+  const cargos = ["CEO", "COO", "CTO", "Gerente de Operacoes", "Gestor de TI", "Compras B2B"];
+  const tecnologias = [
+    techInterest ? techInterest.nome : "Automacao e produtividade",
+    riskInterest ? riskInterest.nome : "Dados, compliance e confianca",
+    "Integracoes, CRM e processos digitais",
+  ];
   return {
     empresa,
     niveis: [
@@ -372,11 +383,47 @@ function buildLinkedIn360(plan: Partial<CacaPlan>, redes: Record<string, string>
       },
     ],
     areasAfins: targeting.length ? targeting : ["Operacoes", "Tecnologia", "Administracao", "Seguranca", "Marketing B2B"],
-    cargos: ["CEO", "COO", "CTO", "Gerente de Operacoes", "Gestor de TI", "Compras B2B"],
-    tecnologias: [
-      techInterest ? techInterest.nome : "Automacao e produtividade",
-      riskInterest ? riskInterest.nome : "Dados, compliance e confianca",
-      "Integracoes, CRM e processos digitais",
+    cargos,
+    tecnologias,
+    publicosAnuncio: [
+      {
+        nome: "Decisor economico",
+        alvo: ["CEO", "Diretor", "Fundador", "Socio", ...targeting.slice(0, 2)].slice(0, 6),
+        mensagem: `Mostre o custo de nao resolver ${dor} e traduza em impacto financeiro claro.`,
+        oferta: "Diagnostico executivo ou conversa consultiva.",
+      },
+      {
+        nome: "Gestor operacional",
+        alvo: ["Operacoes", "Administracao", "Gestores de area", ...tecnologias.slice(0, 2)].slice(0, 6),
+        mensagem: `Fale de processo, retrabalho, risco e ganho pratico com ${produto}.`,
+        oferta: "Checklist, comparativo ou simulacao rapida.",
+      },
+      {
+        nome: "Influenciador tecnico",
+        alvo: ["Tecnologia", "TI", "Dados", "Compliance", ...cargos.slice(1, 3)].slice(0, 6),
+        mensagem: `Use linguagem tecnica suficiente para gerar confianca sem virar jargao.`,
+        oferta: "Guia tecnico, artigo pilar ou prova de conceito.",
+      },
+    ],
+    mensagensPorNivel: [
+      {
+        nivel: "Nivel 1",
+        abordagem: "Autoridade propria",
+        conteudo: `Publicar tese do fundador/empresa sobre ${dor}, com exemplo concreto e CTA para diagnostico.`,
+        anuncio: "Anuncio com dor reconhecida + promessa especifica + prova simples.",
+      },
+      {
+        nivel: "Nivel 2",
+        abordagem: "Prova por ecossistema",
+        conteudo: `Conectar ${autoridade} com parceiros, clientes, cases e conversas em perfis relacionados.`,
+        anuncio: "Anuncio com comparativo, antes/depois ou validacao por setor.",
+      },
+      {
+        nivel: "Nivel 3",
+        abordagem: "Expansao adjacente",
+        conteudo: `Traduzir ${produto} para areas afins: ${targeting.slice(0, 3).join(", ") || "operacoes, tecnologia e gestao"}.`,
+        anuncio: "Campanhas segmentadas por cargo/area, cada uma com dor e CTA especificos.",
+      },
     ],
   };
 }
@@ -578,7 +625,12 @@ function enhancePlanV2(plan: CacaPlan, redes: Record<string, string> = {}, radar
   const next: CacaPlan = { ...plan, redes: { ...(plan.redes ?? {}), ...redes } };
   next.interessesPosts = inferPostInterests(next, next.profile, radar);
   next.fontesUsadas = next.fontesUsadas?.length ? next.fontesUsadas : buildSources(next, next.redes, radar);
-  next.linkedin360 = next.linkedin360 ?? buildLinkedIn360(next, next.redes, radar);
+  if (!next.linkedin360 || !next.linkedin360.publicosAnuncio?.length || !next.linkedin360.mensagensPorNivel?.length) {
+    next.linkedin360 = { ...(buildLinkedIn360(next, next.redes, radar) ?? {}), ...(next.linkedin360 ?? {}) } as CacaPlan["linkedin360"];
+    const freshLinkedin = buildLinkedIn360(next, next.redes, radar);
+    next.linkedin360.publicosAnuncio = next.linkedin360.publicosAnuncio?.length ? next.linkedin360.publicosAnuncio : freshLinkedin?.publicosAnuncio;
+    next.linkedin360.mensagensPorNivel = next.linkedin360.mensagensPorNivel?.length ? next.linkedin360.mensagensPorNivel : freshLinkedin?.mensagensPorNivel;
+  }
   next.prescricoesPorCanal = next.prescricoesPorCanal?.length ? next.prescricoesPorCanal : buildChannelPrescriptions(next, radar);
   next.metodoDiagnostico = next.metodoDiagnostico?.length ? next.metodoDiagnostico : buildDiagnosticMethod(next, radar);
   next.acoesImediatas = next.acoesImediatas?.length ? next.acoesImediatas : buildImmediateActions(next, radar);
