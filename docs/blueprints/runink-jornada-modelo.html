@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cacarejar - Jornada modelo Runink</title>
+  <style>
+    :root {
+      --navy: #071b44;
+      --navy2: #0d2a5e;
+      --red: #ff3217;
+      --red2: #ff6b4a;
+      --pink: #f33572;
+      --green: #18b85c;
+      --line: #e6ebf3;
+      --muted: #61708a;
+      --bg: #f4f7fb;
+      --ink: #070b17;
+      --card: #ffffff;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body { padding: 28px; }
+    h1, h2, h3, p { margin: 0; }
+    .deck { max-width: 1440px; margin: 0 auto; display: grid; gap: 28px; }
+    .slide { background: #fff; border: 1px solid var(--line); border-radius: 28px; overflow: hidden; box-shadow: 0 18px 60px rgba(7, 27, 68, .08); min-height: 820px; }
+    .slide-head { height: 92px; display: flex; align-items: center; justify-content: space-between; padding: 0 34px; border-bottom: 1px solid var(--line); background: rgba(255,255,255,.92); }
+    .brand { display: flex; align-items: center; gap: 16px; }
+    .brand img { height: 54px; width: 176px; object-fit: contain; }
+    .brand h1 { font-size: 22px; font-weight: 950; letter-spacing: -.01em; }
+    .brand p { font-size: 14px; color: var(--muted); margin-top: 3px; font-weight: 600; }
+    .pill { display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; padding: 8px 13px; border: 1px solid var(--line); background: #fff; font-size: 12px; font-weight: 900; color: var(--navy); white-space: nowrap; }
+    .pill.red { color: var(--red); background: #fff1ef; border-color: #ffd0c8; }
+    .pill.green { color: #087a32; background: #eafff1; border-color: #bfeccb; }
+    .pill.dark { color: #fff; background: var(--navy); border-color: var(--navy); }
+    .btn { border: 0; border-radius: 15px; background: linear-gradient(135deg, var(--red2), var(--pink)); color: #fff; padding: 14px 20px; font-weight: 950; box-shadow: 0 16px 30px rgba(255,50,23,.16); }
+    .btn.blue { background: var(--navy); box-shadow: none; }
+    .btn.white { background: #fff; color: var(--navy); border: 1px solid var(--line); box-shadow: none; }
+    .screen { padding: 34px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+    .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .card { background: #fff; border: 1px solid var(--line); border-radius: 22px; padding: 22px; box-shadow: 0 10px 28px rgba(7, 27, 68, .05); }
+    .soft { background: #fbfcff; }
+    .dark { background: linear-gradient(135deg, var(--navy), var(--navy2)); color: #fff; border: 0; }
+    .kicker { font-size: 12px; color: var(--red); font-weight: 950; text-transform: uppercase; letter-spacing: .04em; }
+    .title { font-size: 28px; font-weight: 950; line-height: 1.05; color: var(--navy); margin-top: 8px; }
+    .dark .title, .dark h2, .dark h3 { color: #fff; }
+    .copy { color: #22304b; font-weight: 650; line-height: 1.5; margin-top: 12px; font-size: 15px; }
+    .muted { color: var(--muted); font-weight: 650; line-height: 1.45; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
+    .hero { display: grid; grid-template-columns: 1fr 460px; gap: 22px; align-items: stretch; }
+    .profile { display: flex; align-items: center; gap: 20px; min-height: 160px; }
+    .avatar { width: 86px; height: 86px; border-radius: 28px; background: rgba(255,255,255,.12); display: grid; place-items: center; font-size: 40px; }
+    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .metric { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.16); border-radius: 18px; padding: 16px; text-align: center; }
+    .metric small { color: rgba(255,255,255,.68); font-size: 11px; font-weight: 900; text-transform: uppercase; }
+    .metric b { display: block; font-size: 24px; margin-top: 4px; }
+    .source { display: grid; grid-template-columns: 104px 1fr; gap: 12px; padding: 13px; border: 1px solid var(--line); background: #fbfcff; border-radius: 16px; margin-top: 10px; }
+    .timeline { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .week { border: 1px solid var(--line); background: #fbfcff; border-radius: 18px; padding: 18px; min-height: 210px; }
+    .week h3 { color: var(--navy); font-size: 17px; margin: 12px 0; }
+    .bullet { font-size: 13px; line-height: 1.45; color: #22304b; font-weight: 650; margin-top: 8px; }
+    .heat { height: 210px; border-radius: 20px; background: linear-gradient(135deg, #081a41, #142f66); position: relative; overflow: hidden; }
+    .heat:before { content: ""; position: absolute; width: 180px; height: 180px; border-radius: 50%; background: radial-gradient(circle, rgba(255,50,23,.8), rgba(255,50,23,0)); left: 38px; top: 24px; }
+    .heat:after { content: ""; position: absolute; width: 240px; height: 240px; border-radius: 50%; background: radial-gradient(circle, rgba(24,184,92,.55), rgba(24,184,92,0)); right: 12px; bottom: -44px; }
+    .post { overflow: hidden; padding: 0; }
+    .thumb { height: 210px; background: linear-gradient(135deg, #dae7f8, #fff); display: grid; place-items: center; font-size: 46px; }
+    .post-body { padding: 16px; }
+    .approval-card { display: grid; grid-template-columns: 190px 1fr; gap: 16px; align-items: stretch; }
+    .preview { background: linear-gradient(135deg, #e7eef9, #ffffff); border-radius: 18px; display: grid; place-items: center; font-size: 44px; min-height: 150px; }
+    .progress { height: 12px; border-radius: 999px; background: #edf1f7; overflow: hidden; }
+    .progress span { display: block; height: 100%; background: linear-gradient(90deg, var(--red), var(--pink)); }
+    .qa-list { display: grid; gap: 12px; }
+    .qa-row { display: grid; grid-template-columns: 34px 1fr 120px; gap: 12px; align-items: center; border: 1px solid var(--line); border-radius: 16px; padding: 14px; background: #fbfcff; }
+    .step-number { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 50%; background: #fff1ef; color: var(--red); font-weight: 950; }
+    .caption { margin-top: 16px; padding: 14px 18px; background: #071b44; color: #fff; border-radius: 18px; font-size: 14px; font-weight: 750; line-height: 1.45; }
+    @media (max-width: 1100px) {
+      body { padding: 14px; }
+      .hero, .grid2, .grid3, .grid4, .timeline { grid-template-columns: 1fr; }
+      .slide { min-height: auto; }
+    }
+  </style>
+</head>
+<body>
+  <main class="deck">
+    <section class="slide" id="slide-01">
+      <header class="slide-head">
+        <div class="brand">
+          <img src="../../client/public/assets/logo-dark.png" alt="Cacarejar" />
+          <div><h1>1. Diagnóstico guiado</h1><p>Runink entra com site, LinkedIn, Instagram e TikTok.</p></div>
+        </div>
+        <span class="pill red">Começo da jornada</span>
+      </header>
+      <div class="screen">
+        <div class="hero">
+          <div class="card dark profile">
+            <div class="avatar">R</div>
+            <div style="flex:1">
+              <p class="kicker">Cliente modelo</p>
+              <h2 style="font-size:32px">@linkedin.com/company/runink</h2>
+              <p style="color:rgba(255,255,255,.76);font-weight:700;margin-top:8px">Consultoria B2B em tecnologia, processos e transformação digital.</p>
+              <div class="metrics" style="margin-top:22px">
+                <div class="metric"><small>Base</small><b>LinkedIn</b></div>
+                <div class="metric"><small>Site</small><b>SEO</b></div>
+                <div class="metric"><small>Social</small><b>IG/TikTok</b></div>
+                <div class="metric"><small>Radar</small><b>Ativo</b></div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <p class="kicker">Nova experiência</p>
+            <h2 class="title">O usuário entende o que informar e o que vai mudar</h2>
+            <p class="copy">Antes de gerar, a tela explica que o Agente vai cruzar canais diferentes. LinkedIn não recebe a mesma prescrição do TikTok; site vira apoio de autoridade e SEO.</p>
+            <div class="source"><span class="pill">Site</span><p class="muted">Base de autoridade, blog, landing e termos técnicos.</p></div>
+            <div class="source"><span class="pill">LinkedIn</span><p class="muted">Decisores, 3 níveis de rede, públicos e linguagem B2B.</p></div>
+            <div class="source"><span class="pill">Radar</span><p class="muted">O que está quente e o que deve ou não entrar no parecer.</p></div>
+          </div>
+        </div>
+        <div class="caption">História: “A Runink não quer só posts; quer um plano por canal. O diagnóstico deixa claro de onde vem cada conclusão.”</div>
+      </div>
+    </section>
+
+    <section class="slide" id="slide-02">
+      <header class="slide-head">
+        <div class="brand">
+          <img src="../../client/public/assets/logo-dark.png" alt="Cacarejar" />
+          <div><h1>2. Parecer + prescrição</h1><p>O resultado deixa de ser texto solto e vira método.</p></div>
+        </div>
+        <button class="btn">Gerar posts para aprovação</button>
+      </header>
+      <div class="screen">
+        <div class="grid2">
+          <div class="card">
+            <p class="kicker">Parecer estratégico</p>
+            <h2 class="title">A Runink precisa transformar autoridade técnica em conversa comercial</h2>
+            <p class="copy">O LinkedIn deve construir tese e autoridade. O site precisa sustentar notoriedade com artigos e termos técnicos. Instagram e Reels entram como prova social, bastidores e cortes simples.</p>
+            <div class="card dark" style="margin-top:18px;border-radius:18px">
+              <p class="kicker" style="color:#ff8a72">Prescrição imediata</p>
+              <p style="font-weight:850;line-height:1.45;margin-top:8px">Publicar uma tese por semana, um artigo pilar de apoio e transformar os melhores ângulos em criativos aprováveis.</p>
+            </div>
+          </div>
+          <div class="card soft">
+            <p class="kicker">Método do diagnóstico</p>
+            <div class="qa-list" style="margin-top:16px">
+              <div class="qa-row"><span class="step-number">1</span><p><b>Coleta multicanal</b><br><span class="muted">Site, LinkedIn, Instagram e briefing.</span></p><span class="pill green">ok</span></div>
+              <div class="qa-row"><span class="step-number">2</span><p><b>Leitura de mercado</b><br><span class="muted">Radar mostra padrões quentes.</span></p><span class="pill green">ok</span></div>
+              <div class="qa-row"><span class="step-number">3</span><p><b>Prescrição por canal</b><br><span class="muted">Cada canal recebe função própria.</span></p><span class="pill green">ok</span></div>
+              <div class="qa-row"><span class="step-number">4</span><p><b>Execução e recalculo</b><br><span class="muted">Acompanhamento ajusta a rota.</span></p><span class="pill">próximo</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="grid4" style="margin-top:20px">
+          <div class="card"><p class="kicker">LinkedIn</p><h3>Autoridade B2B</h3><p class="muted">Tese, cases, comentários estratégicos.</p></div>
+          <div class="card"><p class="kicker">Blog / SEO</p><h3>Respaldar notoriedade</h3><p class="muted">Artigo pilar, FAQ, comparativos.</p></div>
+          <div class="card"><p class="kicker">Instagram</p><h3>Prova social</h3><p class="muted">Bastidores, carrossel, depoimentos.</p></div>
+          <div class="card"><p class="kicker">TikTok / Reels</p><h3>Descoberta</h3><p class="muted">Analogias curtas e cortes didáticos.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" id="slide-03">
+      <header class="slide-head">
+        <div class="brand">
+          <img src="../../client/public/assets/logo-dark.png" alt="Cacarejar" />
+          <div><h1>3. Visão 360 LinkedIn</h1><p>Pessoas, públicos, tecnologias e mensagens para anúncio.</p></div>
+        </div>
+        <span class="pill dark">LinkedIn Ads pronto</span>
+      </header>
+      <div class="screen">
+        <div class="grid3">
+          <div class="card soft"><p class="kicker">Nível 1</p><h2 class="title">Ativos próprios</h2><p class="copy">Fundadores, página da empresa, site, promessa central e autoridade técnica da Runink.</p></div>
+          <div class="card soft"><p class="kicker">Nível 2</p><h2 class="title">Ecossistema próximo</h2><p class="copy">Clientes, parceiros, concorrentes comparáveis e profissionais que comentam temas parecidos.</p></div>
+          <div class="card soft"><p class="kicker">Nível 3</p><h2 class="title">Adjacências</h2><p class="copy">Operações, transformação digital, compliance, produtividade, gestores e compradores B2B.</p></div>
+        </div>
+        <div class="grid3" style="margin-top:22px">
+          <div class="card"><p class="kicker">Público 1</p><h3>Decisor econômico</h3><p class="copy">CEO, fundador e diretor. Mensagem: custo de não transformar processos.</p><span class="pill red">Diagnóstico executivo</span></div>
+          <div class="card"><p class="kicker">Público 2</p><h3>Gestor operacional</h3><p class="copy">Operações e administração. Mensagem: retrabalho, eficiência e ganho prático.</p><span class="pill red">Checklist</span></div>
+          <div class="card"><p class="kicker">Público 3</p><h3>Influenciador técnico</h3><p class="copy">TI, dados e compliance. Mensagem: segurança, integração e processo real.</p><span class="pill red">Artigo pilar</span></div>
+        </div>
+        <div class="caption">História: “A Runink agora sabe com quem falar no LinkedIn, que dor usar e qual oferta colocar para cada público.”</div>
+      </div>
+    </section>
+
+    <section class="slide" id="slide-04">
+      <header class="slide-head">
+        <div class="brand">
+          <img src="../../client/public/assets/logo-dark.png" alt="Cacarejar" />
+          <div><h1>4. Radar com feedback</h1><p>O mercado entra na conclusão, não fica isolado.</p></div>
+        </div>
+        <button class="btn blue">Usar feedbacks no diagnóstico</button>
+      </header>
+      <div class="screen">
+        <div class="grid2">
+          <div class="card dark">
+            <p class="kicker" style="color:#ff8a72">O que está quente</p>
+            <h2 style="font-size:28px;line-height:1.15">Conteúdo B2B performa quando mostra transformação real, custo invisível e rosto humano.</h2>
+            <p style="color:rgba(255,255,255,.76);font-weight:700;margin-top:14px">O Agente Radar traduz padrões vencedores para o contexto da Runink.</p>
+          </div>
+          <div class="heat"></div>
+        </div>
+        <div class="grid4" style="margin-top:22px">
+          <div class="card post"><div class="thumb">📊</div><div class="post-body"><p class="kicker">96 hot</p><h3>Custo invisível</h3><p class="muted">Gostei: entra como referência.</p><span class="pill green">Gostei</span></div></div>
+          <div class="card post"><div class="thumb">👤</div><div class="post-body"><p class="kicker">91 hot</p><h3>Rosto + tese</h3><p class="muted">Gostei: usar linguagem humana.</p><span class="pill green">Gostei</span></div></div>
+          <div class="card post"><div class="thumb">🧾</div><div class="post-body"><p class="kicker">82 hot</p><h3>Checklist técnico</h3><p class="muted">Agente decide.</p><span class="pill">Aberto</span></div></div>
+          <div class="card post"><div class="thumb">🎯</div><div class="post-body"><p class="kicker">55 hot</p><h3>Genérico</h3><p class="muted">Não gostei: remove da rota.</p><span class="pill red">Não gostei</span></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" id="slide-05">
+      <header class="slide-head">
+        <div class="brand">
+          <img src="../../client/public/assets/logo-dark.png" alt="Cacarejar" />
+          <div><h1>5. Aprovação como central</h1><p>Conteúdos por canal, origem e decisão de verba.</p></div>
+        </div>
+        <button class="btn">Aprovar e publicar</button>
+      </header>
+      <div class="screen">
+        <div class="grid2">
+          <div class="card approval-card">
+            <div class="preview">💼</div>
+            <div>
+              <span class="pill">LinkedIn</span> <span class="pill red">Diagnóstico por canal</span>
+              <h3 style="font-size:22px;margin-top:12px">O custo invisível da transformação digital mal conduzida</h3>
+              <p class="copy">Copy longa B2B com tese, dado, consequência e CTA para diagnóstico executivo.</p>
+              <div style="margin-top:16px"><span class="pill green">Aprovar</span> <span class="pill">Editar / regerar</span></div>
+            </div>
+          </div>
+          <div class="card approval-card">
+            <div class="preview">🧠</div>
+            <div>
+              <span class="pill">Blog / SEO</span> <span class="pill red">Radar de Mercado</span>
+              <h3 style="font-size:22px;margin-top:12px">Checklist: 7 sinais de retrabalho em processos digitais</h3>
+              <p class="copy">Artigo pilar para sustentar anúncio e criar autoridade técnica.</p>
+              <div style="margin-top:16px"><span class="pill green">Aprovar</span> <span class="pill">Editar / regerar</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="grid3" style="margin-top:22px">
+          <div class="card"><p class="kicker">Verba diária</p><h2 class="title">R$ 60</h2><p class="muted">Teto inicial do teste.</p></div>
+          <div class="card"><p class="kicker">Posts ativos</p><h2 class="title">4</h2><p class="muted">Cada um começa com R$ 15/dia.</p></div>
+          <div class="card"><p class="kicker">Critérios</p><h2 class="title">CTR · CPL · Conversão</h2><p class="muted">Depois o Agente redistribui a verba.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" id="slide-06">
+      <header class="slide-head">
+        <div class="brand">
+          <img src="../../client/public/assets/logo-dark.png" alt="Cacarejar" />
+          <div><h1>6. Campanhas e métricas</h1><p>O que ainda vamos reforçar agora.</p></div>
+        </div>
+        <span class="pill red">Próxima implementação</span>
+      </header>
+      <div class="screen">
+        <div class="grid2">
+          <div class="card">
+            <p class="kicker">Tela de campanhas</p>
+            <h2 class="title">Status, verba e vencedor por campanha</h2>
+            <p class="copy">A tela deve mostrar campanhas aprovadas, em revisão, ativas, pausadas e vencedoras. Cada uma precisa explicar quanto recebeu, qual criativo venceu e por que a verba foi movida.</p>
+            <div class="qa-list" style="margin-top:18px">
+              <div class="qa-row"><span class="step-number">1</span><p><b>Em revisão</b><br><span class="muted">Agentes conferem marca, política e performance.</span></p><span class="pill">status</span></div>
+              <div class="qa-row"><span class="step-number">2</span><p><b>Em teste</b><br><span class="muted">Verba dividida igualmente no início.</span></p><span class="pill">R$</span></div>
+              <div class="qa-row"><span class="step-number">3</span><p><b>Vencedor</b><br><span class="muted">Verba migra para melhor sinal.</span></p><span class="pill green">ovo</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <p class="kicker">Métricas conectadas</p>
+            <h2 class="title">Diagnóstico aprende com resultado real</h2>
+            <p class="copy">Métricas não podem ser uma ilha. Elas precisam voltar para Acompanhamento e atualizar a prescrição.</p>
+            <div style="margin-top:22px">
+              <p class="muted"><b>CTR:</b> se baixo, trocar gancho e imagem.</p>
+              <p class="muted" style="margin-top:10px"><b>CPL:</b> se alto, ajustar público e oferta.</p>
+              <p class="muted" style="margin-top:10px"><b>Conversão:</b> se baixa, revisar landing/CTA.</p>
+              <p class="muted" style="margin-top:10px"><b>Comentários:</b> viram temas para novo artigo e posts.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" id="slide-07">
+      <header class="slide-head">
+        <div class="brand">
+          <img src="../../client/public/assets/logo-dark.png" alt="Cacarejar" />
+          <div><h1>7. Acompanhamento</h1><p>Planner vivo, check-ins e recalculo da rota.</p></div>
+        </div>
+        <button class="btn blue">Recalcular com evolução</button>
+      </header>
+      <div class="screen">
+        <div class="grid2">
+          <div class="card dark">
+            <p class="kicker" style="color:#ff8a72">Ciclo de 30 dias</p>
+            <h2 style="font-size:64px;line-height:1;margin-top:10px">42%</h2>
+            <p style="font-weight:850;color:rgba(255,255,255,.8);margin-top:8px">7 de 16 ações concluídas</p>
+            <div class="progress" style="margin-top:20px;background:rgba(255,255,255,.16)"><span style="width:42%"></span></div>
+            <p style="font-weight:750;color:rgba(255,255,255,.76);margin-top:22px">Próximo foco: publicar artigo pilar e rodar teste com público decisor.</p>
+          </div>
+          <div class="card">
+            <p class="kicker">Histórico de check-ins</p>
+            <div class="qa-list" style="margin-top:16px">
+              <div class="qa-row"><span class="step-number">0</span><p><b>Semana 0</b><br><span class="muted">Runink sem calendário de tese e sem artigo pilar.</span></p><span class="pill">base</span></div>
+              <div class="qa-row"><span class="step-number">2</span><p><b>Semana 2</b><br><span class="muted">3 posts publicados, 1 tema gerou comentários de gestores.</span></p><span class="pill green">evoluiu</span></div>
+              <div class="qa-row"><span class="step-number">4</span><p><b>Semana 4</b><br><span class="muted">Campanha ativa, CPL ainda alto, ajustar oferta.</span></p><span class="pill red">ajustar</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="timeline" style="margin-top:22px">
+          <div class="week"><span class="pill dark">Semana 1</span><h3>Dor central</h3><p class="bullet">LinkedIn: tese.</p><p class="bullet">Blog: artigo pilar.</p></div>
+          <div class="week"><span class="pill dark">Semana 2</span><h3>Prova</h3><p class="bullet">Comparativo antes/depois.</p><p class="bullet">Primeiro teste pago.</p></div>
+          <div class="week"><span class="pill dark">Semana 3</span><h3>Autoridade</h3><p class="bullet">Guia técnico.</p><p class="bullet">Refazer Radar.</p></div>
+          <div class="week"><span class="pill dark">Semana 4</span><h3>Conversão</h3><p class="bullet">Remarketing.</p><p class="bullet">Novo parecer.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" id="slide-08">
+      <header class="slide-head">
+        <div class="brand">
+          <img src="../../client/public/assets/logo-dark.png" alt="Cacarejar" />
+          <div><h1>8. PDF premium + QA</h1><p>Entrega comercial para cliente e rotina de revisão visual.</p></div>
+        </div>
+        <span class="pill dark">Fechamento da demo</span>
+      </header>
+      <div class="screen">
+        <div class="grid2">
+          <div class="card">
+            <p class="kicker">PDF executivo</p>
+            <h2 class="title">Relatório que parece consultoria, não print de sistema</h2>
+            <p class="copy">Capa premium, sumário executivo, método, fontes, prescrições, Visão 360, Radar, cronograma, campanhas e acompanhamento.</p>
+            <div class="grid2" style="margin-top:20px">
+              <div class="card soft"><h3>Capa</h3><p class="muted">Cliente, data, objetivo e agente.</p></div>
+              <div class="card soft"><h3>Plano</h3><p class="muted">Parecer, ações e cronograma.</p></div>
+              <div class="card soft"><h3>Mercado</h3><p class="muted">Radar, feedbacks e oportunidades.</p></div>
+              <div class="card soft"><h3>Evolução</h3><p class="muted">Check-ins, métricas e próximos passos.</p></div>
+            </div>
+          </div>
+          <div class="card">
+            <p class="kicker">QA antes da apresentação</p>
+            <h2 class="title">Roteiro de teste com a Runink</h2>
+            <div class="qa-list" style="margin-top:18px">
+              <div class="qa-row"><span class="step-number">1</span><p><b>Criar diagnóstico</b><br><span class="muted">Confirmar fontes e método.</span></p><span class="pill green">desktop</span></div>
+              <div class="qa-row"><span class="step-number">2</span><p><b>Rodar Radar</b><br><span class="muted">Marcar gostei/não gostei.</span></p><span class="pill green">mobile</span></div>
+              <div class="qa-row"><span class="step-number">3</span><p><b>Enviar para aprovação</b><br><span class="muted">Editar um criativo e aprovar verba.</span></p><span class="pill green">ok</span></div>
+              <div class="qa-row"><span class="step-number">4</span><p><b>Check-in</b><br><span class="muted">Registrar evolução e exportar PDF.</span></p><span class="pill green">ok</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="caption">História final: “A Runink entrou com links soltos e saiu com parecer, públicos, posts aprováveis, plano de campanha, acompanhamento e relatório executivo.”</div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
