@@ -205,6 +205,8 @@ export default function Diagnostico() {
       if (!uniqueIds.length) throw new Error("Nenhum conteudo foi gerado para aprovacao");
       await sendApproval.mutateAsync({ creativeIds: uniqueIds, name: "Conteudos por canal do diagnostico" });
       await Promise.allSettled([utils.diagnosis.get.invalidate(), utils.radar.get.invalidate()]);
+      toast.success("Conteudos preparados para aprovacao.");
+      navigate("/aprovacao");
     } catch (e: any) {
       toast.error(e?.message || "Erro ao preparar conteudos");
     } finally {

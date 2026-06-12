@@ -209,7 +209,7 @@ export default function DiagnosticoPrint() {
           <section className="section">
             <h3>Radar de Mercado no diagnostico</h3>
             {rd?.marketSummary && <p className="text" style={{ marginBottom: 8 }}>{rd.marketSummary}</p>}
-            <div className="grid3">
+            <div className="grid2">
               {hotHits.map((h: any, i: number) => {
                 const decision = liked.has(hitKey(h)) ? "gostei" : disliked.has(hitKey(h)) ? "nao gostei" : "sem feedback";
                 return (

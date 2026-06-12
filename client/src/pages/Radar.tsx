@@ -293,8 +293,8 @@ export default function Radar() {
                 <h4 className="text-xs font-black text-[#ff3217] uppercase tracking-wide mb-2 flex items-center gap-1.5">
                   <BarChart3 className="w-3.5 h-3.5" /> Padroes vencedores detectados
                 </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-                  {data.patterns.slice(0, 5).map((p: any, i: number) => (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                  {data.patterns.slice(0, 4).map((p: any, i: number) => (
                     <div key={i} className="rounded-xl border border-[#e6ebf3] p-4 bg-[#fbfcff]">
                       <div className="flex items-start justify-between gap-2 mb-2">
                         <h5 className="text-sm font-black text-[#071b44] leading-snug">{p.title}</h5>
@@ -469,7 +469,7 @@ export default function Radar() {
                 </div>
               </div>
               <p className="text-[11px] text-[#61708a] mb-3">Cada ideia adapta um hit do mercado para a sua marca. Marque seus feedbacks; os posts sao gerados direto em Revisar e publicar.</p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {data.ideas.map((it: any, i: number) => {
                   const gen = genIdea.isPending && (genIdea.variables as any)?.index === i;
                   const decision = it.diagnosisDecision ?? "agent";
