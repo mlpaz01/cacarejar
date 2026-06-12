@@ -169,6 +169,7 @@ export interface CacaPlan {
     semanas: { semana: string; itens: { texto: string; status: "done" | "todo" | "late" }[] }[];
     metricasCampanha: { canal: string; titulo: string; metricas: { nome: string; valor: string }[]; leitura: string }[];
     novaPrescricao: string;
+    feedbacks?: { at: number; texto: string }[];
   };
 }
 
@@ -1323,6 +1324,26 @@ export async function updateAcompanhamento(orgId: number, acompanhamentoPatch: a
       { at: Date.now(), texto: feedback.trim() },
     ].slice(-12);
     next.novaPrescricao = `Feedback registrado: ${truncate(feedback.trim(), 180)}. Recalcule o diagnostico com esse contexto quando quiser ajustar a rota.`;
+  }
+  const shouldSnapshot = !!feedback?.trim() || next.progresso !== current.progresso || done !== current.conteudos?.feitos;
+  if (shouldSnapshot) {
+    const label = `Check-in ${new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}`;
+    const clarity = Math.min(100, 45 + Math.round(next.progresso * 0.35));
+    const consistency = Math.min(100, 35 + Math.round((done / Math.max(1, total)) * 55));
+    const authority = Math.min(100, 40 + Math.round(done * 3.5));
+    const snapshot = {
+      label,
+      resumo: feedback?.trim()
+        ? truncate(feedback.trim(), 260)
+        : `${done} de ${total} acoes marcadas como feitas no planner.`,
+      scores: [
+        { nome: "Clareza de posicionamento", valor: clarity },
+        { nome: "Consistencia por canal", valor: consistency },
+        { nome: "Base de autoridade", valor: authority },
+      ],
+    };
+    const snapshots = Array.isArray(next.snapshots) ? next.snapshots : [];
+    next.snapshots = [...snapshots, snapshot].slice(-6);
   }
 
   const updatedPlan = enhancePlanV2({ ...plan, acompanhamento: next }, row.redes ?? {}, row.radarJson);

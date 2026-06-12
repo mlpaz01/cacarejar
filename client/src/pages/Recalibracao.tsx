@@ -240,20 +240,36 @@ export default function Recalibracao() {
       </section>
 
       <section className="bg-white rounded-3xl border border-[#e6ebf3] p-6 shadow-sm">
-        <h2 className="text-xl font-black text-[#070b17] flex items-center gap-2"><Sparkles className="w-5 h-5 text-[#ff3217]" /> Snapshots de evolucao</h2>
-        <p className="text-sm text-[#61708a] mt-1">Compare a foto inicial com o check-in para saber se a prescricao esta melhorando a execucao.</p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
-          {(planner?.snapshots ?? []).map((snap: any) => (
-            <div key={snap.label} className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-5">
-              <h3 className="text-base font-black text-[#071b44]">{snap.label}</h3>
-              <p className="text-sm text-[#61708a] mt-2 line-clamp-5">{snap.resumo}</p>
-              <div className="space-y-3 mt-4">
-                {(snap.scores ?? []).map((score: any) => (
-                  <Score key={score.nome} label={score.nome} value={score.valor} />
-                ))}
+        <h2 className="text-xl font-black text-[#070b17] flex items-center gap-2"><Sparkles className="w-5 h-5 text-[#ff3217]" /> Evolucao registrada</h2>
+        <p className="text-sm text-[#61708a] mt-1">Compare a foto inicial com os check-ins para saber se a prescricao esta melhorando a execucao.</p>
+        <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-5 mt-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {(planner?.snapshots ?? []).map((snap: any) => (
+              <div key={snap.label} className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-5">
+                <h3 className="text-base font-black text-[#071b44]">{snap.label}</h3>
+                <p className="text-sm text-[#61708a] mt-2 line-clamp-5">{snap.resumo}</p>
+                <div className="space-y-3 mt-4">
+                  {(snap.scores ?? []).map((score: any) => (
+                    <Score key={score.nome} label={score.nome} value={score.valor} />
+                  ))}
+                </div>
               </div>
+            ))}
+          </div>
+          <aside className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-5 h-fit">
+            <h3 className="text-sm font-black text-[#071b44]">Historico de check-ins</h3>
+            <p className="text-xs text-[#61708a] mt-1">Cada registro vira contexto para o Agente recalcular a rota.</p>
+            <div className="space-y-3 mt-4">
+              {((planner?.feedbacks ?? []) as any[]).length ? (planner.feedbacks ?? []).slice().reverse().map((f: any) => (
+                <div key={`${f.at}-${f.texto}`} className="rounded-xl border border-[#e6ebf3] bg-white p-3">
+                  <p className="text-[10px] font-black text-[#ff3217]">{new Date(f.at).toLocaleString("pt-BR")}</p>
+                  <p className="text-xs font-bold text-[#22304b] leading-relaxed mt-1">{f.texto}</p>
+                </div>
+              )) : (
+                <p className="text-xs text-[#61708a] rounded-xl border border-dashed border-[#d8e0ec] bg-white p-4">Ainda nao ha check-ins. Escreva o que foi executado e salve para criar a primeira foto de evolucao.</p>
+              )}
             </div>
-          ))}
+          </aside>
         </div>
       </section>
     </AppLayout>
