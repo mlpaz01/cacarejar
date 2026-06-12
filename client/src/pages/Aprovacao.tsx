@@ -79,6 +79,7 @@ export default function Aprovacao() {
           const budgetDailyCents = budgetByExp[exp.id] ?? 3000;
           const channels = Array.from(new Set(exp.variants.map((v: any) => channelLabel(v.creative?.channels, exp.channel))));
           const origins = Array.from(new Set(exp.variants.map((v: any) => originLabel(v.creative))));
+          const perPostDailyCents = selectedIds.length ? Math.floor(budgetDailyCents / selectedIds.length) : 0;
           return (
             <div key={exp.id} className="bg-white rounded-xl border border-[#e6ebf3] p-5 shadow-sm mb-6">
               <div className="flex items-start justify-between gap-4 flex-wrap mb-4">
@@ -213,11 +214,32 @@ export default function Aprovacao() {
                       className="w-full border border-[#e6ebf3] rounded-lg px-3 py-2 text-sm font-bold bg-white focus:outline-none focus:border-[#ff3217]"
                     />
                   </div>
+                  <div className="mt-4 rounded-lg bg-white border border-[#e6ebf3] p-3">
+                    <p className="text-xs font-black text-[#071b44] flex items-center gap-1.5"><Coins className="w-3.5 h-3.5 text-[#ff3217]" /> Distribuicao inicial</p>
+                    <div className="grid grid-cols-2 gap-2 mt-3">
+                      <div className="rounded-lg bg-[#f6f8fc] p-2">
+                        <p className="text-[10px] font-black text-[#61708a] uppercase">Posts ativos</p>
+                        <p className="text-lg font-black text-[#071b44]">{selectedIds.length}</p>
+                      </div>
+                      <div className="rounded-lg bg-[#f6f8fc] p-2">
+                        <p className="text-[10px] font-black text-[#61708a] uppercase">Cada um inicia</p>
+                        <p className="text-lg font-black text-[#071b44]">{selectedIds.length ? brl(perPostDailyCents) : "-"}</p>
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-[#61708a] leading-relaxed mt-3">
+                      O teste comeca equilibrado. Depois, os Agentes comparam resultado antes de puxar verba para o vencedor.
+                    </p>
+                  </div>
                   <div className="mt-4 rounded-lg bg-[#071b44] text-white p-3">
                     <p className="text-xs font-black flex items-center gap-1.5"><TrendingUp className="w-3.5 h-3.5 text-[#ff8a72]" /> Como a verba é dividida?</p>
                     <p className="text-[11px] leading-relaxed mt-1 text-white/85">
                       No começo, os {selectedIds.length || 0} posts recebem partes iguais de {brl(budgetDailyCents)}/dia. Depois, o motor mede resultado e puxa mais verba para o post vencedor, mantendo um piso de teste para os outros.
                     </p>
+                  </div>
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    <span className="rounded-lg bg-white border border-[#e6ebf3] px-2 py-2 text-[10px] font-black text-center text-[#071b44]">CTR</span>
+                    <span className="rounded-lg bg-white border border-[#e6ebf3] px-2 py-2 text-[10px] font-black text-center text-[#071b44]">CPL</span>
+                    <span className="rounded-lg bg-white border border-[#e6ebf3] px-2 py-2 text-[10px] font-black text-center text-[#071b44]">Conversao</span>
                   </div>
                   <div className="mt-3 rounded-lg bg-white border border-[#e6ebf3] p-3">
                     <p className="text-xs font-black text-[#071b44] flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5 text-[#18b85c]" /> Para que serve aprovar?</p>
