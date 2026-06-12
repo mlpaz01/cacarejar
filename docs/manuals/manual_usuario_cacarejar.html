@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <title>Manual do usuário - Cacarejar</title>
+  <style>
+    @page { size: A4; margin: 14mm 13mm; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, Arial, sans-serif;
+      color: #22304b;
+      background: #fff;
+      font-size: 11.2pt;
+      line-height: 1.45;
+    }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: 30pt; line-height: 1.02; color: #fff; letter-spacing: -0.02em; }
+    h2 { font-size: 16pt; color: #071b44; margin: 14mm 0 4mm; break-after: avoid; }
+    h3 { font-size: 11.5pt; color: #ff3217; margin: 6mm 0 2mm; break-after: avoid; }
+    p { margin-bottom: 3mm; }
+    ul, ol { margin-top: 1mm; margin-bottom: 4mm; padding-left: 6mm; }
+    li { margin: 1.4mm 0; }
+    .cover {
+      min-height: 252mm;
+      border-radius: 18px;
+      padding: 18mm;
+      color: #fff;
+      background: radial-gradient(circle at 88% 10%, rgba(255,50,23,.32), transparent 32%), linear-gradient(135deg,#06173b,#0d2a5e);
+      position: relative;
+      overflow: hidden;
+      page-break-after: always;
+    }
+    .cover:after {
+      content: "";
+      position: absolute;
+      right: -30mm;
+      bottom: -28mm;
+      width: 92mm;
+      height: 92mm;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,.16);
+    }
+    .logo { width: 58mm; height: auto; margin-bottom: 32mm; }
+    .eyebrow { color: #ff6d54; font-weight: 900; text-transform: uppercase; font-size: 10pt; letter-spacing: .08em; margin-bottom: 3mm; }
+    .subtitle { color: rgba(255,255,255,.84); font-size: 14pt; max-width: 145mm; margin-top: 5mm; }
+    .cover-card { margin-top: 14mm; border: 1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.08); border-radius: 14px; padding: 6mm; max-width: 150mm; }
+    .cover-meta { display: grid; grid-template-columns: 30mm 1fr; gap: 0; margin-top: 15mm; max-width: 135mm; border: 1px solid rgba(255,255,255,.16); border-radius: 12px; overflow: hidden; }
+    .cover-meta div { padding: 3mm 4mm; border-bottom: 1px solid rgba(255,255,255,.12); }
+    .cover-meta div:nth-child(odd) { color: rgba(255,255,255,.65); font-weight: 900; background: rgba(255,255,255,.06); }
+    .cover-meta div:nth-last-child(-n+2) { border-bottom: 0; }
+    .section { break-inside: avoid; }
+    .callout {
+      border: 1px solid #ffd0c8;
+      background: #fff1ef;
+      border-radius: 12px;
+      padding: 4mm;
+      margin: 4mm 0;
+      break-inside: avoid;
+    }
+    .callout strong { color: #ff3217; }
+    .note {
+      border: 1px solid #dbe4ef;
+      background: #f8fafc;
+      border-radius: 12px;
+      padding: 4mm;
+      margin: 4mm 0;
+      break-inside: avoid;
+    }
+    .agent-grid, .metric-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3mm;
+      margin: 4mm 0;
+    }
+    .card {
+      border: 1px solid #dbe4ef;
+      background: #fbfcff;
+      border-radius: 12px;
+      padding: 4mm;
+      break-inside: avoid;
+    }
+    .card-title { color: #071b44; font-weight: 900; margin-bottom: 1mm; }
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      margin: 4mm 0 5mm;
+      break-inside: avoid;
+      font-size: 9.5pt;
+    }
+    th, td { border-right: 1px solid #dbe4ef; border-bottom: 1px solid #dbe4ef; padding: 2.6mm 3mm; vertical-align: top; }
+    th:first-child, td:first-child { border-left: 1px solid #dbe4ef; }
+    th { background: #e8eef5; color: #071b44; font-weight: 900; border-top: 1px solid #dbe4ef; }
+    tr:first-child th:first-child { border-top-left-radius: 9px; }
+    tr:first-child th:last-child { border-top-right-radius: 9px; }
+    tr:last-child td:first-child { border-bottom-left-radius: 9px; }
+    tr:last-child td:last-child { border-bottom-right-radius: 9px; }
+    td:first-child { color: #071b44; font-weight: 800; }
+    .flow-table td:first-child { text-align: center; color: #ff3217; font-weight: 950; width: 10mm; }
+    .toc {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3mm;
+      margin-top: 4mm;
+    }
+    .toc div { border: 1px solid #dbe4ef; border-radius: 10px; padding: 3mm; color: #071b44; font-weight: 800; background: #fbfcff; }
+    .footer-space { height: 6mm; }
+  </style>
+</head>
+<body>
+  <section class="cover">
+    <img class="logo" src="../../client/public/assets/logo-dark.png" alt="Cacarejar" />
+    <p class="eyebrow">Manual do usuário</p>
+    <h1>Cacarejar</h1>
+    <p class="subtitle">Fluxo de uso, funcionalidades e boas práticas para transformar diagnóstico em execução, campanha e aprendizado.</p>
+    <div class="cover-card">
+      <p><strong>Resumo:</strong> o Cacarejar organiza a jornada em seis momentos: Diagnóstico, Radar de Mercado, Aprovação, Campanhas, Métricas e Acompanhamento.</p>
+    </div>
+    <div class="cover-meta">
+      <div>Versão</div><div>1.0</div>
+      <div>Data</div><div>Junho de 2026</div>
+      <div>Público</div><div>Usuários, administradores, sócios e novos operadores da plataforma</div>
+    </div>
+  </section>
+
+  <h2>Sumário operacional</h2>
+  <div class="toc">
+    <div>1. Visão geral da jornada</div>
+    <div>2. Papéis dos Agentes</div>
+    <div>3. Diagnóstico</div>
+    <div>4. Radar de Mercado</div>
+    <div>5. Ideias e criativos</div>
+    <div>6. Aprovação</div>
+    <div>7. Campanhas e Métricas</div>
+    <div>8. Acompanhamento e checklist</div>
+  </div>
+
+  <h2>1. Visão geral da jornada</h2>
+  <p>O Cacarejar foi desenhado para reduzir passos: primeiro ele entende o negócio, depois encontra sinais de mercado, transforma isso em conteúdo editável, organiza aprovação, acompanha campanhas e usa os resultados para recalcular a rota.</p>
+  <table class="flow-table">
+    <tr><th>Etapa</th><th>Tela</th><th>O que o usuário faz</th><th>O que o Cacarejar entrega</th></tr>
+    <tr><td>1</td><td>Diagnóstico</td><td>Inserir site, Instagram, TikTok, LinkedIn e contexto do negócio.</td><td>Parecer estratégico, prescrição por canal e cronograma.</td></tr>
+    <tr><td>2</td><td>Radar de Mercado</td><td>Pesquisar o que está quente, marcar gostei/não gostei e retroalimentar.</td><td>Ideias e referências reais para melhorar o plano.</td></tr>
+    <tr><td>3</td><td>Aprovação</td><td>Revisar posts sugeridos, editar quando necessário e aprovar verba.</td><td>Conteúdos liberados para campanha com orçamento claro.</td></tr>
+    <tr><td>4</td><td>Campanhas</td><td>Acompanhar o que foi publicado e quanto está sendo investido.</td><td>Controle operacional da execução.</td></tr>
+    <tr><td>5</td><td>Métricas</td><td>Ler CTR, cliques, conversões, CPL e sinais por canal.</td><td>Decisão sobre o que manter, pausar ou escalar.</td></tr>
+    <tr><td>6</td><td>Acompanhamento</td><td>Registrar check-ins, evolução e aprendizados da semana.</td><td>Plano recalculado com dados reais.</td></tr>
+  </table>
+  <div class="note"><strong>Regra de ouro:</strong> não trate as telas como módulos soltos. O valor aparece quando o diagnóstico, o Radar, os feedbacks, a aprovação e as métricas conversam entre si.</div>
+
+  <h2>2. Papéis dos Agentes</h2>
+  <p>A plataforma usa o termo Agentes porque cada área tem uma responsabilidade clara na jornada. O usuário não precisa dominar marketing técnico; ele precisa orientar, revisar e aprovar as decisões importantes.</p>
+  <div class="agent-grid">
+    <div class="card"><p class="card-title">Agente Estrategista</p><p>Transforma os dados do negócio em diagnóstico, parecer, prescrição e cronograma.</p></div>
+    <div class="card"><p class="card-title">Agente Radar</p><p>Busca sinais de mercado, posts quentes, padrões vencedores e oportunidades.</p></div>
+    <div class="card"><p class="card-title">Agente Criativo</p><p>Gera posts, copies, roteiros, direção de arte e imagens editáveis.</p></div>
+    <div class="card"><p class="card-title">Agente de Mídia</p><p>Organiza aprovação, verba, campanhas, métricas e leitura de performance.</p></div>
+  </div>
+
+  <h2>3. Diagnóstico</h2>
+  <p>A tela de Diagnóstico é o ponto de partida. O usuário informa as fontes disponíveis do negócio: site, Instagram, TikTok, LinkedIn e uma descrição do que vende. O resultado combina essas referências para gerar uma leitura estratégica.</p>
+  <h3>O que preencher</h3>
+  <ul>
+    <li>Instagram, TikTok e LinkedIn quando existirem. Se o LinkedIn for importante para venda B2B, ele deve ser informado.</li>
+    <li>Site ou página de venda para o Agente entender promessa, produto e autoridade.</li>
+    <li>Descrição do produto, público e objetivo atual: vender mais, gerar leads, crescer seguidores ou lançar produto.</li>
+    <li>Contexto opcional: cliente ideal, campanhas que funcionaram, restrições, preço, diferenciais e dúvidas comerciais.</li>
+  </ul>
+  <h3>Como ler o resultado</h3>
+  <table>
+    <tr><th>Bloco</th><th>Como usar</th></tr>
+    <tr><td>Parecer</td><td>Leitura central do negócio: onde há oportunidade, risco e prioridade.</td></tr>
+    <tr><td>Prescrição por canal</td><td>O que fazer no LinkedIn, Instagram, TikTok, Google/SEO ou outro canal relevante.</td></tr>
+    <tr><td>Visão 360 LinkedIn</td><td>Pessoas, áreas, tecnologias e níveis de conexão úteis para conteúdo e anúncios B2B.</td></tr>
+    <tr><td>Interesses pelos posts</td><td>Temas inferidos a partir do Radar e das ideias marcadas.</td></tr>
+    <tr><td>Cronograma</td><td>Execução por semana, com ações concretas e metas de aprendizado.</td></tr>
+  </table>
+
+  <h2>4. Radar de Mercado</h2>
+  <p>O Radar mostra o que está quente no nicho. Ele não serve apenas para copiar referências; serve para descobrir padrões, dores, formatos e ângulos que podem melhorar o diagnóstico e os conteúdos.</p>
+  <h3>Como operar</h3>
+  <ol>
+    <li>Abra o Radar a partir do menu ou pelo Diagnóstico.</li>
+    <li>Se houver diagnóstico ativo, o Radar usa esse perfil como base. Se não houver perfil, informe perfis inspiradores manualmente.</li>
+    <li>Abra posts para avaliar contexto e marque Gostei ou Não gostei diretamente nos cards.</li>
+    <li>Use Feedback para refazer a pesquisa quando quiser manter bons sinais e remover referências fracas.</li>
+    <li>Depois de marcar os sinais úteis, use os feedbacks do Radar no Diagnóstico.</li>
+  </ol>
+  <div class="callout"><strong>Boa prática:</strong> marque posts, não apenas influenciadores. A variedade melhora quando o Radar aprende quais conteúdos realmente combinam com a marca.</div>
+
+  <h2>5. Ideias e criativos</h2>
+  <p>As ideias nascem do cruzamento entre estratégia, Radar e identidade da marca. Elas podem virar posts com imagem, copy, hashtags, CTA e roteiro.</p>
+  <table>
+    <tr><th>Ação</th><th>Quando usar</th></tr>
+    <tr><td>Gerar posts para aprovação</td><td>Quando o diagnóstico já está bom e o usuário quer transformar plano em execução.</td></tr>
+    <tr><td>Editar / regerar</td><td>Quando a ideia está certa, mas a imagem, texto, CTA ou formato precisa de ajuste.</td></tr>
+    <tr><td>Enviar para aprovação</td><td>Quando o criativo está pronto para virar campanha ou publicação revisada.</td></tr>
+    <tr><td>Subir imagem própria</td><td>Quando a marca já tem visual, foto ou peça aprovada internamente.</td></tr>
+  </table>
+
+  <h2>6. Aprovação</h2>
+  <p>A aprovação é a última conferência antes de colocar conteúdo e verba em movimento. Ela existe para dar controle ao usuário sem transformar a jornada em burocracia.</p>
+  <h3>O que revisar</h3>
+  <ul>
+    <li>Imagem ou criativo visual.</li>
+    <li>Legenda/copy e CTA.</li>
+    <li>Canal indicado pelo plano.</li>
+    <li>Origem do post: Diagnóstico, Radar, Estúdio ou conteúdo em teste.</li>
+    <li>Verba diária e distribuição inicial entre os posts aprovados.</li>
+  </ul>
+  <div class="callout"><strong>Como a verba é pensada:</strong> no início, os posts aprovados recebem partes equilibradas. Com dados reais, o motor direciona mais verba para vencedores e reduz desperdício nos fracos.</div>
+
+  <h2>7. Campanhas e Métricas</h2>
+  <p>A tela Campanhas é a sala de controle. Métricas responde à pergunta: o mercado está reagindo? As duas telas devem ser usadas juntas para decidir se o plano precisa de ajuste.</p>
+  <div class="metric-grid">
+    <div class="card"><p class="card-title">Campanhas</p><p>Mostra campanhas ativas, verba usada, saldo planejado, status e canais em execução.</p></div>
+    <div class="card"><p class="card-title">Métricas</p><p>Mostra impressões, cliques, conversões, investimento, receita, CTR, CPC e leitura do Agente.</p></div>
+  </div>
+  <table>
+    <tr><th>Métrica</th><th>Como interpretar</th></tr>
+    <tr><td>Impressões</td><td>Se o público está vendo a campanha.</td></tr>
+    <tr><td>CTR</td><td>Se o gancho e a imagem estão chamando atenção.</td></tr>
+    <tr><td>Cliques</td><td>Se há interesse suficiente para avançar.</td></tr>
+    <tr><td>Conversões</td><td>Se a oferta e o funil estão funcionando.</td></tr>
+    <tr><td>CPL / CPC</td><td>Quanto custa gerar oportunidade ou tráfego.</td></tr>
+  </table>
+  <div class="note"><strong>Leitura prática:</strong> métrica sem ação não muda o negócio. Use a leitura do Agente para decidir se deve trocar criativo, ajustar oferta, pausar, escalar ou recalibrar.</div>
+
+  <h2>8. Acompanhamento</h2>
+  <p>Acompanhamento transforma o diagnóstico em planner. O usuário registra o que foi executado, marca itens como feito/a fazer/atrasado e informa aprendizados da semana.</p>
+  <h3>Rotina recomendada</h3>
+  <ul>
+    <li>Semana 0: gerar diagnóstico e aprovar primeiros posts.</li>
+    <li>Semana 1: publicar, iniciar campanha e registrar execução.</li>
+    <li>Semana 2: comparar primeiros sinais e recalcular com evolução.</li>
+    <li>Semanas seguintes: repetir check-in, preservar vencedores e testar novas hipóteses.</li>
+  </ul>
+
+  <h2>9. Checklist rápido</h2>
+  <ul>
+    <li>O perfil correto está ativo no Diagnóstico?</li>
+    <li>As fontes do negócio estão preenchidas: site, LinkedIn, Instagram, TikTok e contexto?</li>
+    <li>O Radar foi atualizado para o nicho certo?</li>
+    <li>Os posts relevantes foram marcados com Gostei e os fracos com Não gostei?</li>
+    <li>Os feedbacks do Radar foram usados no Diagnóstico?</li>
+    <li>Os posts gerados foram revisados e enviados para Aprovação?</li>
+    <li>A verba diária foi definida conscientemente?</li>
+    <li>As métricas foram usadas no Acompanhamento antes de recalcular a rota?</li>
+  </ul>
+
+  <h2>10. Perguntas frequentes</h2>
+  <table>
+    <tr><th>Pergunta</th><th>Resposta</th></tr>
+    <tr><td>Posso usar só um canal?</td><td>Sim. Mas o diagnóstico fica melhor quando cruza várias fontes.</td></tr>
+    <tr><td>Por que marcar Gostei/Não gostei?</td><td>Porque o Agente aprende preferências reais do usuário e melhora a próxima rodada.</td></tr>
+    <tr><td>O Radar substitui o diagnóstico?</td><td>Não. Ele alimenta o diagnóstico com sinais de mercado.</td></tr>
+    <tr><td>Aprovação é obrigatória?</td><td>Ela é recomendada para controlar conteúdo, marca e verba antes de campanha.</td></tr>
+    <tr><td>Quando recalcular?</td><td>Depois de feedbacks importantes, nova pesquisa de Radar ou primeira leitura de métricas.</td></tr>
+  </table>
+  <div class="footer-space"></div>
+</body>
+</html>
