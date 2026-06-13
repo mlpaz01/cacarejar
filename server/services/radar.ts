@@ -26,6 +26,85 @@ const FREE_REFINES = 3;
 const REFINE_COST_CC = 10;
 const cleanHandle = (h: string) => (h || "").trim().replace(/^@/, "").replace(/^https?:\/\/(www\.)?instagram\.com\//i, "").replace(/\/$/, "").toLowerCase();
 const nf = (n?: number) => (typeof n === "number" ? n.toLocaleString("pt-BR") : "-");
+const stripAccents = (s: string) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+const lowerPlain = (s: string) => stripAccents(s).toLowerCase();
+
+function linkedinSlug(raw?: string) {
+  const value = (raw || "").trim();
+  if (!value) return "";
+  try {
+    const url = value.startsWith("http") ? new URL(value) : new URL(`https://${value}`);
+    const parts = url.pathname.split("/").filter(Boolean);
+    const marker = parts.findIndex(p => ["in", "company", "school", "showcase"].includes(p.toLowerCase()));
+    return (marker >= 0 ? parts[marker + 1] : parts[0] || "").toLowerCase();
+  } catch {
+    return value.replace(/^@/, "").replace(/^linkedin\.com\//i, "").split(/[/?#]/)[0].toLowerCase();
+  }
+}
+
+function siteHost(raw?: string) {
+  const value = (raw || "").trim();
+  if (!value) return "";
+  try {
+    const url = value.startsWith("http") ? new URL(value) : new URL(`https://${value}`);
+    return url.hostname.replace(/^www\./, "").toLowerCase();
+  } catch {
+    return value.replace(/^https?:\/\//i, "").replace(/^www\./i, "").split("/")[0].toLowerCase();
+  }
+}
+
+function planRedes(plan: any) {
+  return { ...(plan?.redes ?? {}), ...(plan?._redes ?? {}) } as Record<string, string>;
+}
+
+function baseContext(plan: any) {
+  const redes = planRedes(plan);
+  const ig = cleanHandle(plan?.profile?.handle || redes.instagram || "");
+  if (ig) return { key: `instagram:${ig}`, label: `@${ig}`, source: "Instagram", ownHandle: ig };
+  const li = linkedinSlug(plan?.linkedin || redes.linkedin || "");
+  if (li) return { key: `linkedin:${li}`, label: `LinkedIn /${li}`, source: "LinkedIn", ownHandle: "" };
+  const host = siteHost(redes.site || plan?.site?.url || "");
+  if (host) return { key: `site:${host}`, label: host, source: "Site", ownHandle: "" };
+  return { key: "", label: "", source: "", ownHandle: "" };
+}
+
+function sourceSeed(plan: any) {
+  const redes = planRedes(plan);
+  return lowerPlain([
+    plan?.produto,
+    plan?.nicho,
+    plan?.sumarioExecutivo,
+    plan?.resumoDiagnostico,
+    plan?.linkedin,
+    redes.linkedin,
+    linkedinSlug(plan?.linkedin || redes.linkedin),
+    redes.site,
+    plan?.site?.url,
+    plan?.site?.title,
+    plan?.site?.description,
+    plan?.site?.h1,
+    plan?.site?.excerpt,
+    plan?.profile?.bio,
+    plan?.profile?.category,
+  ].filter(Boolean).join(" "));
+}
+
+function fallbackSources(plan: any): { profiles: string[]; hashtags: string[] } {
+  const seed = sourceSeed(plan);
+  if (/\b(saude do trabalho|saudedotrabalho|sst|seguranca do trabalho|segurancadotrabalho|medicina ocupacional|medicinaocupacional|sesmt|pcmso|pgr\b|aso\b|e-social|esocial|ergonomia|nr[- ]?\d+|normas regulamentadoras)\b/.test(seed)) {
+    return {
+      profiles: [],
+      hashtags: ["saudedotrabalho", "segurancadotrabalho", "medicinaocupacional", "sst", "sesmt", "ergonomia", "esocial", "pcmso", "pgr", "nr"],
+    };
+  }
+  if (/\b(linkedin|b2b|consultoria|software|saas|automacao|automacao|tecnologia|gestao)\b/.test(seed)) {
+    return { profiles: [], hashtags: ["b2b", "empreendedorismo", "gestao", "tecnologia", "consultoria", "software", "saas", "automacao", "produtividade", "negocios"] };
+  }
+  if (/\b(educacao|aprendizagem|tdah|dislexia|neurodivergente|escola|pedagogia)\b/.test(seed)) {
+    return { profiles: [], hashtags: ["educacao", "aprendizagem", "educacaoinclusiva", "tdah", "dislexia", "neurodivergente", "pedagogia", "psicopedagogia"] };
+  }
+  return { profiles: [], hashtags: ["negocios", "empreendedorismo", "marketingdigital", "conteudo", "vendas", "marca", "estrategia"] };
+}
 
 function parseJson<T = any>(content: string): T | null {
   try {
@@ -179,6 +258,9 @@ export interface RadarResult {
   scannedAt: number;
   nicho?: string;
   baseHandle?: string;
+  baseKey?: string;
+  baseLabel?: string;
+  baseSource?: string;
   baseProduto?: string;
   marketSummary?: string;
   sources: string[];
@@ -212,8 +294,10 @@ export async function suggestSources(orgId: number): Promise<{ profiles: string[
   const plan: any = await getPlan(orgId);
   const produto = plan?.produto || "";
   const nicho = plan?.nicho || "";
-  const ownHandle = cleanHandle(plan?.profile?.handle || "");
-  if (!process.env.OPENROUTER_API_KEY) return { profiles: [], hashtags: [] };
+  const ctx = baseContext(plan);
+  const ownHandle = ctx.ownHandle;
+  const fallback = fallbackSources(plan);
+  if (!process.env.OPENROUTER_API_KEY) return fallback;
   try {
     const content = await openRouterChat([
       {
@@ -222,14 +306,24 @@ export async function suggestSources(orgId: number): Promise<{ profiles: string[
 Retorne SOMENTE JSON {"profiles":[handles sem @, 8-12],"hashtags":[8-10 sem #]}.
 Misture: concorrentes diretos, criadores de nicho, perfis aspiracionais, microcomunidades e hashtags de dor/desejo/solucao. Evite celebridades genericas.`,
       },
-      { role: "user", content: `Nicho: ${nicho}\nProduto/conta: ${produto}` },
+      {
+        role: "user",
+        content: `Nicho: ${nicho}
+Produto/conta: ${produto}
+Contexto ativo: ${ctx.label || "sem perfil identificado"} (${ctx.source || "diagnostico"})
+LinkedIn/site/briefing disponiveis: ${JSON.stringify(planRedes(plan))}
+Se nao souber perfis confiaveis, retorne profiles vazio e hashtags fortes do nicho. Nao invente perfis aleatorios.`,
+      },
     ], { model: BRAIN, temperature: 0.55, maxTokens: 700 });
     const j = parseJson<{ profiles: string[]; hashtags: string[] }>(content) ?? { profiles: [], hashtags: [] };
     const profiles = (j.profiles ?? []).map(cleanHandle).filter(h => h && h !== ownHandle);
     const hashtags = (j.hashtags ?? []).map(h => h.replace(/^#/, "").trim().toLowerCase()).filter(Boolean);
-    return { profiles: [...new Set(profiles)].slice(0, 12), hashtags: [...new Set(hashtags)].slice(0, 10) };
+    return {
+      profiles: [...new Set([...profiles, ...fallback.profiles])].slice(0, 12),
+      hashtags: [...new Set([...hashtags, ...fallback.hashtags])].slice(0, 10),
+    };
   } catch {
-    return { profiles: [], hashtags: [] };
+    return fallback;
   }
 }
 
@@ -300,7 +394,8 @@ export async function scan(orgId: number, opts: { handles?: string[]; excludeHan
   const produto = plan.produto || "";
   const nicho = plan.nicho || "";
   const brandDNA = plan.brandDNA ?? {};
-  const ownHandle = cleanHandle(plan?.profile?.handle || "");
+  const ctx = baseContext(plan);
+  const ownHandle = ctx.ownHandle;
 
   const suggestion = await suggestSources(orgId);
   const hashtags = suggestion.hashtags;
@@ -533,6 +628,9 @@ Regras:
     scannedAt: Date.now(),
     nicho,
     baseHandle: ownHandle || undefined,
+    baseKey: ctx.key || undefined,
+    baseLabel: ctx.label || undefined,
+    baseSource: ctx.source || undefined,
     baseProduto: produto || undefined,
     marketSummary,
     sources: scanned,

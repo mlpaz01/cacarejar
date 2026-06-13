@@ -15,12 +15,45 @@ const nf = (n?: number) => (typeof n === "number" ? n.toLocaleString("pt-BR") : 
 const hitKey = (h: any) => String(h?.url || h?.img || `${h?.ownerUsername || ""}:${String(h?.caption || "").slice(0, 80)}`);
 const hitOwner = (h: any) => String(h?.ownerUsername || "").replace(/^@/, "").toLowerCase();
 const cleanHandle = (h?: string) => (h || "").trim().replace(/^@/, "").replace(/^https?:\/\/(www\.)?instagram\.com\//i, "").replace(/\/$/, "").toLowerCase();
+const linkedInSlug = (raw?: string) => {
+  const value = (raw || "").trim();
+  if (!value) return "";
+  try {
+    const url = value.startsWith("http") ? new URL(value) : new URL(`https://${value}`);
+    const parts = url.pathname.split("/").filter(Boolean);
+    const marker = parts.findIndex(p => ["in", "company", "school", "showcase"].includes(p.toLowerCase()));
+    return (marker >= 0 ? parts[marker + 1] : parts[0] || "").toLowerCase();
+  } catch {
+    return value.replace(/^@/, "").replace(/^linkedin\.com\//i, "").split(/[/?#]/)[0].toLowerCase();
+  }
+};
+const siteHost = (raw?: string) => {
+  const value = (raw || "").trim();
+  if (!value) return "";
+  try {
+    const url = value.startsWith("http") ? new URL(value) : new URL(`https://${value}`);
+    return url.hostname.replace(/^www\./, "").toLowerCase();
+  } catch {
+    return value.replace(/^https?:\/\//i, "").replace(/^www\./i, "").split("/")[0].toLowerCase();
+  }
+};
+const profileContext = (plan: any) => {
+  const redes = { ...(plan?.redes ?? {}), ...(plan?._redes ?? {}) };
+  const ig = cleanHandle(plan?.profile?.handle || redes.instagram);
+  if (ig) return { key: `instagram:${ig}`, label: `@${ig}`, source: "Instagram" };
+  const li = linkedInSlug(plan?.linkedin || redes.linkedin);
+  if (li) return { key: `linkedin:${li}`, label: `LinkedIn /${li}`, source: "LinkedIn" };
+  const host = siteHost(redes.site || plan?.site?.url);
+  if (host) return { key: `site:${host}`, label: host, source: "Site" };
+  return { key: "", label: "", source: "" };
+};
 
 export default function Radar() {
   const [, navigate] = useLocation();
   const utils = trpc.useUtils();
   const radar = trpc.radar.get.useQuery();
   const diagnosis = trpc.diagnosis.get.useQuery();
+  const suggestedSources = trpc.radar.suggest.useQuery(undefined, { enabled: !!diagnosis.data });
   const [handles, setHandles] = useState("");
   const [generatingBatch, setGeneratingBatch] = useState(false);
   const [likedHitKeys, setLikedHitKeys] = useState<string[]>([]);
@@ -62,13 +95,17 @@ export default function Radar() {
 
   const data = radar.data as any;
   const plan = diagnosis.data as any;
+  const selectedContext = profileContext(plan);
   const selectedHandle = cleanHandle(plan?.profile?.handle || plan?._redes?.instagram || plan?.redes?.instagram);
   const selectedProduto = plan?.produto || data?.baseProduto || "";
   const selectedNicho = plan?.nicho || data?.nicho || "";
   const radarBaseHandle = cleanHandle(data?.baseHandle);
-  const radarLooksStale = !!data && !!radarBaseHandle && !!selectedHandle && radarBaseHandle !== selectedHandle;
+  const radarBaseKey = data?.baseKey || (radarBaseHandle ? `instagram:${radarBaseHandle}` : "");
+  const radarBaseLabel = data?.baseLabel || (radarBaseHandle ? `@${radarBaseHandle}` : "");
+  const radarLooksStale = !!data && !!radarBaseKey && !!selectedContext.key && radarBaseKey !== selectedContext.key;
   const manualHandles = handles.split(",").map(s => cleanHandle(s)).filter(Boolean);
-  const canStartRadar = manualHandles.length > 0 || !!selectedHandle;
+  const hasDiagnosisContext = !!selectedContext.key || !!selectedProduto || !!selectedNicho;
+  const canStartRadar = manualHandles.length > 0 || hasDiagnosisContext;
   const refineInfo = data?.feedback ?? { refinementCount: 0, freeLimit: 3, nextCostCC: 10 };
   const freeLeft = Math.max(0, (refineInfo.freeLimit ?? 3) - (refineInfo.refinementCount ?? 0));
   const ideaLikes = ((data?.ideas ?? []) as any[]).filter(it => it.diagnosisDecision === "use").length;
@@ -88,11 +125,20 @@ export default function Radar() {
   const parseHandles = () => handles.split(",").map(s => cleanHandle(s)).filter(Boolean);
   const runScan = () => {
     const parsed = parseHandles();
-    if (!parsed.length && !selectedHandle) {
+    if (!parsed.length && !hasDiagnosisContext) {
       toast.error("Crie ou restaure um diagnostico com perfil antes de iniciar o Radar.");
       return;
     }
     scan.mutate(parsed.length ? { handles: parsed } : undefined);
+  };
+  const useSuggestedProfiles = () => {
+    const profiles = (suggestedSources.data?.profiles ?? []).map(cleanHandle).filter(Boolean);
+    if (!profiles.length) {
+      toast.info("O Agente vai iniciar pelo contexto e pelas hashtags do diagnostico.");
+      return;
+    }
+    setHandles(profiles.map((h: string) => `@${h}`).join(", "));
+    toast.success("Perfis sugeridos adicionados ao Radar.");
   };
   const runRefine = () => refine.mutate({ likedPostKeys: likedHitKeys, dislikedPostKeys: dislikedHitKeys });
   const markHitLike = (hit: any) => {
@@ -154,12 +200,13 @@ export default function Radar() {
         <Telescope className="w-4 h-4 text-[#ff3217]" />
         <h3 className="text-sm font-black text-[#070b17]">Pesquisar o que está bombando no seu setor</h3>
       </div>
-      {selectedHandle ? (
+      {selectedContext.label ? (
         <div className="mb-3 rounded-xl border border-[#e6ebf3] bg-[#fbfcff] px-3 py-2 flex items-center justify-between gap-3 flex-wrap">
           <div>
             <p className="text-[10px] font-black text-[#61708a] uppercase tracking-wide">Base atual do Radar</p>
-            <p className="text-xs font-black text-[#071b44]">@{selectedHandle}{selectedNicho ? ` - ${selectedNicho}` : ""}</p>
+            <p className="text-xs font-black text-[#071b44]">{selectedContext.label}{selectedNicho ? ` - ${selectedNicho}` : ""}</p>
           </div>
+          {selectedContext.source && <span className="text-[10px] font-black text-[#071b44] bg-white border border-[#e6ebf3] rounded-full px-3 py-1">{selectedContext.source}</span>}
           {selectedProduto && <span className="text-[10px] font-bold text-[#61708a] bg-white border border-[#e6ebf3] rounded-full px-3 py-1 max-w-[360px] truncate">{selectedProduto}</span>}
         </div>
       ) : (
@@ -171,14 +218,18 @@ export default function Radar() {
       {radarLooksStale && (
         <div className="mb-3 rounded-xl border border-[#ffd5ce] bg-[#fff8f6] px-3 py-2">
           <p className="text-xs font-bold text-[#8f2014]">
-            A pesquisa exibida abaixo foi gerada para @{radarBaseHandle}. Para usar @{selectedHandle}, inicie um novo Radar.
+            A pesquisa exibida abaixo foi gerada para {radarBaseLabel}. Para usar {selectedContext.label}, inicie um novo Radar.
           </p>
         </div>
       )}
-      <p className="text-[11px] text-[#61708a] mb-3">{selectedHandle ? "Deixe em branco para o Agente usar o diagnostico selecionado, ou informe @ inspiradores para comparar perfis especificos." : "Sem diagnostico selecionado, o Radar so inicia com @ inspiradores informados manualmente."}</p>
+      <p className="text-[11px] text-[#61708a] mb-3">{hasDiagnosisContext ? "Deixe em branco para o Agente usar o diagnostico selecionado, ou informe @ inspiradores para comparar perfis especificos." : "Sem diagnostico selecionado, o Radar so inicia com @ inspiradores informados manualmente."}</p>
       <div className="flex flex-col sm:flex-row gap-2">
         <input value={handles} onChange={e => setHandles(e.target.value)} placeholder="@perfil1, @perfil2 (opcional)"
           className="flex-1 border border-[#e6ebf3] rounded-lg px-3 py-2.5 text-sm bg-[#f6f8fc] focus:outline-none focus:border-[#ff3217]" />
+        <button onClick={useSuggestedProfiles} disabled={suggestedSources.isLoading || !hasDiagnosisContext}
+          className="text-sm px-4 py-2.5 rounded-lg border border-[#e6ebf3] text-[#071b44] font-black bg-white hover:bg-[#f6f8fc] disabled:opacity-50 disabled:cursor-not-allowed">
+          {suggestedSources.isLoading ? "Sugerindo..." : "Sugerir perfis"}
+        </button>
         <button onClick={runScan} disabled={scan.isPending || !canStartRadar}
           className="btn-action-navy text-sm px-5 py-2.5 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
           {scan.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
@@ -193,6 +244,11 @@ export default function Radar() {
           {recalibrate.isPending ? "Recalculando..." : "Usar Feedbacks do Radar no diagnóstico"}
         </button>
       </div>
+      {hasDiagnosisContext && !!suggestedSources.data?.hashtags?.length && (
+        <p className="mt-3 text-[11px] text-[#61708a]">
+          Sinais preparados pelo Agente: {(suggestedSources.data.hashtags as string[]).slice(0, 8).map(h => `#${h}`).join(" ")}
+        </p>
+      )}
     </div>
   );
 

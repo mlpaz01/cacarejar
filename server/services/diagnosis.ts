@@ -15,6 +15,55 @@ import { fetchProfile, fetchSite, profileReadingEnabled, SocialProfile, SiteSnap
 const BRAIN = "anthropic/claude-sonnet-4.6";
 const truncate = (s: string, n: number) => (s || "").slice(0, n);
 const archiveId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+const stripAccents = (s: string) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+const lowerPlain = (s: string) => stripAccents(s).toLowerCase();
+
+function linkedinSlug(raw?: string) {
+  const value = (raw || "").trim();
+  if (!value) return "";
+  try {
+    const url = value.startsWith("http") ? new URL(value) : new URL(`https://${value}`);
+    const parts = url.pathname.split("/").filter(Boolean);
+    const marker = parts.findIndex(p => ["in", "company", "school", "showcase"].includes(p.toLowerCase()));
+    return (marker >= 0 ? parts[marker + 1] : parts[0] || "").toLowerCase();
+  } catch {
+    return value.replace(/^@/, "").replace(/^linkedin\.com\//i, "").split(/[/?#]/)[0].toLowerCase();
+  }
+}
+
+function siteHost(raw?: string) {
+  const value = (raw || "").trim();
+  if (!value) return "";
+  try {
+    const url = value.startsWith("http") ? new URL(value) : new URL(`https://${value}`);
+    return url.hostname.replace(/^www\./, "").toLowerCase();
+  } catch {
+    return value.replace(/^https?:\/\//i, "").replace(/^www\./i, "").split("/")[0].toLowerCase();
+  }
+}
+
+function contextSeed(produto: string, redes: Record<string, string> = {}, site?: SiteSnapshot | null, profile?: SocialProfile | null) {
+  return lowerPlain([
+    produto,
+    redes.instagram,
+    redes.tiktok,
+    redes.linkedin,
+    linkedinSlug(redes.linkedin),
+    redes.site,
+    siteHost(redes.site || site?.url),
+    site?.title,
+    site?.description,
+    site?.h1,
+    site?.excerpt,
+    profile?.bio,
+    profile?.category,
+  ].filter(Boolean).join(" "));
+}
+
+function occupationalHealthContext(produto: string, redes: Record<string, string> = {}, site?: SiteSnapshot | null, profile?: SocialProfile | null) {
+  const seed = contextSeed(produto, redes, site, profile);
+  return /\b(saude do trabalho|saudedotrabalho|sst|seguranca do trabalho|segurancadotrabalho|medicina ocupacional|medicinaocupacional|sesmt|pcmso|pgr\b|aso\b|e-social|esocial|ergonomia|nr[- ]?\d+|normas regulamentadoras)\b/.test(seed);
+}
 
 function ensureArchiveIds(archived: any[]) {
   let changed = false;
@@ -183,9 +232,11 @@ const PALETAS: Record<string, string[]> = {
   vermelho: ["#E11D48", "#FB7185", "#FFF1F2"],
 };
 
-function detectNicho(produto: string, profile?: SocialProfile | null) {
-  const p = `${produto} ${profile?.bio ?? ""} ${profile?.category ?? ""}`.toLowerCase();
+function detectNicho(produto: string, profile?: SocialProfile | null, redes: Record<string, string> = {}, site?: SiteSnapshot | null) {
+  const p = contextSeed(produto, redes, site, profile);
   const has = (...ks: string[]) => ks.some(k => p.includes(k));
+  if (occupationalHealthContext(produto, redes, site, profile))
+    return { nicho: "saude do trabalho, SST e medicina ocupacional", cor: "azul", tipo: "pessoa", idade: "adulto_26_40", sexo: "ambos" };
   if (has("confeit", "bolo", "doce", "marmita", "comida", "gastron", "receita"))
     return { nicho: "alimentação & gastronomia", cor: "laranja", tipo: "alimento", idade: "adulto_26_40", sexo: "feminino" };
   if (has("emagrec", "fitness", "treino", "academia", "muscula", "dieta", "shape", "saúde"))
@@ -203,8 +254,8 @@ function detectNicho(produto: string, profile?: SocialProfile | null) {
   return { nicho: "negócios & serviços", cor: "laranja", tipo: "pessoa", idade: "adulto_26_40", sexo: "ambos" };
 }
 
-function suggestFactors(produto: string, objetivo: string, profile?: SocialProfile | null) {
-  const n = detectNicho(produto, profile);
+function suggestFactors(produto: string, objetivo: string, profile?: SocialProfile | null, redes: Record<string, string> = {}, site?: SiteSnapshot | null) {
+  const n = detectNicho(produto, profile, redes, site);
   const angulo = objetivo === "leads" ? "curiosidade" : objetivo === "lancar" ? "transformacao" : "desejo";
   const lente: "dor" | "desejo" = objetivo === "leads" ? "dor" : "desejo";
   const factors: Record<string, string> = {
@@ -646,6 +697,31 @@ function enhancePlanV2(plan: CacaPlan, redes: Record<string, string> = {}, radar
   return next;
 }
 
+function applyContextGuard(plan: CacaPlan, produto: string, redes: Record<string, string> = {}, site?: SiteSnapshot | null, profile?: SocialProfile | null): CacaPlan {
+  if (!occupationalHealthContext(produto, redes, site, profile)) return plan;
+  const blocked = /\b(fitness|academia|treino|musculacao|muscula[cç][aã]o|emagrecimento|shape)\b/i;
+  const next: CacaPlan = {
+    ...plan,
+    nicho: "saude do trabalho, SST e medicina ocupacional",
+    suggestedFactors: {
+      ...(plan.suggestedFactors ?? {}),
+      img_cor_predominante: "azul",
+      img_tipo: "pessoa",
+      copy_tom: "tecnico_acessivel",
+      copy_formato: "autoridade_consultiva",
+      copy_gatilho: "risco_e_conformidade",
+      of_angulo: "dor",
+    },
+  };
+  if (!next.sumarioExecutivo || blocked.test(next.sumarioExecutivo)) {
+    next.sumarioExecutivo = "A leitura principal aponta para Saude do Trabalho, SST e Medicina Ocupacional: um mercado B2B em que empresas, RH, SESMT e gestores precisam reduzir risco, cumprir normas e proteger pessoas. O LinkedIn informado foi usado como sinal de identidade do nicho, junto ao site/briefing quando disponivel. A estrategia deve construir autoridade tecnica acessivel, prova de conformidade e conteudo educativo que transforme obrigacoes como PCMSO, PGR, eSocial, ergonomia e NRs em decisao clara de compra.";
+  }
+  if (!next.objetivoPrincipal || blocked.test(next.objetivoPrincipal)) {
+    next.objetivoPrincipal = "Gerar leads qualificados de empresas que precisam organizar Saude do Trabalho, SST, exames ocupacionais, programas obrigatorios e prevencao com orientacao confiavel.";
+  }
+  return next;
+}
+
 // ───────────────────────── DNA visual (visão) ─────────────────────────
 async function analyzeBrandDNA(profile: SocialProfile | null, produto: string, site?: SiteSnapshot | null): Promise<{ brandDNA: BrandDNA; analiseTopPosts: string[] }> {
   const { cor } = suggestFactors(produto, "vender", profile);
@@ -719,7 +795,7 @@ function buildFallbackVisualPrompt(produto: string, pilar: string, dna: BrandDNA
 }
 
 function templatePlan(produto: string, objetivo: string, redes: Record<string, string>, profile: SocialProfile | null, dna: BrandDNA): CacaPlan {
-  const { factors, lente, nicho } = suggestFactors(produto, objetivo, profile);
+  const { factors, lente, nicho } = suggestFactors(produto, objetivo, profile, redes);
   const objLabel: Record<string, string> = { vender: "vender mais", leads: "gerar leads", seguidores: "crescer seguidores", lancar: "lançar o produto" };
 
   const pilares = ["Prova social (resultados/depoimentos)", "Bastidores e autenticidade", "Educação rápida (dica que resolve)", "Oferta/CTA claro"];
@@ -823,8 +899,12 @@ async function llmPlan(produto: string, objetivo: string, redes: Record<string, 
   if (!process.env.OPENROUTER_API_KEY) return null;
   try {
     const base = templatePlan(produto, objetivo, redes, profile, dna);
+    const linkedinId = linkedinSlug(redes.linkedin);
+    const validatedContext = occupationalHealthContext(produto, redes, site, profile)
+      ? `\nSINAL CONFIAVEL DE NICHO: o briefing/LinkedIn/site indica Saude do Trabalho, SST, Seguranca do Trabalho ou Medicina Ocupacional. Trate como mercado B2B/profissional de normas, prevencao, empresas, RH, SESMT, PCMSO, PGR, eSocial e ergonomia. Nao classifique como fitness, academia, treino, emagrecimento ou bem-estar generico.`
+      : "";
     const linkedinTxt = redes.linkedin
-      ? `\nLINKEDIN INFORMADO: ${redes.linkedin}\nUse como contexto estrategico para linguagem B2B, areas afins e hipoteses de segmentacao. Nao finja ter lido posts, conexoes ou pessoas relacionadas do LinkedIn se esses dados nao estiverem no texto.`
+      ? `\nLINKEDIN INFORMADO: ${redes.linkedin}${linkedinId ? `\nIDENTIFICADOR DO LINKEDIN: ${linkedinId}` : ""}\nUse como contexto estrategico para linguagem B2B, areas afins e hipoteses de segmentacao. Nao finja ter lido posts, conexoes ou pessoas relacionadas do LinkedIn se esses dados nao estiverem no texto.${validatedContext}`
       : "";
     const perfilTxt = profile
       ? `PERFIL (@${profile.handle}): ${nf(profile.followers)} seguidores; bio: "${profile.bio ?? ""}"; categoria: ${profile.category ?? "-"}; engajamento ~${profile.engajamentoPct ?? "?"}%.
@@ -894,7 +974,7 @@ Fatores válidos de referência: ${JSON.stringify(base.suggestedFactors)}.`;
       cronograma: parsed.cronograma?.length ? parsed.cronograma : base.cronograma,
       situacao: parsed.situacao?.length ? parsed.situacao : base.situacao,
     };
-    return enhancePlanV2(plan, redes);
+    return enhancePlanV2(applyContextGuard(plan, produto, redes, site, profile), redes);
   } catch (e) {
     console.error("[diagnosis] llmPlan falhou:", (e as any)?.message);
     return null;
@@ -946,9 +1026,9 @@ export async function analyze(params: {
   plan.siteLido = !!site?.title || !!site?.description;
   plan.linkedin = redes.linkedin || null;
   plan.redes = redes;
-  const enhancedPlan = enhancePlanV2(plan, redes);
+  const enhancedPlan = enhancePlanV2(applyContextGuard(plan, params.produto, redes, site, profile), redes);
 
-  const base = suggestFactors(params.produto, params.objetivo, profile).factors;
+  const base = suggestFactors(params.produto, params.objetivo, profile, redes, site).factors;
   enhancedPlan.suggestedFactors = await sanitizeFactors(enhancedPlan.suggestedFactors, base);
 
   const db = await getDb();
