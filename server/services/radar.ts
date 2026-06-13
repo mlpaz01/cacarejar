@@ -28,6 +28,7 @@ const cleanHandle = (h: string) => (h || "").trim().replace(/^@/, "").replace(/^
 const nf = (n?: number) => (typeof n === "number" ? n.toLocaleString("pt-BR") : "-");
 const stripAccents = (s: string) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 const lowerPlain = (s: string) => stripAccents(s).toLowerCase();
+const cleanTag = (h: string) => lowerPlain(h || "").replace(/^#/, "").replace(/[^a-z0-9_]/g, "").trim();
 
 function linkedinSlug(raw?: string) {
   const value = (raw || "").trim();
@@ -94,7 +95,7 @@ function fallbackSources(plan: any): { profiles: string[]; hashtags: string[] } 
   if (/\b(saude do trabalho|saudedotrabalho|sst|seguranca do trabalho|segurancadotrabalho|medicina ocupacional|medicinaocupacional|sesmt|pcmso|pgr\b|aso\b|e-social|esocial|ergonomia|nr[- ]?\d+|normas regulamentadoras)\b/.test(seed)) {
     return {
       profiles: [],
-      hashtags: ["saudedotrabalho", "segurancadotrabalho", "medicinaocupacional", "sst", "sesmt", "ergonomia", "esocial", "pcmso", "pgr", "nr"],
+      hashtags: ["saudedotrabalho", "segurancadotrabalho", "medicinaocupacional", "sst", "sesmt", "ergonomia", "esocial", "pcmso", "pgr", "nr", "saudementalnotrabalho", "bemestarcorporativo", "rh"],
     };
   }
   if (/\b(linkedin|b2b|consultoria|software|saas|automacao|automacao|tecnologia|gestao)\b/.test(seed)) {
@@ -317,10 +318,10 @@ Se nao souber perfis confiaveis, retorne profiles vazio e hashtags fortes do nic
     ], { model: BRAIN, temperature: 0.55, maxTokens: 700 });
     const j = parseJson<{ profiles: string[]; hashtags: string[] }>(content) ?? { profiles: [], hashtags: [] };
     const profiles = (j.profiles ?? []).map(cleanHandle).filter(h => h && h !== ownHandle);
-    const hashtags = (j.hashtags ?? []).map(h => h.replace(/^#/, "").trim().toLowerCase()).filter(Boolean);
+    const hashtags = (j.hashtags ?? []).map(cleanTag).filter(Boolean);
     return {
       profiles: [...new Set([...profiles, ...fallback.profiles])].slice(0, 12),
-      hashtags: [...new Set([...hashtags, ...fallback.hashtags])].slice(0, 10),
+      hashtags: [...new Set([...fallback.hashtags.map(cleanTag), ...hashtags])].filter(Boolean).slice(0, 10),
     };
   } catch {
     return fallback;
@@ -363,6 +364,52 @@ function fallbackOpportunities(patterns: MarketPattern[], nicho: string): Market
     firstPostIdea: `Criar um post de ${p.contentMechanism} aplicado ao nicho ${nicho || "da marca"}.`,
     effort: i === 0 ? "baixo" : "medio",
   }));
+}
+
+function contextFallbackPatterns(plan: any): MarketPattern[] {
+  const seed = sourceSeed(plan);
+  if (/\b(saude do trabalho|saudedotrabalho|sst|seguranca do trabalho|medicina ocupacional|sesmt|pcmso|pgr|esocial|ergonomia)\b/.test(seed)) {
+    return [
+      {
+        title: "Obrigacao invisivel que vira risco caro",
+        insight: "No mercado de Saude do Trabalho, conteudos que traduzem uma obrigacao tecnica em risco financeiro e humano tendem a gerar atencao qualificada.",
+        hotScore: 68,
+        evidenceCount: 0,
+        whyItWorks: "O decisor nao compra norma; ele compra reducao de risco, tranquilidade e previsibilidade.",
+        audienceDesire: "Entender o que precisa resolver agora para evitar multa, passivo trabalhista ou acidente.",
+        contentMechanism: "dor operacional",
+        recommendedMove: "Criar posts que comecem pela consequencia concreta e depois expliquem PCMSO, PGR, ASO, ergonomia ou eSocial em linguagem simples.",
+        risks: "Evitar linguagem alarmista sem prova e evitar parecer aula juridica pesada.",
+        sourcePostIndexes: [],
+      },
+      {
+        title: "RH e gestor como herois da prevencao",
+        insight: "Conteudos que posicionam RH, gestores e SESMT como protagonistas da protecao das pessoas criam identificacao e autoridade.",
+        hotScore: 62,
+        evidenceCount: 0,
+        whyItWorks: "Tira o tema do campo burocratico e leva para cuidado, reputacao e gestao responsavel.",
+        audienceDesire: "Mostrar que a empresa cuida de pessoas sem perder controle operacional.",
+        contentMechanism: "autoridade humana",
+        recommendedMove: "Usar bastidores, checklists e casos anonimos que mostrem decisao correta antes do problema aparecer.",
+        risks: "Nao prometer eliminacao total de risco; vender metodo e acompanhamento.",
+        sourcePostIndexes: [],
+      },
+    ];
+  }
+  return [
+    {
+      title: "Dor especifica antes da solucao",
+      insight: "Quando nao ha volume de posts suficiente, a aposta mais segura e abrir pelo problema concreto que o cliente reconhece.",
+      hotScore: 55,
+      evidenceCount: 0,
+      whyItWorks: "A audiencia presta atencao quando sente que o conteudo nomeou uma dor real.",
+      audienceDesire: "Saber se existe um caminho simples para resolver sem perder tempo.",
+      contentMechanism: "quebra de crenca",
+      recommendedMove: "Criar uma peca com erro comum, consequencia e primeira acao recomendada.",
+      risks: "Evitar generalidades e promessas amplas demais.",
+      sourcePostIndexes: [],
+    },
+  ];
 }
 
 function fallbackIdeas(opportunities: MarketOpportunity[], hits: RadarHit[], brandDNA: any): RadarIdea[] {
@@ -477,13 +524,15 @@ export async function scan(orgId: number, opts: { handles?: string[]; excludeHan
     })
     .slice(0, 12);
 
-  if (!hits.length) throw new Error("Nao consegui encontrar posts do nicho. Informe alguns @ inspiradores e tente de novo.");
-
-  await Promise.all(hits.map(async (h, i) => { h.img = await localizeRemoteImage(h.img, `radar_hit${i}`); }));
+  if (hits.length) {
+    await Promise.all(hits.map(async (h, i) => { h.img = await localizeRemoteImage(h.img, `radar_hit${i}`); }));
+  }
   const scanned = [...new Set(hits.map(h => h.ownerUsername).filter(Boolean))] as string[];
 
-  let marketSummary = "";
-  let patterns: MarketPattern[] = fallbackPatterns(hits);
+  let marketSummary = hits.length
+    ? ""
+    : "O Agente nao encontrou posts publicos suficientes na coleta automatica desta rodada. Ainda assim, montou uma leitura inicial pelo diagnostico e pelas hashtags seguras do nicho; informe @ inspiradores para aprofundar com evidencias reais.";
+  let patterns: MarketPattern[] = hits.length ? fallbackPatterns(hits) : contextFallbackPatterns(plan);
   let opportunities: MarketOpportunity[] = fallbackOpportunities(patterns, nicho);
   let ideas: RadarIdea[] = fallbackIdeas(opportunities, hits, brandDNA);
 

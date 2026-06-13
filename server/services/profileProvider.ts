@@ -167,7 +167,10 @@ export interface HotPost {
 export async function fetchHotPostsByHashtag(hashtags: string[], limit = 30): Promise<HotPost[]> {
   const token = process.env.APIFY_TOKEN;
   if (!token || !hashtags.length) return [];
-  const tags = hashtags.map(h => h.replace(/^#/, "").trim()).filter(Boolean).slice(0, 4);
+  const tags = hashtags
+    .map(h => (h || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/^#/, "").replace(/[^a-zA-Z0-9_]/g, "").trim().toLowerCase())
+    .filter(Boolean)
+    .slice(0, 4);
   try {
     const res = await fetch(
       `https://api.apify.com/v2/acts/apify~instagram-hashtag-scraper/run-sync-get-dataset-items?token=${token}`,
