@@ -107,6 +107,51 @@ function fallbackSources(plan: any): { profiles: string[]; hashtags: string[] } 
   return { profiles: [], hashtags: ["negocios", "empreendedorismo", "marketingdigital", "conteudo", "vendas", "marca", "estrategia"] };
 }
 
+function isOccupationalHealthPlan(plan: any) {
+  return /\b(saude do trabalho|saudedotrabalho|saude mental no trabalho|saudementalnotrabalho|sst|seguranca do trabalho|segurancadotrabalho|medicina ocupacional|medicinaocupacional|sesmt|pcmso|pgr\b|aso\b|e-social|esocial|ergonomia|nr[- ]?\d+|normas regulamentadoras|bemestar corporativo|bem estar corporativo)\b/.test(sourceSeed(plan));
+}
+
+function occupationalRelevanceScore(hit: Pick<RadarHit, "ownerUsername" | "ownerFullName" | "caption" | "theme" | "why" | "mechanism">) {
+  const text = lowerPlain([
+    hit.ownerUsername,
+    hit.ownerFullName,
+    hit.caption,
+    hit.theme,
+    hit.why,
+    hit.mechanism,
+  ].filter(Boolean).join(" "));
+  const strong = [
+    "saude do trabalho", "saudedotrabalho", "seguranca do trabalho", "segurancadotrabalho",
+    "medicina ocupacional", "medicinaocupacional", "sst", "sesmt", "pcmso", "pgr",
+    "aso", "exame admissional", "exame demissional", "exame ocupacional", "ocupacional",
+    "ergonomia", "ergonomico", "ergonomica", "nr ", "nr-", "nrs", "norma regulamentadora",
+    "esocial", "e-social", "cat", "cipa", "ltcat", "ppra", "insalubridade", "periculosidade",
+    "acidente de trabalho", "afastamento", "absenteismo", "burnout", "saude mental no trabalho",
+    "bem estar corporativo", "bemestar corporativo", "qualidade de vida no trabalho", "qvt",
+  ];
+  const medium = [
+    "trabalhador", "trabalhadores", "funcionario", "funcionarios", "colaborador", "colaboradores",
+    "empresa", "empresas", "rh", "gestao de pessoas", "previdenciario", "inss", "clinica ocupacional",
+  ];
+  const noise = [
+    "perfume", "musica", "beleza", "maquiagem", "moda", "legado", "fruta", "agricola",
+    "paleografico", "grafologico", "habilitacao", "detran", "escola", "curso de ingles",
+  ];
+  let score = 0;
+  for (const term of strong) if (text.includes(term)) score += 3;
+  for (const term of medium) if (text.includes(term)) score += 1;
+  for (const term of noise) if (text.includes(term)) score -= 3;
+  const hasWork = /\b(trabalho|trabalhador|funcionario|colaborador|empresa|rh|corporativo|ocupacional|sst|sesmt)\b/.test(text);
+  const hasHealth = /\b(saude|mental|medicina|clinica|ergonomia|burnout|ocupacional|exame|prevencao|seguranca)\b/.test(text);
+  if (hasWork && hasHealth) score += 3;
+  return score;
+}
+
+function isRelevantHitForPlan(plan: any, hit: RadarHit) {
+  if (!isOccupationalHealthPlan(plan)) return true;
+  return occupationalRelevanceScore(hit) >= 3;
+}
+
 function parseJson<T = any>(content: string): T | null {
   try {
     const c = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
@@ -518,6 +563,7 @@ export async function scan(orgId: number, opts: { handles?: string[]; excludeHan
       const key = (h.url || h.img || "") + (h.ownerUsername || "");
       const owner = cleanHandle(h.ownerUsername || "");
       if (!h.img || seen.has(key) || owners.has(owner) || h.ownerUsername === ownHandle || exclude.has(owner)) return false;
+      if (!isRelevantHitForPlan(plan, h)) return false;
       seen.add(key);
       if (owner) owners.add(owner);
       return true;
@@ -670,7 +716,9 @@ Regras:
     hitsCount: hits.length,
     message: hits.length >= 8
       ? "Pesquisa com bom volume de sinais."
-      : "Pesquisa com poucos sinais; informe perfis inspiradores para aprofundar.",
+      : isOccupationalHealthPlan(plan)
+        ? "Pesquisa com poucos sinais aderentes; o Agente filtrou posts fora de Saude do Trabalho/SST. Informe @ inspiradores para aprofundar."
+        : "Pesquisa com poucos sinais; informe perfis inspiradores para aprofundar.",
   };
 
   const result: RadarResult = {
