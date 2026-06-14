@@ -94,8 +94,17 @@ function fallbackSources(plan: any): { profiles: string[]; hashtags: string[] } 
   const seed = sourceSeed(plan);
   if (/\b(saude do trabalho|saudedotrabalho|sst|seguranca do trabalho|segurancadotrabalho|medicina ocupacional|medicinaocupacional|sesmt|pcmso|pgr\b|aso\b|e-social|esocial|ergonomia|nr[- ]?\d+|normas regulamentadoras)\b/.test(seed)) {
     return {
-      profiles: [],
-      hashtags: ["saudedotrabalho", "segurancadotrabalho", "medicinaocupacional", "sst", "sesmt", "ergonomia", "esocial", "pcmso", "pgr", "nr", "saudementalnotrabalho", "bemestarcorporativo", "rh"],
+      profiles: [
+        "gestaoesst",
+        "sst.descomplicada",
+        "brunogoncalves.sst",
+        "andrezalopes.sst",
+        "servmed_servsaude_sma",
+        "newtimesaude",
+        "esocialsst",
+        "zuki.ocupacional",
+      ],
+      hashtags: ["saudedotrabalho", "segurancadotrabalho", "medicinaocupacional", "sst", "sesmt", "ergonomia", "esocial", "pcmso", "pgr", "nr"],
     };
   }
   if (/\b(linkedin|b2b|consultoria|software|saas|automacao|automacao|tecnologia|gestao)\b/.test(seed)) {
@@ -365,8 +374,11 @@ Se nao souber perfis confiaveis, retorne profiles vazio e hashtags fortes do nic
     const j = parseJson<{ profiles: string[]; hashtags: string[] }>(content) ?? { profiles: [], hashtags: [] };
     const profiles = (j.profiles ?? []).map(cleanHandle).filter(h => h && h !== ownHandle);
     const hashtags = (j.hashtags ?? []).map(cleanTag).filter(Boolean);
+    const profilePool = isOccupationalHealthPlan(plan)
+      ? [...fallback.profiles, ...profiles]
+      : [...profiles, ...fallback.profiles];
     return {
-      profiles: [...new Set([...profiles, ...fallback.profiles])].slice(0, 12),
+      profiles: [...new Set(profilePool)].slice(0, 12),
       hashtags: [...new Set([...fallback.hashtags.map(cleanTag), ...hashtags])].filter(Boolean).slice(0, 10),
     };
   } catch {
@@ -495,6 +507,9 @@ export async function scan(orgId: number, opts: { handles?: string[]; excludeHan
   const exclude = new Set((opts.excludeHandles ?? []).map(cleanHandle).filter(Boolean));
   let handles = (opts.handles ?? []).map(cleanHandle).filter(h => h && h !== ownHandle && !exclude.has(h));
   let hashtagPosts: HotPost[] = [];
+  if (!handles.length && isOccupationalHealthPlan(plan) && suggestion.profiles.length) {
+    handles = suggestion.profiles.map(cleanHandle).filter(h => h && h !== ownHandle && !exclude.has(h));
+  }
   if (!handles.length) {
     hashtagPosts = hashtags.length ? await fetchHotPostsByHashtag(hashtags, 60) : [];
     const owners = [...hashtagPosts]
