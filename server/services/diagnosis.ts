@@ -1396,8 +1396,15 @@ export async function updateAcompanhamento(orgId: number, acompanhamentoPatch: a
   const items = weeks.flatMap((w: any) => Array.isArray(w.itens) ? w.itens : []);
   const done = items.filter((it: any) => it.status === "done").length;
   const total = items.length || current.conteudos?.total || 1;
-  next.progresso = Math.round((done / total) * 100);
-  next.conteudos = { total, feitos: done };
+  const patchConteudos = acompanhamentoPatch?.conteudos ?? {};
+  const hasManualProgress = typeof acompanhamentoPatch?.progresso === "number";
+  const hasManualDone = typeof patchConteudos?.feitos === "number";
+  const computedProgress = Math.round((done / total) * 100);
+  const manualDone = hasManualDone ? Math.max(0, Math.min(total, Math.round(patchConteudos.feitos))) : undefined;
+  const manualProgress = hasManualProgress ? Math.max(0, Math.min(100, Math.round(acompanhamentoPatch.progresso))) : undefined;
+  const shouldUseManual = (hasManualProgress || hasManualDone) && done === 0;
+  next.progresso = shouldUseManual ? (manualProgress ?? Math.round(((manualDone ?? 0) / total) * 100)) : computedProgress;
+  next.conteudos = { total, feitos: shouldUseManual ? (manualDone ?? Math.round((next.progresso / 100) * total)) : done };
   if (feedback?.trim()) {
     next.feedbacks = [
       ...((current as any).feedbacks ?? []),

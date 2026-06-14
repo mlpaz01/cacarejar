@@ -136,6 +136,7 @@ function occupationalRelevanceScore(hit: Pick<RadarHit, "ownerUsername" | "owner
   const noise = [
     "perfume", "musica", "beleza", "maquiagem", "moda", "legado", "fruta", "agricola",
     "paleografico", "grafologico", "habilitacao", "detran", "escola", "curso de ingles",
+    "astrologia", "tarot", "horoscopo", "make", "estetica", "skin care", "skincare",
   ];
   let score = 0;
   for (const term of strong) if (text.includes(term)) score += 3;
@@ -149,7 +150,7 @@ function occupationalRelevanceScore(hit: Pick<RadarHit, "ownerUsername" | "owner
 
 function isRelevantHitForPlan(plan: any, hit: RadarHit) {
   if (!isOccupationalHealthPlan(plan)) return true;
-  return occupationalRelevanceScore(hit) >= 3;
+  return occupationalRelevanceScore(hit) >= 6;
 }
 
 function parseJson<T = any>(content: string): T | null {

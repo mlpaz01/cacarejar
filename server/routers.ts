@@ -845,7 +845,7 @@ const radarRouter = router({
     return radarService.suggestSources(orgId);
   }),
   scan: protectedProcedure
-    .input(z.object({ handles: z.array(z.string()).optional() }).optional())
+    .input(z.object({ handles: z.array(z.string()).optional() }).nullish())
     .mutation(({ ctx, input }) => {
       const orgId = ctx.user.organizationId;
       if (!orgId) throw new Error("Organização não encontrada");

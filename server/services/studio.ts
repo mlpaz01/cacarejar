@@ -273,7 +273,7 @@ export async function generateFromIdea(orgId: number, userId: number, idea: any,
   const cc = credits.CC_COST.imagem_padrao;
   const fv: Record<string, string> = { of_angulo: idea.angulo === "transformacao" ? "transformacao" : (idea.angulo || "desejo") };
   const hold = await credits.hold(orgId, cc, "creative:radar", { description: "Conteúdo do Radar de Mercado" });
-  if (!hold.ok) throw new Error(hold.reason === "quota" ? "Cota diária atingida" : "Créditos insuficientes");
+  if (!hold.ok) throw new Error(hold.reason === "cota_diaria" ? "Cota diária atingida" : "Créditos insuficientes");
   try {
     const prompt = refImageUrl ? `${idea.visualPrompt}\nKeep the same visual style, color palette and mood as the reference image.` : idea.visualPrompt;
     const copyP = idea.copy ? Promise.resolve(idea.copy) : generateCopy(idea.titulo || "", fv);
@@ -395,7 +395,7 @@ export async function regenerateImage(orgId: number, userId: number, id: number,
   const provider = getImageProvider();
   const cc = credits.CC_COST.imagem_padrao;
   const hold = await credits.hold(orgId, cc, "creative:regen", { description: "Regerar imagem do criativo" });
-  if (!hold.ok) throw new Error(hold.reason === "quota" ? "Cota diária atingida" : "Créditos insuficientes");
+  if (!hold.ok) throw new Error(hold.reason === "cota_diaria" ? "Cota diária atingida" : "Créditos insuficientes");
   try {
     const prompt = ref ? `${visualPrompt}\nKeep the same visual style, color palette and mood as the reference image.` : visualPrompt;
     const img = await provider.generate({ prompt, ratio: c.ratio || "1:1", factorValues: (c.factorValues as any) ?? {}, produto: c.briefing || "", refImageUrl: ref });

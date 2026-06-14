@@ -15,9 +15,9 @@ const db = drizzle(process.env.DATABASE_URL!);
 
 // ─── Planos ───────────────────────────────────────────────────────────────
 const PLANS = [
-  { key: "free", name: "Free", priceCents: 0, ccIncluded: 100, dailyQuotaCC: 100, sortOrder: 1,
+  { key: "free", name: "Free", priceCents: 0, ccIncluded: 300, dailyQuotaCC: 180, sortOrder: 1,
     limits: { campanhas: 1, criativos: 50 }, allowedModels: ["barato"] },
-  { key: "starter", name: "Starter", priceCents: 9700, ccIncluded: 1000, dailyQuotaCC: 100, sortOrder: 2,
+  { key: "starter", name: "Starter", priceCents: 9700, ccIncluded: 1000, dailyQuotaCC: 240, sortOrder: 2,
     limits: { campanhas: 5, criativos: 500 }, allowedModels: ["barato", "padrao"] },
   { key: "crescimento", name: "Crescimento", priceCents: 29700, ccIncluded: 4000, dailyQuotaCC: 400, sortOrder: 3,
     limits: { campanhas: 15, criativos: 2000 }, allowedModels: ["padrao"] },
