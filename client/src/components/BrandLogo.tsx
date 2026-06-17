@@ -22,7 +22,7 @@ export function BrandLogo({
   href = "/",
 }: BrandLogoProps) {
   const src = variant === "icon"
-    ? "/assets/brand-icon.png"
+    ? (theme === "dark" ? "/assets/brand-icon-dark.png" : "/assets/brand-icon.png")
     : theme === "dark" ? "/assets/logo-dark.png" : "/assets/logo.png";
   const h = (variant === "icon" ? iconHeight : fullHeight)[size];
   const w = variant === "icon" ? undefined : fullWidth[size];
