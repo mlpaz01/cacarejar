@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { eq } from "drizzle-orm";
+import { eq, sql, and, gte } from "drizzle-orm";
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
@@ -39,13 +39,16 @@ import { analyzeAndCalibrate } from "./openrouter";
 import fs from "fs";
 import path from "path";
 import { nanoid } from "nanoid";
-import { campaigns } from "../drizzle/schema";
+import { campaigns, payments, creditLedger } from "../drizzle/schema";
 import * as creditsService from "./services/credits";
+import * as asaasService from "./services/asaas";
 import * as studioService from "./services/studio";
 import * as approvalsService from "./services/approvals";
 import * as notifService from "./services/notifications";
 import * as engine from "./services/engine";
 import * as diagnosisService from "./services/diagnosis";
+import * as adSpyService from "./services/adSpy";
+import * as googleIntelService from "./services/googleIntel";
 import * as radarService from "./services/radar";
 
 // ─── Campaigns Router ─────────────────────────────────────────────────────────
@@ -527,6 +530,98 @@ const adminRouter = router({
       await approvalsService.reject(input.approvalId, input.reason, `operador:${ctx.user.id}`);
       return { success: true };
     }),
+
+  financials: adminProcedure
+    .input(z.object({ days: z.number().int().min(0).default(30) }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) return null;
+      const since = input.days > 0 ? new Date(Date.now() - input.days * 86_400_000) : new Date(0);
+
+      // Receita de pagamentos confirmados
+      const [revRow] = await db
+        .select({
+          totalCents: sql<number>`COALESCE(SUM(${payments.amountCents}), 0)`,
+          count: sql<number>`COUNT(*)`,
+        })
+        .from(payments)
+        .where(and(eq(payments.status, "pago"), gte(payments.paidAt, since)));
+
+      // Operações de crédito por ref (consumo = crédito negativo)
+      const opsRows = await db
+        .select({
+          ref: creditLedger.ref,
+          cnt: sql<number>`COUNT(*)`,
+          ccTotal: sql<number>`COALESCE(SUM(ABS(${creditLedger.amountCC})), 0)`,
+        })
+        .from(creditLedger)
+        .where(
+          and(
+            eq(creditLedger.type, "consumo"),
+            gte(creditLedger.createdAt, since),
+          )
+        )
+        .groupBy(creditLedger.ref);
+
+      // Novas contas (via boas-vindas)
+      const [welcomeRow] = await db
+        .select({ cnt: sql<number>`COUNT(*)` })
+        .from(creditLedger)
+        .where(
+          and(
+            eq(creditLedger.type, "bonus"),
+            sql`${creditLedger.ref} LIKE 'welcome:%'`,
+            gte(creditLedger.createdAt, since),
+          )
+        );
+
+      // Agrupa operações por prefixo de ref
+      const opMap: Record<string, { cnt: number; ccTotal: number }> = {};
+      for (const row of opsRows) {
+        const prefix = (row.ref ?? "outro").split(":")[0];
+        if (!opMap[prefix]) opMap[prefix] = { cnt: 0, ccTotal: 0 };
+        opMap[prefix].cnt += Number(row.cnt);
+        opMap[prefix].ccTotal += Number(row.ccTotal);
+      }
+
+      // Custo estimado em BRL (câmbio fixo R$5.80/USD)
+      const USD_BRL = 5.80;
+      const creative = opMap["creative"] ?? { cnt: 0, ccTotal: 0 };
+      const radar = opMap["radar"] ?? { cnt: 0, ccTotal: 0 };
+      const adspy = opMap["adspy"] ?? { cnt: 0, ccTotal: 0 };
+      const diagnosis = opMap["diagnosis"] ?? { cnt: 0, ccTotal: 0 };
+
+      // Estimativas de custo por operação em USD
+      const creativeUsd = creative.cnt * 0.05; // ~R$0.29 → ~$0.05
+      const radarUsd = radar.cnt * 0.031;       // ~R$0.18 → ~$0.031
+      const adspyUsd = adspy.cnt * 0.069;       // ~R$0.40 → ~$0.069
+      const diagnosisUsd = diagnosis.cnt * 0.138; // ~R$0.80 → ~$0.138
+      const newAccounts = Number(welcomeRow?.cnt ?? 0);
+      const welcomeBonusUsd = newAccounts * 0.138; // diagnóstico gratuito na criação
+      const totalCostUsd = creativeUsd + radarUsd + adspyUsd + diagnosisUsd + welcomeBonusUsd;
+      const totalCostBrl = totalCostUsd * USD_BRL;
+
+      const revenueBrl = Number(revRow?.totalCents ?? 0) / 100;
+      const marginBrl = revenueBrl - totalCostBrl;
+      const marginPct = revenueBrl > 0 ? (marginBrl / revenueBrl) * 100 : 0;
+
+      return {
+        period: { days: input.days },
+        revenue: { brl: revenueBrl, count: Number(revRow?.count ?? 0) },
+        cost: {
+          totalBrl: totalCostBrl,
+          breakdown: { creative: creativeUsd * USD_BRL, radar: radarUsd * USD_BRL, adspy: adspyUsd * USD_BRL, diagnosis: diagnosisUsd * USD_BRL, welcome: welcomeBonusUsd * USD_BRL },
+        },
+        margin: { brl: marginBrl, pct: marginPct },
+        ops: {
+          creative: creative.cnt,
+          radar: radar.cnt,
+          adspy: adspy.cnt,
+          diagnosis: diagnosis.cnt,
+          newAccounts,
+        },
+      };
+    }),
 });
 
 // ─── Credits Router ─────────────────────────────────────────────────────────
@@ -562,6 +657,90 @@ const creditsRouter = router({
   packages: publicProcedure.query(() => PACKAGES),
 
   costTable: publicProcedure.query(() => creditsService.CC_COST),
+
+  // Asaas está configurado? (UI escolhe PIX real vs compra simulada)
+  asaasOn: publicProcedure.query(() => asaasService.asaasEnabled()),
+
+  // Cria cobrança PIX real (Asaas) para um pacote. Devolve QR + copia-e-cola.
+  createTopupPix: protectedProcedure
+    .input(z.object({ pkg: z.enum(["boton", "ninhada", "galinheiro", "granja"]), cpfCnpj: z.string().optional() }))
+    .mutation(async ({ ctx, input }) => {
+      const orgId = ctx.user.organizationId;
+      if (!orgId) throw new Error("Organização não encontrada");
+      if (!asaasService.asaasEnabled()) throw new Error("Pagamento ainda não configurado. Tente novamente em instantes.");
+      const db = await getDb();
+      if (!db) throw new Error("Banco indisponível");
+      const p = PACKAGES[input.pkg];
+
+      const customerId = await asaasService.ensureCustomer({
+        orgId,
+        name: ctx.user.name || ctx.user.email || `Org ${orgId}`,
+        email: ctx.user.email || undefined,
+        cpfCnpj: input.cpfCnpj,
+      });
+
+      // registra o pagamento como pendente (ccAmount = créditos do pacote)
+      const ins = await db.insert(payments).values({
+        organizationId: orgId,
+        kind: "topup",
+        provider: "asaas",
+        amountCents: p.cents,
+        ccAmount: p.cc,
+        status: "pendente",
+      });
+      const paymentId = creditsService.insertIdOf(ins);
+
+      const charge = await asaasService.createPixPayment({
+        customerId,
+        value: p.cents / 100,
+        description: `Cacarejar — ${p.label} (${p.cc} créditos)`,
+        externalReference: `payment:${paymentId}`,
+      });
+      await db.update(payments).set({ externalId: charge.id }).where(eq(payments.id, paymentId));
+
+      const qr = await asaasService.getPixQr(charge.id);
+      return {
+        paymentId,
+        asaasId: charge.id,
+        valueCents: p.cents,
+        cc: p.cc,
+        label: p.label,
+        pixPayload: qr?.payload ?? null,
+        pixQrImage: qr?.encodedImage ?? null,
+        invoiceUrl: charge.invoiceUrl ?? null,
+      };
+    }),
+
+  // Checa o status do pagamento (e credita se confirmou, caso o webhook ainda não tenha chegado).
+  paymentStatus: protectedProcedure
+    .input(z.object({ paymentId: z.number() }))
+    .query(async ({ ctx, input }) => {
+      const orgId = ctx.user.organizationId;
+      if (!orgId) return { status: "pendente" as const };
+      const db = await getDb();
+      if (!db) return { status: "pendente" as const };
+      const rows = await db.select().from(payments).where(eq(payments.id, input.paymentId)).limit(1);
+      const row = rows[0];
+      if (!row || row.organizationId !== orgId) return { status: "pendente" as const };
+      if (row.status === "pago") return { status: "pago" as const };
+
+      // fallback: consulta o Asaas direto (caso o webhook atrase)
+      if (row.externalId && asaasService.asaasEnabled()) {
+        const live = await asaasService.getPayment(row.externalId);
+        if (live && asaasService.isPaidStatus(live.status)) {
+          await db.update(payments).set({ status: "pago", paidAt: new Date() }).where(eq(payments.id, row.id));
+          if ((row.ccAmount ?? 0) > 0) {
+            await creditsService.credit(orgId, row.ccAmount ?? 0, "recarga", {
+              ref: `payment:${row.id}`,
+              description: `Recarga via PIX (Asaas) — ${row.ccAmount} CC`,
+              idempotencyKey: `asaas:${row.externalId}`,
+            });
+          }
+          return { status: "pago" as const };
+        }
+      }
+      return { status: "pendente" as const };
+    }),
 
   // MVP: compra simulada (sem gateway ainda — Asaas entra no Sprint 6).
   // Credita direto para destravar testes do estúdio.
@@ -828,6 +1007,37 @@ const diagnosisRouter = router({
       const orgId = ctx.user.organizationId;
       if (!orgId) throw new Error("Organizacao nao encontrada");
       return diagnosisService.updateAcompanhamento(orgId, input.acompanhamento, input.feedback);
+    }),
+  // Espião de Anúncios — 1º scan grátis por org; a partir do 2º cobra 25 CC.
+  scanAds: protectedProcedure
+    .input(z.object({ query: z.string().optional() }).nullish())
+    .mutation(async ({ ctx, input }) => {
+      const orgId = ctx.user.organizationId;
+      if (!orgId) throw new Error("Organizacao nao encontrada");
+      const plan = await diagnosisService.getPlan(orgId);
+      const isFirstScan = !plan?.anunciosConcorrentes?.length;
+      let holdId: number | null = null;
+      if (!isFirstScan) {
+        const h = await creditsService.hold(orgId, 25, "adspy:scan", { description: "Espião de anúncios — scan adicional", bypassDaily: true });
+        if (!h.ok) throw new Error(h.reason === "saldo_insuficiente" ? "Créditos insuficientes. Recarregue sua carteira em Créditos." : "Não foi possível reservar créditos.");
+        holdId = h.holdLedgerId!;
+      }
+      try {
+        const result = await adSpyService.scanAdSpy(orgId, { query: input?.query });
+        if (holdId !== null) await creditsService.settle(orgId, holdId);
+        return result;
+      } catch (e) {
+        if (holdId !== null) await creditsService.release(orgId, holdId);
+        throw e;
+      }
+    }),
+  // Inteligência de Google — buscas reais (autocomplete) + pautas de SEO.
+  scanGoogle: protectedProcedure
+    .input(z.object({ query: z.string().optional() }).nullish())
+    .mutation(({ ctx, input }) => {
+      const orgId = ctx.user.organizationId;
+      if (!orgId) throw new Error("Organizacao nao encontrada");
+      return googleIntelService.scanGoogleIntel(orgId, { query: input?.query });
     }),
 });
 

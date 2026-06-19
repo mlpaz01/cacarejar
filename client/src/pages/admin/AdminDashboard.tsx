@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Building2, Users, TrendingUp, LayoutDashboard, LogOut, ShieldCheck } from "lucide-react";
+import { Building2, Users, TrendingUp, LayoutDashboard, LogOut, ShieldCheck, DollarSign } from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
@@ -69,7 +69,7 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-[#f7f9fc]" style={{ fontFamily: "Inter, Arial, sans-serif" }}>
       {/* Header — navy */}
-      <header style={{ background: "#071b44" }} className="px-8 h-16 flex items-center justify-between shadow-lg">
+      <header style={{ background: "#011643" }} className="px-8 h-16 flex items-center justify-between shadow-lg">
         <div className="flex items-center gap-3">
           <BrandLogo size="sm" theme="dark" hideTagline />
           <span
@@ -80,6 +80,13 @@ export default function AdminDashboard() {
           </span>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setLocation("/financeiro")}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black text-white border border-white/20 hover:bg-white/10 transition-colors"
+          >
+            <DollarSign className="w-3.5 h-3.5" />
+            Financeiro
+          </button>
           <button
             onClick={() => setLocation("/revisao")}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black text-white border border-white/20 hover:bg-white/10 transition-colors"

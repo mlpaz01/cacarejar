@@ -6,6 +6,7 @@ import Landing from "@/pages/Landing";
 import Register from "@/pages/Register";
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminRevisao from "@/pages/admin/AdminRevisao";
+import AdminFinanceiro from "@/pages/admin/AdminFinanceiro";
 import { Router, Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -70,6 +71,7 @@ function AdminRouter() {
     <Switch>
       <Route path="/" component={AdminDashboard} />
       <Route path="/revisao" component={AdminRevisao} />
+      <Route path="/financeiro" component={AdminFinanceiro} />
       <Route component={NotFound} />
     </Switch>
   );
