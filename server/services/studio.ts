@@ -9,6 +9,7 @@ import { factorDefinitions, creatives } from "../../drizzle/schema";
 import { getImageProvider } from "./imageProvider";
 import * as credits from "./credits";
 import { openRouterChat } from "../openrouter";
+import { contextFromPlan, creativeMatchesContext, getActiveOrgContext, mergeContextMeta } from "./context";
 
 export async function listFactors() {
   const db = await getDb();
@@ -133,6 +134,7 @@ export async function generateVariations(params: {
 }) {
   const db = await getDb();
   if (!db) throw new Error("DB indisponível");
+  const ctx = await getActiveOrgContext(params.orgId);
 
   const factors = await listFactors();
   const factorMap = new Map(factors.map(f => [f.key, f]));
@@ -171,7 +173,7 @@ export async function generateVariations(params: {
         const ins = await db.insert(creatives).values({
           organizationId: params.orgId, userId: params.userId, briefing: params.produto,
           copy, imageUrl: img.imageUrl, ratio: params.ratio, lente: job.lente, formato: job.fv.copy_formato,
-          factorValues: job.fv, generationMeta: { model: img.model, prompt, cloned: !!params.refImageUrl }, status: "rascunho",
+          factorValues: job.fv, generationMeta: mergeContextMeta({ model: img.model, prompt, cloned: !!params.refImageUrl, source: "studio" }, ctx), status: "rascunho",
         });
         const id = credits.insertIdOf(ins);
         await credits.settle(params.orgId, job.holdId, img.realCostUsdMicros);
@@ -199,6 +201,7 @@ export async function generateProposals(params: { orgId: number; userId: number;
   const db = await getDb();
   if (!db) throw new Error("DB indisponível");
   const plan = params.plan ?? {};
+  const ctx = contextFromPlan(plan);
   const produto: string = plan.produto || "seu produto";
   const profile = plan.profile;
   const refs: (string | undefined)[] = (profile?.topPosts ?? []).map((p: any) => p.img);
@@ -236,11 +239,12 @@ export async function generateProposals(params: { orgId: number; userId: number;
           copyPromise,
         ]);
         const lente = (job.fv.of_angulo === "dor" ? "dor" : "desejo") as "dor" | "desejo";
-        const meta = {
+        const meta = mergeContextMeta({
           model: img.model, visualPrompt: idea.visualPrompt, clonedFrom: job.ref ?? null,
+          source: "diagnosis",
           titulo: idea.titulo, pilar: idea.pilar, formato: idea.formato, angulo: idea.angulo, canal: idea.canal ?? null,
           gancho: idea.gancho ?? null, hashtags: idea.hashtags ?? [], cta: idea.cta ?? null, roteiro: idea.roteiro ?? null,
-        };
+        }, ctx);
         const ins = await db.insert(creatives).values({
           organizationId: params.orgId, userId: params.userId, briefing: `${idea.titulo || produto}`,
           copy, imageUrl: img.imageUrl, ratio: "1:1", lente, formato: idea.formato || "imagem",
@@ -269,6 +273,7 @@ export async function generateProposals(params: { orgId: number; userId: number;
 export async function generateFromIdea(orgId: number, userId: number, idea: any, refImageUrl?: string) {
   const db = await getDb();
   if (!db) throw new Error("DB indisponível");
+  const ctx = await getActiveOrgContext(orgId);
   const provider = getImageProvider();
   const cc = credits.CC_COST.imagem_padrao;
   const fv: Record<string, string> = { of_angulo: idea.angulo === "transformacao" ? "transformacao" : (idea.angulo || "desejo") };
@@ -282,11 +287,12 @@ export async function generateFromIdea(orgId: number, userId: number, idea: any,
       copyP,
     ]);
     const lente = (fv.of_angulo === "dor" ? "dor" : "desejo") as "dor" | "desejo";
-    const meta = {
+    const meta = mergeContextMeta({
       model: img.model, visualPrompt: idea.visualPrompt, clonedFrom: refImageUrl ?? null,
+      source: "radar",
       titulo: idea.titulo, pilar: idea.fonte ? `Inspirado em @${idea.fonte}` : (idea.pilar ?? null), formato: idea.formato, angulo: idea.angulo,
       gancho: idea.gancho ?? null, hashtags: idea.hashtags ?? [], cta: idea.cta ?? null, roteiro: idea.roteiro ?? null, fonte: idea.fonte ?? null,
-    };
+    }, ctx);
     const ins = await db.insert(creatives).values({
       organizationId: orgId, userId, briefing: idea.titulo || "Conteúdo do Radar",
       copy, imageUrl: img.imageUrl, ratio: "1:1", lente, formato: idea.formato || "imagem",
@@ -416,7 +422,10 @@ export async function regenerateImage(orgId: number, userId: number, id: number,
 export async function listRecentCreatives(orgId: number, limit = 12) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(creatives).where(eq(creatives.organizationId, orgId)).orderBy(desc(creatives.createdAt)).limit(limit);
+  const ctx = await getActiveOrgContext(orgId);
+  if (!ctx) return [];
+  const rows = await db.select().from(creatives).where(eq(creatives.organizationId, orgId)).orderBy(desc(creatives.createdAt)).limit(limit * 5);
+  return rows.filter((creative) => creativeMatchesContext(creative, ctx)).slice(0, limit);
 }
 
 /** Baixa uma imagem remota (ex.: post do Instagram) e salva em /uploads. Retorna URL pública absoluta. */

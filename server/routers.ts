@@ -50,6 +50,7 @@ import * as diagnosisService from "./services/diagnosis";
 import * as adSpyService from "./services/adSpy";
 import * as googleIntelService from "./services/googleIntel";
 import * as radarService from "./services/radar";
+import { creativeMatchesContext, getActiveOrgContext, mergeContextMeta } from "./services/context";
 
 // ─── Campaigns Router ─────────────────────────────────────────────────────────
 
@@ -176,10 +177,13 @@ const campaignsRouter = router({
 const creativesRouter = router({
   list: protectedProcedure
     .input(z.object({ campaignId: z.number().optional() }))
-    .query(({ ctx, input }) => {
+    .query(async ({ ctx, input }) => {
       const orgId = ctx.user.organizationId;
       if (!orgId) return [];
-      return getCreatives(orgId, input.campaignId);
+      const activeContext = await getActiveOrgContext(orgId);
+      if (!activeContext) return [];
+      const rows = await getCreatives(orgId, input.campaignId);
+      return rows.filter((creative) => creativeMatchesContext(creative, activeContext));
     }),
 
   byId: protectedProcedure
@@ -200,6 +204,7 @@ const creativesRouter = router({
       const orgId = ctx.user.organizationId;
       if (!orgId) throw new Error("Organização não encontrada");
 
+      const activeContext = await getActiveOrgContext(orgId);
       const { UPLOADS_DIR } = await import("./_core/index");
 
       const base64 = input.imageData.replace(/^data:image\/\w+;base64,/, "");
@@ -217,6 +222,7 @@ const creativesRouter = router({
         briefing: input.briefing,
         imageUrl,
         channels: input.channels,
+        generationMeta: mergeContextMeta({ source: "upload" }, activeContext),
         status: "aprovado",
       });
 
@@ -244,6 +250,7 @@ const creativesRouter = router({
         briefing: input.briefing,
         imageUrl: input.imageUrl,
         channels: input.channels,
+        generationMeta: mergeContextMeta({ source: "url-import" }, await getActiveOrgContext(orgId)),
         status: "aprovado",
       });
 

@@ -13,6 +13,14 @@ const BUDGETS = [
 ] as const;
 
 const brl = (cents: number) => (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const cleanHandle = (h?: string) => (h || "").trim().replace(/^@/, "").replace(/^https?:\/\/(www\.)?instagram\.com\//i, "").replace(/\/$/, "").toLowerCase();
+const approvalContextLabel = (plan: any) => {
+  const redes = { ...(plan?.redes ?? {}), ...(plan?._redes ?? {}) };
+  const ig = cleanHandle(plan?.profile?.handle || redes.instagram);
+  if (ig) return `@${ig}`;
+  if (plan?.site?.url) return plan.site.url;
+  return plan?.produto || plan?.nicho || "";
+};
 const channelLabel = (channels?: string[] | null, fallback?: string) => {
   const c = String(channels?.[0] || fallback || "meta").toLowerCase();
   if (c.includes("linkedin")) return "LinkedIn";
@@ -33,8 +41,10 @@ export default function Aprovacao() {
   const [, navigate] = useLocation();
   const utils = trpc.useUtils();
   const pending = trpc.approvals.pendingForClient.useQuery();
+  const diagnosis = trpc.diagnosis.get.useQuery();
   const [sel, setSel] = useState<Record<number, boolean>>({});
   const [budgetByExp, setBudgetByExp] = useState<Record<number, number>>({});
+  const activeLabel = approvalContextLabel(diagnosis.data);
 
   useEffect(() => {
     if (!pending.data?.length) return;
@@ -65,7 +75,10 @@ export default function Aprovacao() {
   });
 
   return (
-    <AppLayout title="Revisar e publicar" subtitle="A última conferência antes dos Agentes colocarem dinheiro em mídia.">
+    <AppLayout
+      title="Revisar e publicar"
+      subtitle={activeLabel ? `Conteúdos do perfil ativo: ${activeLabel}` : "Crie ou restaure um diagnóstico antes de aprovar campanhas."}
+    >
       <JourneyGuide active="aprovacao" />
       {pending.isLoading ? (
         <p className="text-sm text-[#61708a]">Carregando...</p>
@@ -73,7 +86,9 @@ export default function Aprovacao() {
         <div className="bg-white rounded-xl border border-[#e6ebf3] p-10 text-center shadow-sm">
           <Inbox className="w-10 h-10 text-[#c7cdd8] mx-auto mb-3" />
           <p className="text-sm font-bold text-[#070b17]">Nada para publicar agora</p>
-          <p className="text-xs text-[#61708a] mt-1">Escolha posts no Diagnóstico e envie para aprovação.</p>
+          <p className="text-xs text-[#61708a] mt-1">
+            {activeLabel ? `Nenhum conteúdo pendente para ${activeLabel}.` : "Crie ou restaure um diagnóstico com perfil antes de aprovar campanhas."}
+          </p>
         </div>
       ) : (
         pending.data.map((exp: any) => {

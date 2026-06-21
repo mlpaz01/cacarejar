@@ -11,6 +11,8 @@ import { getDb } from "../db";
 import { orgProfile, factorDefinitions } from "../../drizzle/schema";
 import { openRouterChat, ContentPart } from "../openrouter";
 import { fetchProfile, fetchSite, profileReadingEnabled, SocialProfile, SiteSnapshot } from "./profileProvider";
+import { archivePendingForContext } from "./approvals";
+import { contextFromPlan } from "./context";
 
 const BRAIN = "anthropic/claude-sonnet-4.6";
 const truncate = (s: string, n: number) => (s || "").slice(0, n);
@@ -1121,6 +1123,11 @@ export async function analyze(params: {
   const db = await getDb();
   if (db) {
     const existing = await db.select().from(orgProfile).where(eq(orgProfile.organizationId, params.orgId)).limit(1);
+    const oldContext = existing[0]?.planoJson ? contextFromPlan(existing[0].planoJson, existing[0]) : null;
+    const newContext = contextFromPlan(enhancedPlan, { redes, produto: params.produto, nicho: enhancedPlan.nicho });
+    if (existing[0]?.planoJson && oldContext?.key !== newContext?.key) {
+      await archivePendingForContext(params.orgId, oldContext, true);
+    }
     const row = {
       organizationId: params.orgId, nicho: enhancedPlan.nicho, produto: params.produto, objetivo: params.objetivo, redes,
       dnaOrganico: { itens: enhancedPlan.dnaOrganico, perfil: profile ?? undefined },
@@ -1160,6 +1167,7 @@ export async function archiveCurrentPlan(orgId: number, reason = "user-requested
   const rows = await db.select().from(orgProfile).where(eq(orgProfile.organizationId, orgId)).limit(1);
   const row = rows[0];
   if (!row?.planoJson) return { archived: false };
+  const currentContext = contextFromPlan(row.planoJson, row);
   const archived: any[] = Array.isArray(row.archivedPlans) ? row.archivedPlans as any[] : [];
   archived.push({
     id: archiveId(), archivedAt: Date.now(), reason,
@@ -1171,6 +1179,7 @@ export async function archiveCurrentPlan(orgId: number, reason = "user-requested
   });
   // mantém últimos 10 snapshots
   const trimmed = archived.slice(-10);
+  await archivePendingForContext(orgId, currentContext, true);
   await db.update(orgProfile).set({ archivedPlans: trimmed as any, planoJson: null as any, radarJson: null as any, resumoDiagnostico: null }).where(eq(orgProfile.organizationId, orgId));
   return { archived: true, totalSnapshots: trimmed.length };
 }
@@ -1234,6 +1243,7 @@ export async function restoreArchive(orgId: number, id: string) {
 
   // Arquiva o atual antes de restaurar para nao perder o estado vigente.
   if (rows[0]?.planoJson) {
+    const currentContext = contextFromPlan(rows[0].planoJson, rows[0]);
     archived.push({
       id: archiveId(), archivedAt: Date.now(), reason: "auto-before-restore",
       nicho: rows[0].nicho ?? undefined, produto: rows[0].produto ?? undefined,
@@ -1242,6 +1252,7 @@ export async function restoreArchive(orgId: number, id: string) {
       publicoAlvo: (rows[0].publicoAlvo as any) ?? undefined,
       planoJson: rows[0].planoJson, radarJson: rows[0].radarJson ?? undefined,
     });
+    await archivePendingForContext(orgId, currentContext, true);
   }
 
   await db.update(orgProfile).set({

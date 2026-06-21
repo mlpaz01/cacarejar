@@ -10,6 +10,8 @@ import {
 } from "../../drizzle/schema";
 import { insertIdOf } from "./credits";
 import * as notif from "./notifications";
+import { creativeContextKey, creativeMatchesContext, getActiveOrgContext } from "./context";
+import type { ActiveOrgContext } from "./context";
 
 /** Cria um experimento a partir de criativos (status: aguardando_cliente). */
 export async function sendToApproval(params: {
@@ -18,10 +20,21 @@ export async function sendToApproval(params: {
   const db = await getDb();
   if (!db) throw new Error("DB indisponível");
   if (!params.creativeIds.length) throw new Error("Nenhum criativo selecionado");
+  const ctx = await getActiveOrgContext(params.orgId);
+  if (!ctx) throw new Error("Crie ou restaure um diagnóstico antes de enviar conteúdos para aprovação.");
 
   const cras = await db.select().from(creatives)
     .where(and(eq(creatives.organizationId, params.orgId), inArray(creatives.id, params.creativeIds)));
   if (!cras.length) throw new Error("Criativos não encontrados");
+  if (cras.length !== params.creativeIds.length) throw new Error("Alguns criativos não foram encontrados nesta organização.");
+
+  const offContext = cras.filter(c => !creativeMatchesContext(c, ctx));
+  if (offContext.length) {
+    const details = offContext
+      .map(c => `#${c.id}${creativeContextKey(c) ? ` (${creativeContextKey(c)})` : " (sem contexto)"}`)
+      .join(", ");
+    throw new Error(`Aprovação bloqueada: estes criativos não pertencem ao perfil atual ${ctx.label}: ${details}. Gere novamente pelo diagnóstico/radar ativo.`);
+  }
 
   const expRes = await db.insert(experiments).values({
     organizationId: params.orgId,
@@ -47,6 +60,8 @@ export async function sendToApproval(params: {
 export async function pendingForClient(orgId: number) {
   const db = await getDb();
   if (!db) return [];
+  const ctx = await getActiveOrgContext(orgId);
+  if (!ctx) return [];
   const exps = await db.select().from(experiments)
     .where(and(eq(experiments.organizationId, orgId), eq(experiments.status, "aguardando_cliente")))
     .orderBy(desc(experiments.createdAt));
@@ -56,12 +71,46 @@ export async function pendingForClient(orgId: number) {
     const cids = vs.map(v => v.creativeId!).filter(Boolean);
     const cras = cids.length ? await db.select().from(creatives).where(inArray(creatives.id, cids)) : [];
     const craMap = new Map(cras.map(c => [c.id, c]));
+    if (!cras.length) continue;
+    const allMatchActiveContext = cras.every(c => creativeMatchesContext(c, ctx));
+    if (!allMatchActiveContext) continue;
     out.push({
       ...e,
+      contextKey: ctx.key,
+      contextLabel: ctx.label,
       variants: vs.map(v => ({ ...v, creative: craMap.get(v.creativeId!) })),
     });
   }
   return out;
+}
+
+export async function archivePendingForContext(orgId: number, context?: ActiveOrgContext | string | null, includeUntagged = true) {
+  const db = await getDb();
+  if (!db) return { archived: 0 };
+  const contextKey = typeof context === "string" ? context : context?.key;
+  const exps = await db.select().from(experiments)
+    .where(and(eq(experiments.organizationId, orgId), eq(experiments.status, "aguardando_cliente")));
+  let archived = 0;
+
+  for (const exp of exps) {
+    const vs = await db.select().from(variants).where(eq(variants.experimentId, exp.id));
+    const cids = vs.map(v => v.creativeId!).filter(Boolean);
+    const cras = cids.length ? await db.select().from(creatives).where(inArray(creatives.id, cids)) : [];
+    const keys = cras.map(creativeContextKey);
+    const shouldArchive = contextKey
+      ? cras.some(c => typeof context === "string" ? creativeContextKey(c) === contextKey : creativeMatchesContext(c, context ?? null))
+        || (includeUntagged && typeof context === "string" && keys.some(k => !k))
+      : true;
+    if (!shouldArchive) continue;
+
+    await db.update(experiments).set({ status: "arquivado" }).where(eq(experiments.id, exp.id));
+    if (vs.length) {
+      await db.update(variants).set({ status: "pausada" }).where(eq(variants.experimentId, exp.id));
+    }
+    archived++;
+  }
+
+  return { archived };
 }
 
 /** Cliente aprova as variantes selecionadas → dispara revisão. */
@@ -130,7 +179,8 @@ export async function runReview(approvalId: number) {
         const re = new RegExp(`\\b${escapeRe(r.term.toLowerCase())}\\b`, "i");
         if (re.test(text)) {
           if (r.action === "bloqueia") { confVerdict = "fail"; confNote = `Termo bloqueado: "${r.term}"`; break; }
-          if (confVerdict !== "fail") { confVerdict = "flag"; confNote = `Termo sinalizado: "${r.term}"`; }
+          confVerdict = "flag";
+          confNote = `Termo sinalizado: "${r.term}"`;
         }
       }
       if (confVerdict === "fail") break;
