@@ -94,7 +94,7 @@ export default function Biblioteca() {
         </div>
 
         <div className="flex items-center gap-1.5">
-          {["todos", "linkedin", "tiktok", "instagram", "google"].map((ch) => (
+          {["todos", "tiktok", "instagram", "google"].map((ch) => (
             <button
               key={ch}
               onClick={() => setFilterChannel(ch)}

@@ -50,7 +50,6 @@ export default function DiagnosticoPrint() {
   const prescricoes = shown.prescricoesPorCanal ?? [];
   const timeline = shown.cronogramaMulticanal ?? [];
   const interests = shown.interessesPosts ?? [];
-  const linkedin360 = shown.linkedin360;
   const acompanhamento = shown.acompanhamento;
   const today = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
   const hotHits = ((rd?.hits ?? []) as any[]).slice(0, 6);
@@ -94,7 +93,7 @@ export default function DiagnosticoPrint() {
       <main className="doc">
         <section className="cover">
           <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 16, position: "relative", zIndex: 1 }}>
-            <img src="/assets/logo-dark.png" alt="Cacarejar" style={{ height: 64, width: 190, objectFit: "contain" }} />
+            <img src="/assets/logo-dark.png" alt="Cacarejar" style={{ height: 86, width: "auto" }} />
             <span style={{ marginLeft: "auto", fontSize: 9, fontWeight: 900, color: "rgba(255,255,255,.72)", border: "1px solid rgba(255,255,255,.18)", borderRadius: 999, padding: "5px 9px" }}>{today}</span>
           </div>
           <div style={{ position: "relative", zIndex: 1 }}>
@@ -197,37 +196,6 @@ export default function DiagnosticoPrint() {
                 </div>
               ))}
             </div>
-          </section>
-        )}
-
-        {linkedin360 && (
-          <section className="section">
-            <h3>Visao 360 para LinkedIn</h3>
-            <div className="grid3">
-              {(linkedin360.niveis ?? []).map((n: any, i: number) => (
-                <div className="mini" key={i}>
-                  <p style={{ fontSize: 9.5, color: "#ff3217", fontWeight: 950, textTransform: "uppercase" }}>{n.nivel}</p>
-                  <p style={{ fontSize: 10.5, color: "#071b44", fontWeight: 900, marginTop: 3 }}>{n.descricao}</p>
-                  {(n.achados ?? []).slice(0, 3).map((a: string, j: number) => <p key={j} className="bullet">{a}</p>)}
-                </div>
-              ))}
-            </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 8 }}>
-              {[...(linkedin360.areasAfins ?? []), ...(linkedin360.cargos ?? []), ...(linkedin360.tecnologias ?? [])].slice(0, 16).map((item: string) => (
-                <span key={item} className="pill" style={{ color: "#071b44", background: "#fff", border: "1px solid #e6ebf3" }}>{item}</span>
-              ))}
-            </div>
-            {!!linkedin360.publicosAnuncio?.length && (
-              <div className="grid2" style={{ marginTop: 8 }}>
-                {linkedin360.publicosAnuncio.slice(0, 4).map((p: any, i: number) => (
-                  <div className="mini" key={i}>
-                    <h4 style={{ color: "#071b44", fontSize: 11.5, fontWeight: 950 }}>{p.nome}</h4>
-                    <p className="small" style={{ marginTop: 4 }}>{p.mensagem}</p>
-                    <p style={{ fontSize: 9.2, color: "#22304b", fontWeight: 750, marginTop: 4 }}><strong>Oferta:</strong> {p.oferta}</p>
-                  </div>
-                ))}
-              </div>
-            )}
           </section>
         )}
 

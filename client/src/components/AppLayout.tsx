@@ -22,6 +22,7 @@ import {
   Egg,
   MessageSquareHeart,
   Telescope,
+  UserCog,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -65,6 +66,7 @@ const navGroups = [
       { href: "/creditos", icon: Coins, label: "Créditos" },
       { href: "/notificacoes", icon: Bell, label: "Notificações" },
       { href: "/integracoes", icon: Settings2, label: "Integrações" },
+      { href: "/configuracoes", icon: UserCog, label: "Configurações" },
     ],
   },
 ];

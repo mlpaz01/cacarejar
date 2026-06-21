@@ -34,7 +34,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-const CHANNELS = ["linkedin", "tiktok", "instagram", "google"] as const;
+const CHANNELS = ["tiktok", "instagram", "google"] as const;
 
 function getExt(file: File): "jpg" | "jpeg" | "png" | "webp" | "gif" {
   const map: Record<string, "jpg" | "jpeg" | "png" | "webp" | "gif"> = {

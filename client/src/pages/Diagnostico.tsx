@@ -12,8 +12,8 @@ import {
   Globe2,
   History,
   Instagram,
-  Linkedin,
   Loader2,
+  Megaphone,
   MessageSquareText,
   Pencil,
   RotateCcw,
@@ -46,7 +46,7 @@ const absUrl = (url?: string) => {
 const hitKey = (h: any) => String(h?.url || h?.img || `${h?.ownerUsername || ""}:${String(h?.caption || "").slice(0, 80)}`);
 const channelIcon = (canal?: string) => {
   const c = String(canal || "").toLowerCase();
-  if (c.includes("linkedin")) return Linkedin;
+  if (c.includes("google") || c.includes("busca")) return Globe2;
   if (c.includes("blog") || c.includes("seo")) return BookOpen;
   if (c.includes("instagram")) return Instagram;
   if (c.includes("tiktok") || c.includes("reels")) return Video;
@@ -62,7 +62,7 @@ export default function Diagnostico() {
 
   const [produto, setProduto] = useState("");
   const [objetivo, setObjetivo] = useState<(typeof OBJETIVOS)[number]["v"]>("vender");
-  const [redes, setRedes] = useState({ site: "", linkedin: "", instagram: "", tiktok: "" });
+  const [redes, setRedes] = useState({ site: "", instagram: "", tiktok: "" });
   const [sobre, setSobre] = useState("");
   const [plan, setPlan] = useState<any>(null);
   const [forceForm, setForceForm] = useState(false);
@@ -70,6 +70,8 @@ export default function Diagnostico() {
   const [searchArchive, setSearchArchive] = useState("");
   const [likedHitKeys, setLikedHitKeys] = useState<string[]>([]);
   const [dislikedHitKeys, setDislikedHitKeys] = useState<string[]>([]);
+  const [adQuery, setAdQuery] = useState("");
+  const [googleQuery, setGoogleQuery] = useState("");
   const [feedback, setFeedback] = useState("");
   const [preparingApproval, setPreparingApproval] = useState(false);
 
@@ -119,6 +121,20 @@ export default function Diagnostico() {
     },
     onError: e => toast.error(e.message || "Erro ao recalcular diagnostico"),
   });
+  const scanAds = trpc.diagnosis.scanAds.useMutation({
+    onSuccess: () => {
+      utils.diagnosis.get.invalidate();
+      toast.success("Espiao de anuncios atualizado.");
+    },
+    onError: e => toast.error(e.message || "Erro ao escanear anuncios"),
+  });
+  const scanGoogle = trpc.diagnosis.scanGoogle.useMutation({
+    onSuccess: () => {
+      utils.diagnosis.get.invalidate();
+      toast.success("Buscas do Google atualizadas.");
+    },
+    onError: e => toast.error(e.message || "Erro ao buscar no Google"),
+  });
   const genProposals = trpc.studio.generateProposals.useMutation({
     onError: e => toast.error(e.message || "Erro ao gerar posts"),
   });
@@ -142,7 +158,7 @@ export default function Diagnostico() {
     setDislikedHitKeys((rd.feedback?.dislikedPostKeys ?? []) as string[]);
   }, [rd?.scannedAt]);
 
-  const diagnosisSteps = useMemo(() => pickDiagnosisSteps({ instagram: redes.instagram, linkedin: redes.linkedin, site: redes.site } as any), [redes]);
+  const diagnosisSteps = useMemo(() => pickDiagnosisSteps({ instagram: redes.instagram, tiktok: redes.tiktok, site: redes.site }), [redes]);
   const formReady = produto.trim().length >= 3 && Object.values(redes).some(Boolean);
 
   const runAnalyze = () => {
@@ -160,7 +176,7 @@ export default function Diagnostico() {
     setProduto("");
     setSobre("");
     setObjetivo("vender");
-    setRedes({ site: "", linkedin: "", instagram: "", tiktok: "" });
+    setRedes({ site: "", instagram: "", tiktok: "" });
     setFeedback("");
   };
 
@@ -169,7 +185,6 @@ export default function Diagnostico() {
     if (!current) return openBlankDiagnosis();
     const nextRedes = current.redes ?? current._redes ?? {
       instagram: current.profile?.handle ? `@${current.profile.handle}` : "",
-      linkedin: current.linkedin ?? "",
       site: current.site?.url ?? "",
       tiktok: "",
     };
@@ -249,7 +264,7 @@ export default function Diagnostico() {
           <AnalysisProgress
             steps={diagnosisSteps}
             active
-            title={`Estudando ${redes.linkedin || redes.instagram || redes.site || produto}...`}
+            title={`Estudando ${redes.instagram || redes.site || produto}...`}
             subtitle="Nosso Agente Estrategista esta trabalhando."
           />
         </div>
@@ -317,9 +332,6 @@ export default function Diagnostico() {
               <Field icon={Globe2} label="Site oficial">
                 <input value={redes.site} onChange={e => setRedes(r => ({ ...r, site: e.target.value }))} placeholder="https://empresa.com.br" className="input-clean" />
               </Field>
-              <Field icon={Linkedin} label="LinkedIn">
-                <input value={redes.linkedin} onChange={e => setRedes(r => ({ ...r, linkedin: e.target.value }))} placeholder="linkedin.com/company/..." className="input-clean" />
-              </Field>
               <Field icon={Instagram} label="Instagram">
                 <input value={redes.instagram} onChange={e => setRedes(r => ({ ...r, instagram: e.target.value }))} placeholder="@perfil" className="input-clean" />
               </Field>
@@ -349,7 +361,7 @@ export default function Diagnostico() {
             <p className="text-xs font-black text-white/60 uppercase tracking-widest">Metodologia</p>
             <h3 className="text-2xl font-black mt-2 leading-tight">Parecer + prescricao + planner.</h3>
             <p className="text-sm text-white/75 mt-3 leading-relaxed">
-              O diagnostico separa o que foi identificado em cada origem e transforma isso em plano de acao por canal: LinkedIn, Blog / SEO, Instagram e TikTok / Reels.
+              O diagnostico separa o que foi identificado em cada origem e transforma isso em plano de acao por canal: Blog / SEO, Instagram e TikTok / Reels.
             </p>
             <div className="grid grid-cols-2 gap-3 mt-5">
               {["Fontes usadas", "Visao 360", "Cronograma", "Acompanhamento"].map(label => (
@@ -369,7 +381,6 @@ export default function Diagnostico() {
   const acoesImediatas = shown.acoesImediatas ?? [];
   const prescricoes = shown.prescricoesPorCanal ?? [];
   const timeline = shown.cronogramaMulticanal ?? [];
-  const linkedin360 = shown.linkedin360;
   const acompanhamento = shown.acompanhamento;
   const interests = shown.interessesPosts ?? [];
   const hotHits = ((rd?.hits ?? []) as any[]).slice().sort((a, b) => (b.hotScore ?? 0) - (a.hotScore ?? 0)).slice(0, 4);
@@ -507,58 +518,50 @@ export default function Diagnostico() {
         </div>
       </section>
 
-      <section className="grid grid-cols-1 xl:grid-cols-2 gap-5 mb-5">
-        <div className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm">
-          <HeaderLine icon={Linkedin} title="Visao 360 para LinkedIn" subtitle="Pessoas, areas, tecnologias e proximos niveis para conteudo e anuncios." />
-          {linkedin360 ? (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-5">
-                {(linkedin360.niveis ?? []).map((n: any) => (
-                  <div key={n.nivel} className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-4">
-                    <p className="text-xs font-black text-[#ff3217] uppercase">{n.nivel}</p>
-                    <p className="text-sm font-bold text-[#071b44] mt-1">{n.descricao}</p>
-                    <ul className="mt-3 space-y-1">{(n.achados ?? []).slice(0, 3).map((a: string) => <li key={a} className="text-xs text-[#61708a] leading-relaxed">- {a}</li>)}</ul>
+      {plan?.canais360?.canais?.length ? (
+        <section className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
+          <HeaderLine icon={Target} title="Visao 360 por canal" subtitle="Leitura, publicos, angulos de anuncio e formatos para cada canal com dado real: Instagram, TikTok e Google." />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-5">
+            {plan.canais360.canais.map((c: any) => {
+              const Icon = channelIcon(c.canal);
+              return (
+                <div key={c.canal} className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-4 flex flex-col">
+                  <div className="flex items-center gap-2">
+                    <span className="w-8 h-8 rounded-lg bg-[#fff1ef] flex items-center justify-center flex-shrink-0"><Icon className="w-4 h-4 text-[#ff3217]" /></span>
+                    <p className="text-sm font-black text-[#071b44]">{c.canal}</p>
                   </div>
-                ))}
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
-                <ChipBox title="Areas afins" items={linkedin360.areasAfins} />
-                <ChipBox title="Cargos" items={linkedin360.cargos} />
-                <ChipBox title="Tecnologias" items={linkedin360.tecnologias} />
-              </div>
-              {!!linkedin360.publicosAnuncio?.length && (
-                <div className="mt-5">
-                  <p className="text-xs font-black text-[#ff3217] uppercase tracking-wide">Publicos para LinkedIn Ads</p>
-                  <div className="grid grid-cols-1 gap-3 mt-3">
-                    {linkedin360.publicosAnuncio.map((p: any) => (
-                      <div key={p.nome} className="rounded-2xl border border-[#e6ebf3] bg-white p-4">
-                        <h3 className="text-sm font-black text-[#071b44]">{p.nome}</h3>
-                        <p className="text-xs text-[#22304b] font-bold leading-relaxed mt-2">{p.mensagem}</p>
-                        <div className="flex flex-wrap gap-1.5 mt-3">{(p.alvo ?? []).map((a: string) => <Tag key={a}>{a}</Tag>)}</div>
-                        <p className="text-[11px] text-[#61708a] font-bold mt-3"><span className="text-[#ff3217]">Oferta:</span> {p.oferta}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {!!linkedin360.mensagensPorNivel?.length && (
-                <div className="mt-5">
-                  <p className="text-xs font-black text-[#ff3217] uppercase tracking-wide">Mensagem por nivel</p>
-                  <div className="space-y-2 mt-3">
-                    {linkedin360.mensagensPorNivel.map((m: any) => (
-                      <div key={m.nivel} className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-4">
-                        <p className="text-xs font-black text-[#071b44]">{m.nivel} - {m.abordagem}</p>
-                        <p className="text-xs text-[#61708a] leading-relaxed mt-2"><b>Conteudo:</b> {m.conteudo}</p>
-                        <p className="text-xs text-[#61708a] leading-relaxed mt-1"><b>Anuncio:</b> {m.anuncio}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
-          ) : <EmptyText>Informe LinkedIn ou rode o Radar para enriquecer esta visao.</EmptyText>}
-        </div>
+                  <p className="text-[11px] font-bold text-[#61708a] mt-2">{c.papel}</p>
+                  <p className="text-xs text-[#22304b] leading-relaxed mt-2">{c.leitura}</p>
 
+                  <p className="text-[10px] font-black text-[#ff3217] uppercase tracking-wide mt-3">Publicos</p>
+                  <div className="flex flex-wrap gap-1.5 mt-1">{(c.publicos ?? []).map((p: string) => <Tag key={p}>{p}</Tag>)}</div>
+
+                  <p className="text-[10px] font-black text-[#ff3217] uppercase tracking-wide mt-3">Angulos de anuncio</p>
+                  <div className="space-y-2 mt-1">
+                    {(c.angulosAnuncio ?? []).map((a: any, i: number) => (
+                      <div key={i} className="rounded-xl border border-[#e6ebf3] bg-white p-2.5">
+                        <p className="text-xs font-black text-[#071b44]">{a.nome}</p>
+                        <p className="text-[11px] text-[#22304b] leading-snug mt-1">{a.mensagem}</p>
+                        <p className="text-[10px] text-[#61708a] font-bold mt-1"><span className="text-[#ff3217]">Oferta:</span> {a.oferta}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <p className="text-[10px] font-black text-[#ff3217] uppercase tracking-wide mt-3">Formatos</p>
+                  <ul className="mt-1 space-y-0.5">{(c.formatos ?? []).map((f: string) => <li key={f} className="text-[11px] text-[#22304b]">- {f}</li>)}</ul>
+
+                  <p className="text-[10px] font-black text-[#ff3217] uppercase tracking-wide mt-3">Conteudos</p>
+                  <ul className="mt-1 space-y-0.5">{(c.conteudos ?? []).map((f: string) => <li key={f} className="text-[11px] text-[#22304b]">- {f}</li>)}</ul>
+
+                  <div className="flex flex-wrap gap-1.5 mt-3">{(c.kpis ?? []).map((k: string) => <span key={k} className="text-[10px] font-bold text-[#61708a] bg-white border border-[#e6ebf3] rounded-full px-2 py-0.5">{k}</span>)}</div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
+
+      <section className="grid grid-cols-1 gap-5 mb-5">
         <div className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm">
           <HeaderLine icon={Flame} title="Radar integrado ao parecer" subtitle="Marque os posts quentes para o Agente recalcular a leitura." />
           <div className="flex gap-2 flex-wrap mt-4 mb-4">
@@ -596,6 +599,149 @@ export default function Diagnostico() {
           ) : <EmptyText>Atualize o Radar para trazer posts quentes para dentro do diagnostico.</EmptyText>}
         </div>
       </section>
+
+      {(() => {
+        const adData: any = scanAds.data ?? (plan?.anunciosConcorrentes?.length
+          ? { query: plan.anunciosQuery, ads: plan.anunciosConcorrentes, insights: plan.anunciosInsights ?? [], scannedAt: plan.anunciosScannedAt }
+          : null);
+        return (
+          <section className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
+            <HeaderLine icon={Megaphone} title="Espiao de Anuncios dos concorrentes" subtitle="Anuncios reais rodando agora na Meta (Facebook/Instagram). Os que rodam ha mais tempo costumam ser os campeoes." />
+            <div className="flex gap-2 flex-wrap mt-4 mb-4 items-center">
+              <input
+                value={adQuery}
+                onChange={e => setAdQuery(e.target.value)}
+                placeholder={`Palavra-chave ou concorrente (padrao: ${plan?.produto || plan?.nicho || "seu nicho"})`}
+                className="input-clean flex-1 min-w-[220px]"
+              />
+              <button
+                onClick={() => scanAds.mutate(adQuery.trim() ? { query: adQuery.trim() } : undefined)}
+                disabled={scanAds.isPending}
+                className="rounded-full bg-[#ff3217] text-white px-4 py-2 text-xs font-black disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {scanAds.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                {scanAds.isPending ? "Escaneando..." : "Escanear anuncios"}
+              </button>
+            </div>
+            {scanAds.isPending ? (
+              <EmptyText>Buscando anuncios reais na Biblioteca da Meta... isso pode levar 1-2 minutos.</EmptyText>
+            ) : adData?.ads?.length ? (
+              <>
+                {adData.insights?.length ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
+                    {adData.insights.map((ins: any, i: number) => (
+                      <div key={i} className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-4">
+                        <p className="text-xs font-black text-[#ff3217] uppercase tracking-wide">{ins.titulo}</p>
+                        <p className="text-xs text-[#22304b] leading-relaxed mt-1">{ins.detalhe}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {adData.ads.map((ad: any, i: number) => (
+                    <article key={i} className="rounded-2xl overflow-hidden border border-[#e6ebf3] bg-white flex flex-col">
+                      {ad.thumb && <img src={ad.thumb} alt="" className="w-full aspect-[4/5] object-cover bg-[#f8fafc]" referrerPolicy="no-referrer" />}
+                      <div className="p-3 flex flex-col flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-black text-[#071b44] truncate">{ad.advertiser}</p>
+                          {ad.active && ad.runningDays != null && (
+                            <span className="text-[10px] font-black text-white bg-[#18b85c] rounded-full px-2 py-1 whitespace-nowrap">{ad.runningDays}d no ar</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-[#22304b] leading-relaxed mt-2 line-clamp-5 flex-1">{ad.text}</p>
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          {ad.cta && <span className="text-[10px] font-black text-[#071b44] bg-[#f1f5fb] rounded-full px-2 py-0.5">{ad.cta}</span>}
+                          {(ad.platforms || []).slice(0, 2).map((p: string) => <span key={p} className="text-[10px] font-bold text-[#61708a] bg-[#f8fafc] rounded-full px-2 py-0.5">{p}</span>)}
+                        </div>
+                        {ad.adLibraryUrl && <a href={absUrl(ad.adLibraryUrl)} target="_blank" rel="noreferrer" className="mt-2 text-[11px] font-black text-[#61708a] hover:text-[#071b44] flex items-center gap-1">Ver na Biblioteca <ExternalLink className="w-3 h-3" /></a>}
+                      </div>
+                    </article>
+                  ))}
+                </div>
+                {adData.query && <p className="text-[11px] text-[#61708a] mt-3">Busca: <b>{adData.query}</b>{adData.scannedAt ? ` - ${new Date(adData.scannedAt).toLocaleString("pt-BR")}` : ""}</p>}
+              </>
+            ) : (
+              <EmptyText>Clique em "Escanear anuncios" para ver o que os concorrentes estao anunciando agora - e quais ja rodam ha semanas (os campeoes).</EmptyText>
+            )}
+          </section>
+        );
+      })()}
+
+      {(() => {
+        const g: any = scanGoogle.data ?? ((plan?.googleSEO?.termos?.length || plan?.googleSEO?.perguntas?.length) ? plan.googleSEO : null);
+        return (
+          <section className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
+            <HeaderLine icon={Globe2} title="O que seu cliente pesquisa no Google" subtitle="Buscas reais (autocomplete do Google) sobre o seu nicho — viram pauta de conteudo e anuncio de busca." />
+            <div className="flex gap-2 flex-wrap mt-4 mb-4 items-center">
+              <input
+                value={googleQuery}
+                onChange={e => setGoogleQuery(e.target.value)}
+                placeholder={`Palavra-chave (padrao: ${plan?.produto || plan?.nicho || "seu nicho"})`}
+                className="input-clean flex-1 min-w-[220px]"
+              />
+              <button
+                onClick={() => scanGoogle.mutate(googleQuery.trim() ? { query: googleQuery.trim() } : undefined)}
+                disabled={scanGoogle.isPending}
+                className="rounded-full bg-[#ff3217] text-white px-4 py-2 text-xs font-black disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {scanGoogle.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                {scanGoogle.isPending ? "Buscando..." : "Buscar no Google"}
+              </button>
+            </div>
+            {scanGoogle.isPending ? (
+              <EmptyText>Consultando o autocomplete do Google...</EmptyText>
+            ) : g ? (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div>
+                  {g.ideiasConteudo?.length ? (
+                    <>
+                      <p className="text-[10px] font-black text-[#ff3217] uppercase tracking-wide">Pautas sugeridas (SEO)</p>
+                      <div className="space-y-2 mt-2">
+                        {g.ideiasConteudo.map((idea: any, i: number) => (
+                          <div key={i} className="rounded-xl border border-[#e6ebf3] bg-[#fbfcff] p-3">
+                            <span className="text-[10px] font-black text-white bg-[#071b44] rounded-full px-2 py-0.5">{idea.tipo}</span>
+                            <p className="text-xs font-bold text-[#071b44] mt-1.5">{idea.titulo}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+                <div>
+                  {g.perguntas?.length ? (
+                    <>
+                      <p className="text-[10px] font-black text-[#ff3217] uppercase tracking-wide">Perguntas que pesquisam</p>
+                      <ul className="mt-2 space-y-1">{g.perguntas.map((q: string) => <li key={q} className="text-xs text-[#22304b]">- {q}</li>)}</ul>
+                    </>
+                  ) : null}
+                  {g.termos?.length ? (
+                    <>
+                      <p className="text-[10px] font-black text-[#ff3217] uppercase tracking-wide mt-4">
+                        Termos relacionados{g.fonteVolume === "dataforseo" ? " (volume real/mes)" : ""}
+                      </p>
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {g.termos.map((t: any, i: number) => {
+                          const label = typeof t === "string" ? t : t?.termo;
+                          const vol = typeof t === "object" ? t?.volume : undefined;
+                          return (
+                            <span key={label || i} className="inline-flex items-center gap-1 text-[11px] font-bold text-[#22304b] bg-[#f1f5fb] border border-[#e6ebf3] rounded-full px-2.5 py-1">
+                              {label}
+                              {typeof vol === "number" ? <span className="text-[10px] font-black text-[#18b85c]">{vol.toLocaleString("pt-BR")}/mes</span> : null}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+            ) : (
+              <EmptyText>Clique em "Buscar no Google" para ver o que as pessoas realmente pesquisam sobre o seu nicho - e transformar em pauta de conteudo.</EmptyText>
+            )}
+            {g?.termo && !scanGoogle.isPending && <p className="text-[11px] text-[#61708a] mt-3">Busca base: <b>{g.termo}</b></p>}
+          </section>
+        );
+      })()}
 
       <section className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
         <HeaderLine icon={BarChart3} title="Visao 360: interesses pelos posts" subtitle="Sinais inferidos por posts, Radar e ideias marcadas." />

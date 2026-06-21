@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gerador de Legenda para Instagram com IA (grátis) | Cacarejar</title>
+  <meta name="description" content="Gere legendas prontas para Instagram e TikTok com IA, grátis e sem cadastro. Diga o tema e receba 3 legendas com gancho, CTA e hashtags. Ferramenta do Cacarejar.">
+  <meta property="og:title" content="Gerador de Legenda com IA — grátis">
+  <meta property="og:description" content="Diga o tema e receba 3 legendas prontas com gancho, CTA e hashtags.">
+  <meta property="og:image" content="/assets/logo-dark.png">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://cacarejar.com.br/ferramentas/gerador-de-legenda">
+  <meta name="theme-color" content="#071b44">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/landing.css">
+  <style>
+    .tool-wrap { max-width: 720px; margin: 0 auto; padding: 28px 0 40px; }
+    .tool-head h1 { font-size: clamp(28px,3.4vw,40px); font-weight: 900; color: var(--navy); margin: 0 0 10px; line-height: 1.08; }
+    .tool-head h1 span { color: var(--red); }
+    .tool-head p { font-size: 15px; color: #263754; font-weight: 600; line-height: 1.6; margin: 0 0 24px; }
+    .calc-card { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 24px; box-shadow: 0 2px 12px rgba(7,27,68,.05); }
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-size: 13px; font-weight: 800; color: var(--navy); margin-bottom: 6px; }
+    .field input, .field select { width: 100%; box-sizing: border-box; border: 1.5px solid var(--line); border-radius: 10px; padding: 12px 14px; font-size: 15px; font-family: inherit; background: #fff; }
+    .field input:focus, .field select:focus { outline: none; border-color: var(--red); }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .calc-btn { width: 100%; border: none; cursor: pointer; background: linear-gradient(180deg,#ff421f,#f0200d); color: #fff; font-weight: 900; font-size: 15px; padding: 14px; border-radius: 10px; box-shadow: 0 6px 18px rgba(255,49,22,.25); }
+    .calc-btn:hover { opacity: .93; }
+    .calc-btn:disabled { opacity: .6; cursor: default; }
+    .legendas { margin-top: 22px; display: flex; flex-direction: column; gap: 14px; }
+    .legenda { border: 1px solid var(--line); border-radius: 12px; padding: 16px; background: #fbfcff; }
+    .legenda .txt { font-size: 14px; color: #1c2940; line-height: 1.6; white-space: pre-wrap; }
+    .legenda .tags { margin-top: 10px; font-size: 12px; font-weight: 700; color: var(--red); }
+    .legenda .copy { margin-top: 12px; font-size: 12px; font-weight: 900; color: var(--navy); background: #fff; border: 1.5px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+    .legenda .copy:hover { border-color: var(--navy); }
+    .status { margin-top: 16px; font-size: 13px; color: var(--muted); font-weight: 700; text-align: center; }
+    .tool-cta { margin-top: 26px; background: #fffdfb; border: 1px solid #f2d3bd; border-radius: 14px; padding: 22px; text-align: center; }
+    .tool-cta h2 { font-size: 20px; font-weight: 900; color: var(--navy); margin: 0 0 6px; }
+    .tool-cta h2 span { color: var(--red); }
+    .tool-cta p { font-size: 13px; color: #263754; font-weight: 600; margin: 0 0 16px; }
+    .back-link { font-size: 13px; font-weight: 800; color: var(--muted); text-decoration: none; }
+    .back-link:hover { color: var(--red); }
+  </style>
+</head>
+<body>
+<main class="page">
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Cacarejar"><img src="/assets/logo.png" alt="Cacarejar"></a>
+    <nav class="nav">
+      <a href="/">Início</a>
+      <a href="/precos">Preços</a>
+      <a href="/ferramentas" class="active">Ferramentas</a>
+      <a href="/empresa">Empresa</a>
+    </nav>
+    <div class="header-actions">
+      <a class="login" href="/login">Entrar</a>
+      <a class="button primary small" href="/register">Começar grátis</a>
+    </div>
+  </header>
+
+  <div class="tool-wrap">
+    <a class="back-link" href="/ferramentas">← Ferramentas</a>
+    <div class="tool-head" style="margin-top:14px">
+      <h1>Gerador de <span>Legenda</span> com IA</h1>
+      <p>Diga o tema do seu post e receba 3 legendas prontas — com gancho, CTA e hashtags. Grátis, sem cadastro.</p>
+    </div>
+
+    <div class="calc-card">
+      <div class="field">
+        <label for="tema">Sobre o que é o post?</label>
+        <input id="tema" type="text" maxlength="280" placeholder="Ex: promoção de bolo de pote para o dia das mães">
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label for="rede">Rede</label>
+          <select id="rede">
+            <option>Instagram</option>
+            <option>TikTok</option>
+            <option>Facebook</option>
+            <option>LinkedIn</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="tom">Tom (opcional)</label>
+          <select id="tom">
+            <option value="">Padrão</option>
+            <option>Descontraído</option>
+            <option>Profissional</option>
+            <option>Emocional</option>
+            <option>Urgente / promocional</option>
+            <option>Divertido</option>
+          </select>
+        </div>
+      </div>
+      <button class="calc-btn" id="btn" onclick="gerar()">Gerar 3 legendas</button>
+      <div class="status" id="status"></div>
+      <div class="legendas" id="legendas"></div>
+    </div>
+
+    <div class="tool-cta">
+      <h2>Quer legendas <span>na voz da sua marca</span> e um plano completo?</h2>
+      <p>O Cacarejar lê seu perfil e gera conteúdo + criativos com a sua identidade, não genéricos.</p>
+      <a class="button primary" href="/register">Fazer meu diagnóstico grátis</a>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <a href="/">Início</a>
+    <a href="/precos">Preços</a>
+    <a href="/ferramentas">Ferramentas</a>
+    <a href="/empresa">Empresa</a>
+  </footer>
+</main>
+<script>
+  function esc(s){ return String(s||'').replace(/[&<>]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]; }); }
+  async function gerar() {
+    var tema = document.getElementById('tema').value.trim();
+    if (!tema) { alert('Diga sobre o que é o post.'); return; }
+    var btn = document.getElementById('btn');
+    var status = document.getElementById('status');
+    var box = document.getElementById('legendas');
+    btn.disabled = true; btn.textContent = 'Gerando...'; status.textContent = 'A IA está escrevendo suas legendas...'; box.innerHTML = '';
+    try {
+      var res = await fetch('/api/ferramentas/legenda', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tema: tema, rede: document.getElementById('rede').value, tom: document.getElementById('tom').value })
+      });
+      if (res.status === 429) { status.textContent = 'Você gerou muitas legendas seguidas. Tente de novo em alguns minutos.'; return; }
+      var data = await res.json();
+      var legs = (data && data.legendas) || [];
+      if (!legs.length) { status.textContent = 'Não consegui gerar agora. Tente reformular o tema.'; return; }
+      status.textContent = '';
+      box.innerHTML = legs.map(function(l){
+        var tags = (l.hashtags||[]).map(function(h){ return h.charAt(0)==='#'?h:'#'+h; }).join(' ');
+        return '<div class="legenda"><div class="txt">'+esc(l.texto)+'</div>'+(tags?'<div class="tags">'+esc(tags)+'</div>':'')+'<button class="copy" onclick="copiar(this)" data-txt="'+esc(l.texto+(tags?'\n\n'+tags:''))+'">Copiar</button></div>';
+      }).join('');
+    } catch (e) {
+      status.textContent = 'Erro de conexão. Tente novamente.';
+    } finally {
+      btn.disabled = false; btn.textContent = 'Gerar 3 legendas';
+    }
+  }
+  function copiar(el) {
+    var t = el.getAttribute('data-txt');
+    navigator.clipboard.writeText(t).then(function(){ el.textContent = 'Copiado!'; setTimeout(function(){ el.textContent='Copiar'; }, 1500); });
+  }
+  (function () {
+    var tb = document.querySelector('.topbar');
+    if (!tb) return;
+    var onScroll = function () { tb.classList.toggle('scrolled', window.scrollY > 8); };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  })();
+</script>
+</body>
+</html>

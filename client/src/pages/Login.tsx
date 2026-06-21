@@ -43,7 +43,7 @@ export default function Login() {
       {/* Painel esquerdo — navy */}
       <div
         className="hidden lg:flex flex-col justify-between w-96 p-10 text-white flex-shrink-0"
-        style={{ background: "#071b44" }}
+        style={{ background: "#011643" }}
       >
         <BrandLogo size="md" theme="dark" />
 

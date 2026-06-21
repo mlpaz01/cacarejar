@@ -206,6 +206,18 @@ export const DIAGNOSIS_STEPS_LINKEDIN: AnalysisStep[] = [
   { icon: "ok", label: "Validando caracteristicas visuais", durationMs: 6000 },
 ];
 
+// Etapas para TikTok
+export const DIAGNOSIS_STEPS_TT: AnalysisStep[] = [
+  { icon: "🎵", label: "Lendo seu perfil no TikTok", detail: "Buscamos bio, seguidores, vídeos e engajamento via Apify.", durationMs: 30000 },
+  { icon: "🖼️", label: "Baixando thumbnails dos seus vídeos campeões", detail: "Trazemos as capas para o nosso servidor.", durationMs: 7000 },
+  { icon: "🎨", label: "Analisando a identidade visual dos vídeos", detail: "Claude Sonnet 4.6 vê suas capas e extrai estilo, paleta e padrão.", durationMs: 25000 },
+  { icon: "🧠", label: "Identificando seu nicho e padrões de conteúdo", detail: "Cruza o que você descreveu com o que vemos nos vídeos.", durationMs: 5000 },
+  { icon: "🪜", label: "Construindo a estratégia de funil", detail: "Canal, oferta e ângulos do Teste A/Z.", durationMs: 35000 },
+  { icon: "🏛️", label: "Detalhando pilares estratégicos", detail: "Cada pilar com ações concretas (consultoria nível agência).", durationMs: 12000 },
+  { icon: "✨", label: "Criando ideias de vídeo com gancho e roteiro", detail: "Briefings de direção para TikTok e Reels com sua estética.", durationMs: 25000 },
+  { icon: "✅", label: "Validando características visuais", detail: "Garantia de que as sugestões batem com a taxonomia.", durationMs: 6000 },
+];
+
 // Etapas para quando não há nem Instagram nem site
 export const DIAGNOSIS_STEPS_GENERIC: AnalysisStep[] = [
   { icon: "🧠", label: "Analisando o que você descreveu", detail: "Entendendo seu produto e objetivo.", durationMs: 8000 },
@@ -217,9 +229,9 @@ export const DIAGNOSIS_STEPS_GENERIC: AnalysisStep[] = [
 ];
 
 /** Escolhe a sequência de etapas com base no que o cliente informou. */
-export function pickDiagnosisSteps(input: { instagram?: string; site?: string; linkedin?: string }): AnalysisStep[] {
+export function pickDiagnosisSteps(input: { instagram?: string; tiktok?: string; site?: string }): AnalysisStep[] {
   if (input.instagram?.trim()) return DIAGNOSIS_STEPS_IG;
-  if (input.linkedin?.trim()) return DIAGNOSIS_STEPS_LINKEDIN;
+  if (input.tiktok?.trim()) return DIAGNOSIS_STEPS_TT;
   if (input.site?.trim()) return DIAGNOSIS_STEPS_SITE;
   return DIAGNOSIS_STEPS_GENERIC;
 }

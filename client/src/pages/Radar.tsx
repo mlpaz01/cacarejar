@@ -15,18 +15,6 @@ const nf = (n?: number) => (typeof n === "number" ? n.toLocaleString("pt-BR") : 
 const hitKey = (h: any) => String(h?.url || h?.img || `${h?.ownerUsername || ""}:${String(h?.caption || "").slice(0, 80)}`);
 const hitOwner = (h: any) => String(h?.ownerUsername || "").replace(/^@/, "").toLowerCase();
 const cleanHandle = (h?: string) => (h || "").trim().replace(/^@/, "").replace(/^https?:\/\/(www\.)?instagram\.com\//i, "").replace(/\/$/, "").toLowerCase();
-const linkedInSlug = (raw?: string) => {
-  const value = (raw || "").trim();
-  if (!value) return "";
-  try {
-    const url = value.startsWith("http") ? new URL(value) : new URL(`https://${value}`);
-    const parts = url.pathname.split("/").filter(Boolean);
-    const marker = parts.findIndex(p => ["in", "company", "school", "showcase"].includes(p.toLowerCase()));
-    return (marker >= 0 ? parts[marker + 1] : parts[0] || "").toLowerCase();
-  } catch {
-    return value.replace(/^@/, "").replace(/^linkedin\.com\//i, "").split(/[/?#]/)[0].toLowerCase();
-  }
-};
 const siteHost = (raw?: string) => {
   const value = (raw || "").trim();
   if (!value) return "";
@@ -41,8 +29,6 @@ const profileContext = (plan: any) => {
   const redes = { ...(plan?.redes ?? {}), ...(plan?._redes ?? {}) };
   const ig = cleanHandle(plan?.profile?.handle || redes.instagram);
   if (ig) return { key: `instagram:${ig}`, label: `@${ig}`, source: "Instagram" };
-  const li = linkedInSlug(plan?.linkedin || redes.linkedin);
-  if (li) return { key: `linkedin:${li}`, label: `LinkedIn /${li}`, source: "LinkedIn" };
   const host = siteHost(redes.site || plan?.site?.url);
   if (host) return { key: `site:${host}`, label: host, source: "Site" };
   return { key: "", label: "", source: "" };
@@ -264,53 +250,6 @@ export default function Radar() {
     >
       {SearchBar}
       <JourneyGuide active="radar" compact />
-
-      {plan?.linkedin360 && (
-        <div className="bg-white rounded-xl border border-[#e6ebf3] p-5 shadow-sm mb-5">
-          <div className="flex items-start justify-between gap-3 flex-wrap mb-4">
-            <div>
-              <h3 className="text-sm font-black text-[#070b17] flex items-center gap-2">
-                <Target className="w-4 h-4 text-[#ff3217]" /> Visao 360 conectada ao diagnostico
-              </h3>
-              <p className="text-[11px] text-[#61708a] mt-1">
-                Use esses sinais para julgar os posts do Radar e para orientar anuncios no LinkedIn.
-              </p>
-            </div>
-            <button onClick={() => navigate("/diagnostico")} className="text-[11px] font-black text-[#071b44] border border-[#e6ebf3] rounded-full px-3 py-1.5 hover:bg-[#f6f8fc]">
-              Ver parecer completo
-            </button>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {(plan.linkedin360.niveis ?? []).map((nivel: any) => (
-              <div key={nivel.nivel} className="rounded-xl border border-[#e6ebf3] bg-[#fbfcff] p-4">
-                <p className="text-[10px] font-black text-[#ff3217] uppercase tracking-wide">{nivel.nivel}</p>
-                <p className="text-xs font-black text-[#071b44] mt-1">{nivel.descricao}</p>
-                <div className="space-y-1 mt-2">
-                  {(nivel.achados ?? []).slice(0, 2).map((achado: string) => (
-                    <p key={achado} className="text-[11px] text-[#61708a] leading-snug">- {achado}</p>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-2 mt-4">
-            {[...(plan.linkedin360.areasAfins ?? []), ...(plan.linkedin360.cargos ?? []), ...(plan.linkedin360.tecnologias ?? [])].slice(0, 12).map((item: string) => (
-              <span key={item} className="text-[10px] font-black text-[#071b44] bg-white border border-[#e6ebf3] rounded-full px-3 py-1">{item}</span>
-            ))}
-          </div>
-          {!!plan.linkedin360.publicosAnuncio?.length && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mt-4">
-              {plan.linkedin360.publicosAnuncio.map((p: any) => (
-                <div key={p.nome} className="rounded-xl border border-[#e6ebf3] bg-white p-4">
-                  <p className="text-xs font-black text-[#071b44]">{p.nome}</p>
-                  <p className="text-[11px] text-[#61708a] leading-snug mt-2">{p.mensagem}</p>
-                  <p className="text-[10px] text-[#ff3217] font-black mt-2">{p.oferta}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
       {scan.isPending && (
         <div className="max-w-2xl mx-auto mb-5">

@@ -7,9 +7,9 @@ import { Loader2, Check } from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
 
 const BENEFITS = [
-  "14 dias grátis, sem cartão",
-  "Cancele quando quiser",
-  "Agentes de IA incluídos no plano",
+  "Diagnóstico gratuito na criação da conta",
+  "Créditos avulsos via PIX — sem assinatura",
+  "Agentes de IA para criar, analisar e otimizar",
   "Suporte humano disponível",
 ];
 
@@ -43,7 +43,8 @@ export default function Register() {
         return;
       }
       toast.success("Conta criada! Vamos montar seu plano 🐓");
-      window.location.href = "/app/diagnostico";
+      const plano = new URLSearchParams(window.location.search).get("plano");
+      window.location.href = plano ? `/app/creditos?plano=${plano}` : "/app/diagnostico";
     } catch {
       toast.error("Erro de conexão. Tente novamente.");
     } finally {
@@ -62,7 +63,7 @@ export default function Register() {
       {/* Painel esquerdo — navy */}
       <div
         className="hidden lg:flex flex-col justify-between w-96 p-10 text-white flex-shrink-0"
-        style={{ background: "#071b44" }}
+        style={{ background: "#011643" }}
       >
         <BrandLogo size="md" theme="dark" />
 
@@ -86,13 +87,6 @@ export default function Register() {
             </ul>
           </div>
 
-          <div
-            className="rounded-xl p-5"
-            style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.1)" }}
-          >
-            <p className="text-sm font-black mb-1">"Em 3 semanas triplicamos o ROI."</p>
-            <p className="text-xs text-white/50">— Cliente Starter</p>
-          </div>
         </div>
 
         <p className="text-xs text-white/30">© 2026 cacarejar.com.br</p>
@@ -110,7 +104,7 @@ export default function Register() {
               Criar conta grátis
             </h1>
             <p className="text-sm mb-6" style={{ color: "#61708a" }}>
-              14 dias grátis • Sem cartão de crédito
+              Crie sua conta e comece seu diagnóstico agora
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-4">

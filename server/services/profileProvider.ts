@@ -35,17 +35,40 @@ function cleanHandle(h: string): string {
   return (h || "").trim().replace(/^@/, "").replace(/^https?:\/\/(www\.)?instagram\.com\//i, "").replace(/\/$/, "");
 }
 
-/** Baixa uma imagem remota (CDN do IG bloqueia hotlink) e devolve URL local absoluta. */
+function cleanTikTokHandle(h: string): string {
+  return (h || "").trim()
+    .replace(/^@/, "")
+    .replace(/^https?:\/\/(www\.)?tiktok\.com\/@?/i, "")
+    .replace(/[/?].*$/, "");
+}
+
+/** Baixa uma imagem remota (CDN do IG bloqueia hotlink) e devolve URL local absoluta.
+ *  Retorna undefined se o download falhar ou o conteúdo não for uma imagem válida. */
 async function localizeImage(remoteUrl: string | undefined, tag: string): Promise<string | undefined> {
   if (!remoteUrl) return undefined;
+  // data: URLs não são suportadas pelos modelos de visão via URL — descarta
+  if (remoteUrl.startsWith("data:")) return undefined;
   try {
     const fs = await import("fs");
     const path = await import("path");
     const { nanoid } = await import("nanoid");
-    const res = await fetch(remoteUrl, { headers: { "User-Agent": "Mozilla/5.0" } });
-    if (!res.ok) return remoteUrl;
+    const res = await fetch(remoteUrl, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; CacarejarBot/1.0)" },
+      signal: AbortSignal.timeout(12000),
+    });
+    if (!res.ok) return undefined;
+    // Valida que o servidor realmente devolveu uma imagem (e não HTML de erro com status 200)
+    const ct = res.headers.get("content-type") || "";
+    if (!ct.startsWith("image/")) {
+      console.warn(`[profileProvider] localizeImage: content-type inválido "${ct.slice(0, 60)}" para ${remoteUrl.slice(0, 80)}`);
+      return undefined;
+    }
     const buf = Buffer.from(await res.arrayBuffer());
-    const ct = res.headers.get("content-type") || "image/jpeg";
+    // Arquivo muito pequeno = quase certeza de ser HTML de erro (imagens reais têm >2 KB)
+    if (buf.byteLength < 2048) {
+      console.warn(`[profileProvider] localizeImage: arquivo suspeito (${buf.byteLength}B) para ${remoteUrl.slice(0, 80)}`);
+      return undefined;
+    }
     const ext = ct.includes("png") ? "png" : ct.includes("webp") ? "webp" : "jpg";
     const dir = path.join(process.cwd(), "uploads");
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
@@ -54,7 +77,7 @@ async function localizeImage(remoteUrl: string | undefined, tag: string): Promis
     const base = process.env.PUBLIC_URL || "https://cacarejar.com.br";
     return `${base}/uploads/${file}`;
   } catch {
-    return remoteUrl;
+    return undefined;
   }
 }
 
@@ -90,6 +113,92 @@ async function localizeProfile(profile: SocialProfile): Promise<SocialProfile> {
   await Promise.all((profile.topPosts ?? []).map(async (tp, i) => { tp.img = await localizeImage(tp.img, `post${i}`); }));
   profile.profilePic = await localizeImage(profile.profilePic, `avatar`);
   return profile;
+}
+
+/** Mapeia itens brutos do Apify TikTok para SocialProfile.
+ *  Suporta dois modos de scraper: profile-per-item (com latestVideos[]) e video-per-item (com authorMeta). */
+function mapTikTokItems(items: any[], fallbackHandle?: string): SocialProfile | null {
+  if (!items?.length) return null;
+  const first = items[0];
+  const hasVideosArray = Array.isArray(first.latestVideos) || Array.isArray(first.videos);
+
+  let handle: string, fullName: string | undefined, bio: string | undefined;
+  let followers = 0, following = 0, videoCount = 0;
+  let profilePic: string | undefined, verified = false;
+  let rawVideos: any[] = [];
+
+  if (hasVideosArray) {
+    handle = first.nickName ?? first.uniqueId ?? fallbackHandle ?? "";
+    fullName = first.name ?? undefined;
+    bio = first.signature ?? undefined;
+    followers = first.followers ?? first.followerCount ?? first.fans ?? 0;
+    following = first.following ?? first.followingCount ?? 0;
+    videoCount = first.videoCount ?? first.postCount ?? 0;
+    profilePic = first.avatar ?? first.avatarLarger ?? undefined;
+    verified = first.verified ?? false;
+    rawVideos = (first.latestVideos ?? first.videos ?? []).slice(0, 12);
+  } else {
+    // video-per-item: authorMeta repetido em cada item
+    const author = first.authorMeta ?? first.author ?? first;
+    handle = author.nickName ?? author.uniqueId ?? author.name ?? fallbackHandle ?? "";
+    fullName = author.name ?? undefined;
+    bio = author.signature ?? undefined;
+    followers = author.fans ?? author.followers ?? author.followerCount ?? 0;
+    following = author.following ?? author.followingCount ?? 0;
+    videoCount = author.video ?? author.videoCount ?? 0;
+    profilePic = author.avatar ?? author.avatarLarger ?? undefined;
+    verified = author.verified ?? false;
+    rawVideos = items.slice(0, 12);
+  }
+
+  if (!handle) return null;
+
+  const posts: SocialPost[] = rawVideos.map((v: any) => ({
+    caption: v.text ?? v.desc ?? v.caption ?? "",
+    likes: v.diggCount ?? v.digg_count ?? 0,
+    comments: v.commentCount ?? v.comment_count ?? 0,
+    img: v.coverUrl ?? v.videoMeta?.coverUrl ?? v.thumbnail ?? undefined,
+    url: v.webVideoUrl ?? v.url ?? undefined,
+    timestamp: v.createTime ? new Date(v.createTime * 1000).toISOString() : v.timestamp ?? undefined,
+  }));
+
+  const topPosts = posts.slice().sort((a, b) => (b.likes + b.comments) - (a.likes + a.comments)).slice(0, 3);
+  const avgEng = posts.length ? posts.reduce((s, x) => s + x.likes + x.comments, 0) / posts.length : 0;
+  const avgLikes = posts.length ? Math.round(posts.reduce((s, x) => s + x.likes, 0) / posts.length) : 0;
+
+  return {
+    network: "tiktok", handle, fullName, bio,
+    followers, following, postsCount: videoCount,
+    profilePic, verified, posts, topPosts,
+    engajamentoPct: followers > 0 ? +((avgEng / followers) * 100).toFixed(2) : undefined,
+    avgLikes, source: "apify",
+  };
+}
+
+/** TikTok via Apify (clockworks/tiktok-profile-scraper). Requer APIFY_TOKEN. */
+async function fetchTikTokApify(handle: string): Promise<SocialProfile | null> {
+  const token = process.env.APIFY_TOKEN;
+  if (!token) return null;
+  const user = cleanTikTokHandle(handle);
+  if (!user) return null;
+  try {
+    const res = await fetch(
+      `https://api.apify.com/v2/acts/clockworks~tiktok-profile-scraper/run-sync-get-dataset-items?token=${token}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profiles: [`https://www.tiktok.com/@${user}`], resultsPerPage: 12 }),
+      }
+    );
+    if (!res.ok) return null;
+    const items = (await res.json()) as any[];
+    if (!Array.isArray(items) || !items.length) return null;
+    const profile = mapTikTokItems(items, user);
+    if (!profile) return null;
+    return localizeProfile(profile);
+  } catch {
+    return null;
+  }
 }
 
 /** Instagram via Apify (apify/instagram-profile-scraper). Requer APIFY_TOKEN. */
@@ -199,13 +308,16 @@ export async function fetchHotPostsByHashtag(hashtags: string[], limit = 30): Pr
   }
 }
 
-/** Tenta ler o perfil das redes informadas. Hoje: Instagram via Apify. */
+/** Tenta ler o perfil das redes informadas. Instagram e TikTok via Apify. */
 export async function fetchProfile(redes: Record<string, string>): Promise<SocialProfile | null> {
   if (redes?.instagram) {
     const ig = await fetchInstagramApify(redes.instagram);
     if (ig) return ig;
   }
-  // TikTok/LinkedIn: adicionar provider quando necessário.
+  if (redes?.tiktok) {
+    const tt = await fetchTikTokApify(redes.tiktok);
+    if (tt) return tt;
+  }
   return null;
 }
 

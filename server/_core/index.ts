@@ -106,6 +106,66 @@ async function startServer() {
     createExpressMiddleware({ router: appRouter, createContext })
   );
 
+  // Micro-ferramentas isca (públicas, sem login) — Sprint 5
+  app.post("/api/ferramentas/legenda", async (req, res) => {
+    try {
+      const { gerarLegenda, rateLimited } = await import("../services/tools");
+      const ip = (req.headers["x-forwarded-for"]?.toString().split(",")[0] || req.ip || "unknown").trim();
+      if (rateLimited(ip)) {
+        res.status(429).json({ error: "Muitas geracoes seguidas. Tente novamente em alguns minutos." });
+        return;
+      }
+      const out = await gerarLegenda({ tema: req.body?.tema, rede: req.body?.rede, tom: req.body?.tom });
+      res.json(out);
+    } catch {
+      res.status(500).json({ error: "Erro ao gerar legenda." });
+    }
+  });
+
+  // Webhook Asaas — confirma pagamento e credita a carteira (idempotente). Público (o Asaas chama).
+  app.post("/api/asaas/webhook", async (req, res) => {
+    try {
+      const expected = process.env.ASAAS_WEBHOOK_TOKEN;
+      if (expected && req.headers["asaas-access-token"] !== expected) {
+        res.status(401).json({ error: "unauthorized" });
+        return;
+      }
+      const body: any = req.body || {};
+      const ev: string | undefined = body.event;
+      const pay: any = body.payment || {};
+      const asaasId: string | undefined = pay.id;
+      if (!asaasId) { res.json({ ok: true }); return; }
+
+      const { getDb } = await import("../db");
+      const { payments } = await import("../../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const credits = await import("../services/credits");
+      const asaas = await import("../services/asaas");
+
+      const db = await getDb();
+      if (!db) { res.json({ ok: true }); return; }
+
+      const paid = asaas.isPaidStatus(pay.status) || ev === "PAYMENT_CONFIRMED" || ev === "PAYMENT_RECEIVED";
+      if (!paid) { res.json({ ok: true }); return; }
+
+      const rows = await db.select().from(payments).where(eq(payments.externalId, asaasId)).limit(1);
+      const row: any = rows[0];
+      if (!row || row.status === "pago") { res.json({ ok: true }); return; }
+
+      await db.update(payments).set({ status: "pago", paidAt: new Date(), webhookRaw: body }).where(eq(payments.id, row.id));
+      if ((row.ccAmount ?? 0) > 0) {
+        await credits.credit(row.organizationId, row.ccAmount, "recarga", {
+          ref: `payment:${row.id}`,
+          description: `Recarga via PIX (Asaas) — ${row.ccAmount} CC`,
+          idempotencyKey: `asaas:${asaasId}`,
+        });
+      }
+      res.json({ ok: true });
+    } catch {
+      res.status(200).json({ ok: true }); // nunca devolve 500 ao Asaas (evita retry infinito)
+    }
+  });
+
   if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);
   } else {

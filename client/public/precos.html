@@ -199,7 +199,7 @@
   <!-- ── NAV ── -->
   <header class="topbar">
     <a class="brand" href="/" aria-label="Cacarejar">
-      <img src="/assets/logo.png" alt="Cacarejar" style="height:62px;width:auto;object-fit:contain;margin-left:-6px;">
+      <img src="/assets/logo.png" alt="Cacarejar">
     </a>
     <nav class="nav">
       <a href="/">Início</a>
@@ -219,8 +219,16 @@
         <h1>Planos que fazem seu marketing<br><span>cacarejar resultados.</span></h1>
         <p>Escolha o plano ideal para o seu negócio e conte com agentes exclusivos para criar, testar e otimizar campanhas que geram mais vendas.</p>
         <div class="trust-badges">
-          <span>Teste grátis por 14 dias</span>
-          <span>Sem cartão de crédito</span>
+          <span>Crie sua conta grátis</span>
+          <span>PIX instantâneo</span>
+          <span>Créditos não expiram</span>
+        </div>
+        <div style="display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;">
+          <a class="button primary small" href="/register">Começar grátis</a>
+          <a class="button whatsapp small" href="https://wa.me/5521968960994?text=Oi%2C+quero+conhecer+os+planos+do+Cacarejar" target="_blank" rel="noopener">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+            Falar no WhatsApp
+          </a>
         </div>
       </div>
       <div class="hero-art-col">
@@ -249,91 +257,80 @@
     </div>
   </section>
 
-  <!-- ── TOGGLE ── -->
-  <div class="toggle-wrap">
-    <span class="toggle-label" id="label-monthly">Mensal</span>
-    <div class="toggle-switch monthly" id="billing-toggle" onclick="toggleBilling()"></div>
-    <span class="toggle-label active" id="label-annual">Anual</span>
-    <span class="badge-save">Economize até 20%</span>
+  <!-- ── CRÉDITOS BADGE ── -->
+  <div style="display:flex;align-items:center;justify-content:center;gap:16px;padding:28px 0 20px;flex-wrap:wrap;">
+    <span style="background:#f0f4ff;border:1px solid #c7d8ff;border-radius:99px;padding:7px 18px;font-size:12px;font-weight:800;color:#011643;">💳 Créditos avulsos — pague só o que usar</span>
+    <span style="background:#f0fff5;border:1px solid #a8e6c0;border-radius:99px;padding:7px 18px;font-size:12px;font-weight:800;color:#0a5c2e;">⚡ PIX instantâneo via Asaas</span>
+    <span style="background:#fff8f7;border:1px solid #ffd0c8;border-radius:99px;padding:7px 18px;font-size:12px;font-weight:800;color:#c0200d;">🐓 Créditos não expiram</span>
   </div>
 
   <!-- ── PLANS ── -->
   <div class="plans-grid">
 
-    <!-- Starter -->
+    <!-- Bóton -->
     <div class="plan-card">
-      <p class="plan-name">Starter</p>
-      <p class="plan-desc">Para quem está começando e quer validar ideias.</p>
-      <div class="plan-price"><b id="price-starter">R$ 99</b><span>/mês</span></div>
-      <p class="plan-installment" id="install-starter">ou 12x de R$9,90</p>
-      <a class="plan-cta" href="/register">Começar grátis</a>
+      <p class="plan-name">Bóton</p>
+      <p class="plan-desc">Para começar e validar sua estratégia de marketing.</p>
+      <div class="plan-price"><b>R$&nbsp;59</b></div>
+      <p class="plan-installment">500 créditos de IA (CC)</p>
+      <a class="plan-cta" href="/register?plano=boton">Comprar agora</a>
       <ul class="plan-features">
-        <li>Até 3 campanhas ativas</li>
-        <li>Até 10 landing pages</li>
-        <li>Até 10 criativos</li>
-        <li>1 agente exclusivo</li>
-        <li>Testes automáticos básicos</li>
-        <li>Relatórios essenciais</li>
+        <li>~33 criativos gerados com IA</li>
+        <li>Diagnóstico completo de marketing</li>
+        <li>Espião de anúncios dos concorrentes</li>
+        <li>Radar de mercado</li>
+        <li>Palavras-chave do Google</li>
         <li>Suporte por e-mail</li>
       </ul>
     </div>
 
-    <!-- Crescimento -->
+    <!-- Ninhada -->
     <div class="plan-card">
-      <p class="plan-name">Crescimento</p>
-      <p class="plan-desc">Para negócios em expansão que buscam mais resultados.</p>
-      <div class="plan-price"><b id="price-crescimento">R$ 249</b><span>/mês</span></div>
-      <p class="plan-installment" id="install-crescimento">ou 12x de R$24,90</p>
-      <a class="plan-cta" href="/register">Começar grátis</a>
+      <p class="plan-name">Ninhada</p>
+      <p class="plan-desc">Para negócios que já têm ritmo e querem acelerar.</p>
+      <div class="plan-price"><b>R$&nbsp;149</b></div>
+      <p class="plan-installment">1.500 créditos de IA (CC)</p>
+      <a class="plan-cta" href="/register?plano=ninhada">Comprar agora</a>
       <ul class="plan-features">
-        <li>Até 15 campanhas ativas</li>
-        <li>Até 50 landing pages</li>
-        <li>Até 50 criativos</li>
-        <li>3 agentes exclusivos</li>
-        <li>Testes automáticos avançados</li>
-        <li>Distribuição inteligente de investimento</li>
-        <li>Relatórios avançados</li>
+        <li>~100 criativos gerados com IA</li>
+        <li>Tudo do Bóton</li>
+        <li>Linha do tempo multicanal</li>
+        <li>Análise de Google Search</li>
+        <li>Visão 360° por canal</li>
         <li>Suporte prioritário</li>
       </ul>
     </div>
 
-    <!-- Escala (featured) -->
+    <!-- Galinheiro (featured) -->
     <div class="plan-card featured">
       <div class="plan-badge">Mais recomendado</div>
-      <p class="plan-name" style="color:var(--red)">Escala</p>
-      <p class="plan-desc">Para empresas que querem escalar com eficiência.</p>
-      <div class="plan-price"><b id="price-escala">R$ 599</b><span>/mês</span></div>
-      <p class="plan-installment" id="install-escala">ou 12x de R$59,90</p>
-      <a class="plan-cta red" href="/register">Começar grátis</a>
+      <p class="plan-name" style="color:var(--red)">Galinheiro</p>
+      <p class="plan-desc">Para empresas com alta demanda de conteúdo e anúncios.</p>
+      <div class="plan-price"><b>R$&nbsp;449</b></div>
+      <p class="plan-installment">5.000 créditos de IA (CC)</p>
+      <a class="plan-cta red" href="/register?plano=galinheiro">Comprar agora</a>
       <ul class="plan-features">
-        <li>Campanhas ilimitadas</li>
-        <li>Landing pages ilimitadas</li>
-        <li>Criativos ilimitados</li>
-        <li>6 agentes exclusivos</li>
-        <li>Testes automáticos avançados</li>
-        <li>Distribuição inteligente de investimento</li>
-        <li>Relatórios personalizados</li>
-        <li>Suporte prioritário via chat e e-mail</li>
+        <li>~330 criativos gerados com IA</li>
+        <li>Tudo da Ninhada</li>
+        <li>Múltiplos diagnósticos simultâneos</li>
+        <li>Estúdio de criativos completo</li>
+        <li>Suporte prioritário via chat</li>
       </ul>
     </div>
 
-    <!-- Agência -->
+    <!-- Granja -->
     <div class="plan-card">
-      <p class="plan-name">Agência</p>
-      <p class="plan-desc">Para agências que gerenciam múltiplos clientes.</p>
-      <div class="plan-price"><b id="price-agencia">R$ 1.199</b><span>/mês</span></div>
-      <p class="plan-installment" id="install-agencia">ou 12x de R$119,90</p>
-      <a class="plan-cta" href="/register">Começar grátis</a>
+      <p class="plan-name">Granja</p>
+      <p class="plan-desc">Para agências e grandes volumes de produção criativa.</p>
+      <div class="plan-price"><b>R$&nbsp;1.499</b></div>
+      <p class="plan-installment">20.000 créditos de IA (CC)</p>
+      <a class="plan-cta" href="/register?plano=granja">Comprar agora</a>
       <ul class="plan-features">
-        <li>Campanhas ilimitadas</li>
-        <li>Landing pages ilimitadas</li>
-        <li>Criativos ilimitados</li>
-        <li>12 agentes exclusivos</li>
-        <li>Testes automáticos avançados</li>
-        <li>Distribuição inteligente de investimento</li>
-        <li>Relatórios white label</li>
-        <li>Gestão de múltiplos clientes</li>
-        <li>Suporte dedicado</li>
+        <li>~1.300 criativos gerados com IA</li>
+        <li>Tudo do Galinheiro</li>
+        <li>Ideal para agências</li>
+        <li>Melhor custo por crédito</li>
+        <li>Suporte dedicado via WhatsApp</li>
       </ul>
     </div>
 
@@ -342,16 +339,14 @@
       <p class="plan-name">Enterprise</p>
       <p class="plan-desc">Para grandes empresas com demandas personalizadas.</p>
       <div class="plan-price"><b style="font-size:24px">Sob consulta</b></div>
-      <p class="plan-installment">Fale com nosso time</p>
-      <a class="plan-cta" href="mailto:contato@cacarejar.com.br">Falar com especialista</a>
+      <p class="plan-installment">Volume customizado</p>
+      <a class="plan-cta" href="https://wa.me/5521968960994?text=Quero+conhecer+o+plano+Enterprise+do+Cacarejar" target="_blank" rel="noopener">Falar no WhatsApp</a>
       <ul class="plan-features">
-        <li>Tudo do plano Agência</li>
-        <li>Soluções personalizadas</li>
-        <li>Integrações avançadas</li>
-        <li>SSO e permissões avançadas</li>
-        <li>Onboarding dedicado</li>
+        <li>Volume de créditos personalizado</li>
+        <li>Integração dedicada</li>
+        <li>Onboarding exclusivo</li>
         <li>SLA e suporte dedicado</li>
-        <li>Treinamentos exclusivos</li>
+        <li>Treinamentos para o time</li>
       </ul>
     </div>
 
@@ -359,68 +354,60 @@
 
   <!-- ── COMPARE TABLE ── -->
   <section class="compare-section">
-    <h2>Compare os principais recursos</h2>
+    <h2>Compare os pacotes de créditos</h2>
     <table class="compare-table">
       <thead>
         <tr>
           <th style="text-align:left">Recursos</th>
-          <th>Starter</th>
-          <th>Crescimento</th>
-          <th class="col-featured">Escala</th>
-          <th>Agência</th>
+          <th>Bóton</th>
+          <th>Ninhada</th>
+          <th class="col-featured">Galinheiro</th>
+          <th>Granja</th>
           <th>Enterprise</th>
         </tr>
       </thead>
       <tbody>
         <tr>
-          <td><span class="icon-cell"><span class="row-icon">📣</span> Campanhas ativas</span></td>
-          <td>Até 3</td><td>Até 15</td>
-          <td class="col-featured-bg col-featured">Ilimitadas</td>
-          <td>Ilimitadas</td><td>Ilimitadas</td>
+          <td><span class="icon-cell"><span class="row-icon">💳</span> Créditos de IA (CC)</span></td>
+          <td>500 CC</td><td>1.500 CC</td>
+          <td class="col-featured-bg col-featured">5.000 CC</td>
+          <td>20.000 CC</td><td>Custom</td>
         </tr>
         <tr>
-          <td><span class="icon-cell"><span class="row-icon">🌐</span> Landing pages</span></td>
-          <td>Até 10</td><td>Até 50</td>
-          <td class="col-featured-bg col-featured">Ilimitadas</td>
-          <td>Ilimitadas</td><td>Ilimitadas</td>
+          <td><span class="icon-cell"><span class="row-icon">🎨</span> Criativos com IA</span></td>
+          <td>~33</td><td>~100</td>
+          <td class="col-featured-bg col-featured">~330</td>
+          <td>~1.300</td><td>Custom</td>
         </tr>
         <tr>
-          <td><span class="icon-cell"><span class="row-icon">🎨</span> Criativos</span></td>
-          <td>Até 10</td><td>Até 50</td>
-          <td class="col-featured-bg col-featured">Ilimitados</td>
-          <td>Ilimitados</td><td>Ilimitados</td>
-        </tr>
-        <tr>
-          <td><span class="icon-cell"><span class="row-icon">🤖</span> Agentes exclusivos</span></td>
-          <td>1</td><td>3</td>
-          <td class="col-featured-bg col-featured">6</td>
-          <td>12</td><td>Personalizado</td>
-        </tr>
-        <tr>
-          <td><span class="icon-cell"><span class="row-icon">⚡</span> Testes automáticos</span></td>
-          <td>Básicos</td><td>Avançados</td>
-          <td class="col-featured-bg col-featured">Avançados</td>
-          <td>Avançados</td><td>Avançados</td>
-        </tr>
-        <tr>
-          <td><span class="icon-cell"><span class="row-icon">💰</span> Distribuição inteligente de investimento</span></td>
-          <td class="dash">—</td>
-          <td class="check">✓</td>
+          <td><span class="icon-cell"><span class="row-icon">🔍</span> Diagnóstico de marketing</span></td>
+          <td class="check">✓</td><td class="check">✓</td>
           <td class="col-featured-bg check">✓</td>
-          <td class="check">✓</td>
-          <td class="check">✓</td>
+          <td class="check">✓</td><td class="check">✓</td>
         </tr>
         <tr>
-          <td><span class="icon-cell"><span class="row-icon">📊</span> Relatórios</span></td>
-          <td>Essenciais</td><td>Avançados</td>
-          <td class="col-featured-bg col-featured">Personalizados</td>
-          <td>White label</td><td>Personalizados</td>
+          <td><span class="icon-cell"><span class="row-icon">🕵️</span> Espião de anúncios</span></td>
+          <td class="check">✓</td><td class="check">✓</td>
+          <td class="col-featured-bg check">✓</td>
+          <td class="check">✓</td><td class="check">✓</td>
+        </tr>
+        <tr>
+          <td><span class="icon-cell"><span class="row-icon">📡</span> Radar de mercado</span></td>
+          <td class="check">✓</td><td class="check">✓</td>
+          <td class="col-featured-bg check">✓</td>
+          <td class="check">✓</td><td class="check">✓</td>
+        </tr>
+        <tr>
+          <td><span class="icon-cell"><span class="row-icon">🔎</span> Palavras-chave do Google</span></td>
+          <td class="check">✓</td><td class="check">✓</td>
+          <td class="col-featured-bg check">✓</td>
+          <td class="check">✓</td><td class="check">✓</td>
         </tr>
         <tr>
           <td><span class="icon-cell"><span class="row-icon">💬</span> Suporte</span></td>
           <td>E-mail</td><td>Prioritário</td>
           <td class="col-featured-bg col-featured">Chat e e-mail</td>
-          <td>Dedicado</td><td>Dedicado</td>
+          <td>WhatsApp dedicado</td><td>Dedicado</td>
         </tr>
       </tbody>
     </table>
@@ -428,44 +415,44 @@
 
   <!-- ── FAQ ── -->
   <section class="faq-section">
-    <h2>Perguntas frequentes sobre os planos</h2>
+    <h2>Perguntas frequentes</h2>
     <div class="faq-grid">
       <div>
         <div class="faq-item">
           <div class="faq-q" onclick="toggleFaq(this)">
-            Posso mudar de plano a qualquer momento? <span>+</span>
+            O que são créditos de IA (CC)? <span>+</span>
           </div>
-          <div class="faq-a">Sim! Você pode fazer upgrade ou downgrade do seu plano a qualquer momento pelo painel. Mudanças são aplicadas imediatamente com ajuste proporcional na cobrança.</div>
+          <div class="faq-a">Créditos (CC) são a moeda do Cacarejar. Cada operação — gerar um criativo, rodar um diagnóstico, escanear anúncios — consome uma quantidade de CC. Você compra créditos avulsos e usa no seu ritmo.</div>
         </div>
         <div class="faq-item">
           <div class="faq-q" onclick="toggleFaq(this)">
-            O que são agentes exclusivos? <span>+</span>
+            Os créditos expiram? <span>+</span>
           </div>
-          <div class="faq-a">Agentes exclusivos são IAs especializadas (Estrategista, Criativo, Audiência, Mídia, Analista, Caçador de Ovos de Ouro) que trabalham de forma autônoma para criar, testar e otimizar suas campanhas.</div>
+          <div class="faq-a">Não! Seus créditos ficam na carteira até você usar. Não há prazo de validade nem renovação automática — você compra quando quiser e usa quando precisar.</div>
         </div>
         <div class="faq-item">
           <div class="faq-q" onclick="toggleFaq(this)">
-            A cobrança é recorrente? <span>+</span>
+            Como funciona o pagamento? <span>+</span>
           </div>
-          <div class="faq-a">Sim, a cobrança é mensal ou anual (com desconto de até 20%). Você pode cancelar a qualquer momento antes do próximo ciclo.</div>
+          <div class="faq-a">O pagamento é feito via PIX instantâneo. Após a confirmação do pagamento, os créditos entram automaticamente na sua carteira — sem espera, sem burocracia.</div>
         </div>
       </div>
       <div>
         <div class="faq-item">
           <div class="faq-q" onclick="toggleFaq(this)">
-            Posso cancelar quando quiser? <span>+</span>
+            Posso comprar mais créditos quando acabar? <span>+</span>
           </div>
-          <div class="faq-a">Sim, sem multa e sem burocracia. Basta cancelar no painel antes da renovação. Seus dados ficam disponíveis por 30 dias após o cancelamento.</div>
+          <div class="faq-a">Sim! A qualquer momento pelo painel, em Carteira de Créditos. Escolha o pacote que preferir e pague via PIX. Os créditos são liberados na hora.</div>
         </div>
         <div class="faq-item">
           <div class="faq-q" onclick="toggleFaq(this)">
-            Vocês oferecem desconto no plano anual? <span>+</span>
+            Preciso de cartão de crédito para começar? <span>+</span>
           </div>
-          <div class="faq-a">Sim! No plano anual você economiza até 20% em comparação ao plano mensal. O desconto é aplicado automaticamente ao escolher a opção "Anual".</div>
+          <div class="faq-a">Não! Crie sua conta gratuitamente e explore o diagnóstico. Para usar os recursos de IA (criativos, radar, espião de anúncios), é só comprar créditos via PIX quando quiser.</div>
         </div>
         <div class="faq-item">
           <div class="faq-q" onclick="toggleFaq(this)">
-            Meus dados e campanhas estão seguros? <span>+</span>
+            Meus dados estão seguros? <span>+</span>
           </div>
           <div class="faq-a">Absolutamente. Utilizamos criptografia de ponta a ponta, servidores certificados e estamos em conformidade com a LGPD. Seus dados nunca são compartilhados com terceiros.</div>
         </div>
@@ -486,15 +473,18 @@
     </div>
     <div class="final-cta-precos-actions">
       <a class="button primary" href="/register" style="min-width:220px">Começar grátis agora</a>
-      <a class="link-specialist" href="mailto:contato@cacarejar.com.br">Falar com especialista →</a>
+      <a class="button whatsapp" href="https://wa.me/5521968960994?text=Quero+ajuda+para+escolher+um+plano+do+Cacarejar" target="_blank" rel="noopener" style="font-size:13px;min-width:220px;justify-content:center;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+        Falar no WhatsApp
+      </a>
     </div>
   </div>
 
   <!-- ── FOOTER ── -->
   <div class="footer-trust">
-    <span>🛡 Mais de 14.600 empresas já confiam no Cacarejar</span>
+    <span>🛡 Diagnóstico completo do seu perfil em minutos</span>
     <span>🔒 Dados protegidos com segurança de ponta</span>
-    <span>🎧 Suporte humano de verdade</span>
+    <span>🎧 Suporte direto via WhatsApp</span>
   </div>
   <footer class="footer" style="border-top:1px solid var(--line);padding-top:14px;margin-top:8px;justify-content:space-between;">
     <span style="font-size:12px;color:var(--muted)">Segurança e Conformidade</span>
@@ -506,37 +496,6 @@
 </main>
 
 <script>
-  // ── Billing toggle ──
-  const PRICES = {
-    monthly:  { starter:'R$ 99', crescimento:'R$ 249', escala:'R$ 599', agencia:'R$ 1.199' },
-    annual:   { starter:'R$ 79', crescimento:'R$ 199', escala:'R$ 479', agencia:'R$ 959'  },
-    installMonthly: {
-      starter:'ou 12x de R$9,90', crescimento:'ou 12x de R$24,90',
-      escala:'ou 12x de R$59,90', agencia:'ou 12x de R$119,90'
-    },
-    installAnnual: {
-      starter:'cobrado R$948/ano', crescimento:'cobrado R$2.388/ano',
-      escala:'cobrado R$5.748/ano', agencia:'cobrado R$11.508/ano'
-    },
-  };
-  let isAnnual = true;
-
-  function toggleBilling() {
-    isAnnual = !isAnnual;
-    const toggle = document.getElementById('billing-toggle');
-    const lm = document.getElementById('label-monthly');
-    const la = document.getElementById('label-annual');
-    toggle.classList.toggle('monthly', !isAnnual);
-    lm.classList.toggle('active', !isAnnual);
-    la.classList.toggle('active', isAnnual);
-    const mode = isAnnual ? 'annual' : 'monthly';
-    const inst = isAnnual ? 'installAnnual' : 'installMonthly';
-    ['starter','crescimento','escala','agencia'].forEach(p => {
-      document.getElementById('price-'+p).textContent = PRICES[mode][p];
-      document.getElementById('install-'+p).textContent = PRICES[inst][p];
-    });
-  }
-
   // ── FAQ toggle ──
   function toggleFaq(el) {
     el.parentElement.classList.toggle('open');
@@ -551,5 +510,14 @@
     onScroll();
   })();
 </script>
+
+<!-- ── WhatsApp flutuante ── -->
+<a href="https://wa.me/5521968960994?text=Oi%2C+quero+conhecer+o+Cacarejar!"
+   target="_blank" rel="noopener" aria-label="Falar no WhatsApp"
+   style="position:fixed;bottom:24px;right:24px;z-index:9999;width:56px;height:56px;border-radius:50%;background:#25d366;color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(37,211,102,.45);text-decoration:none;transition:transform .15s;"
+   onmouseenter="this.style.transform='scale(1.1)'" onmouseleave="this.style.transform='scale(1)'">
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+</a>
 </body>
 </html>
+

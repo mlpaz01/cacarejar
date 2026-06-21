@@ -1,0 +1,209 @@
+{
+  "email": "fluxo.saude.1781397798247@teste.cacarejar.com.br",
+  "report": [
+    {
+      "step": "01 registrar conta de teste",
+      "ok": true,
+      "detail": {
+        "email": "fluxo.saude.1781397798247@teste.cacarejar.com.br"
+      },
+      "at": "2026-06-14T00:43:19.768Z"
+    },
+    {
+      "step": "02 abrir tela diagnostico em branco",
+      "ok": true,
+      "detail": {
+        "text": "ESTRATÉGIA Dashboard Diagnóstico Radar de Mercado CRIAÇÃO Criativos VEICULAÇÃO Aprovação Campanhas Ovos de Ouro RESULTADOS Métricas Acompanhamento CONTA Biblioteca Créditos Notificações Integrações MD Marina Demo SST fluxo.saude.1781397798247@teste.cacarejar.com.br Vamos estudar seu negocio Informe os canais disponiveis. O parecer vai cruzar origem, Radar, canais e prescricao. Ver Historico Novo diagnostico multicanal Site oficial LinkedIn Instagram TikTok / Reels O que voce vende? Contexto opcional Vender mais Gerar leads Crescer seguidores Lancar produto Gerar diagnostico METODOLOGIA Parecer + prescricao + planner. O diagnostico separa o que foi identificado em cada origem e transforma isso em plano de acao por canal: LinkedIn, Blog / SEO, Instagram e TikTok / Reels. Fontes usadas Visao 360 Cronograma Acompanhamento"
+      },
+      "at": "2026-06-14T00:43:27.293Z"
+    },
+    {
+      "step": "03 gerar diagnostico",
+      "ok": true,
+      "detail": {
+        "nicho": "saude do trabalho, SST e medicina ocupacional",
+        "produto": "Plataforma e consultoria de saúde do trabalho, saúde mental no trabalho e SST para empresas. Ajuda RH, gestores e SESMT a organizar PCMSO, PGR, ASO, eSocial, ergonomia, prevenção de burnout e campanhas internas de bem-estar corporativo.",
+        "linkedin": "https://www.linkedin.com/in/saudedotrabalho/",
+        "posts": 4,
+        "canais": [
+          "LinkedIn",
+          "Blog / SEO",
+          "Instagram",
+          "TikTok / Reels"
+        ]
+      },
+      "at": "2026-06-14T00:46:09.701Z"
+    },
+    {
+      "step": "04 sugerir fontes radar",
+      "ok": true,
+      "detail": {
+        "profiles": [],
+        "hashtags": [
+          "saudedotrabalho",
+          "segurancadotrabalho",
+          "medicinaocupacional",
+          "sst",
+          "sesmt",
+          "ergonomia",
+          "esocial",
+          "pcmso",
+          "pgr",
+          "nr"
+        ]
+      },
+      "at": "2026-06-14T00:46:15.434Z"
+    },
+    {
+      "step": "05 iniciar radar",
+      "ok": true,
+      "detail": {
+        "base": "LinkedIn /saudedotrabalho",
+        "hits": 12,
+        "sources": [
+          "analuiza.horcades",
+          "servmed_servsaude_sma",
+          "darycontreraslaboral",
+          "dra.isabelamachados",
+          "guilhermeli.ma",
+          "newtimesaude",
+          "exersdevalor",
+          "evelyn_katheryn_carranza_munoz",
+          "brunogoncalves.sst",
+          "andrezalopes.sst",
+          "sucexmed",
+          "zuki.ocupacional"
+        ],
+        "hashtags": [
+          "saudedotrabalho",
+          "segurancadotrabalho",
+          "medicinaocupacional",
+          "sst",
+          "sesmt",
+          "ergonomia",
+          "esocial",
+          "pcmso",
+          "pgr",
+          "nr"
+        ],
+        "quality": {
+          "grade": "forte",
+          "sourcesCount": 12,
+          "hitsCount": 12,
+          "message": "Pesquisa com bom volume de sinais."
+        }
+      },
+      "at": "2026-06-14T00:49:15.305Z"
+    },
+    {
+      "step": "06 refinar radar com feedback",
+      "ok": true,
+      "detail": {
+        "hits": 3,
+        "quality": {
+          "grade": "fraca",
+          "sourcesCount": 3,
+          "hitsCount": 3,
+          "message": "Pesquisa com poucos sinais aderentes; o Agente filtrou posts fora de Saude do Trabalho/SST. Informe @ inspiradores para aprofundar."
+        },
+        "sources": [
+          "analuiza.horcades",
+          "servmed_servsaude_sma",
+          "gestaoesst"
+        ]
+      },
+      "at": "2026-06-14T00:51:56.135Z"
+    },
+    {
+      "step": "07 recalcular diagnostico com feedbacks",
+      "ok": true,
+      "detail": {
+        "nicho": "saude do trabalho, SST e medicina ocupacional",
+        "radarIdeas": 3,
+        "conclusao": "O caminho é consistência + método + janela regulatória: a NR-01/Portaria 1.419/24 abriu uma oportunidade de 60-90 dias para a plataforma se posicionar como intérprete técnico confi"
+      },
+      "at": "2026-06-14T00:53:13.082Z"
+    },
+    {
+      "step": "08 gerar posts do diagnostico",
+      "ok": true,
+      "detail": {
+        "generated": 4,
+        "stopped": null,
+        "ids": [
+          233,
+          235,
+          236,
+          234
+        ]
+      },
+      "at": "2026-06-14T00:53:22.871Z"
+    },
+    {
+      "step": "09.1 gerar criativo do radar",
+      "ok": true,
+      "detail": {
+        "id": 237,
+        "imageUrl": "/uploads/gen_hYi8hlXU1X3aVDpaH29bC.png"
+      },
+      "at": "2026-06-14T00:53:29.428Z"
+    },
+    {
+      "step": "09.2 gerar criativo do radar",
+      "ok": true,
+      "detail": {
+        "id": 238,
+        "imageUrl": "/uploads/gen_BVCTabaTZEak8McfuIIXX.png"
+      },
+      "at": "2026-06-14T00:53:34.645Z"
+    },
+    {
+      "step": "09.3 gerar criativo do radar",
+      "ok": true,
+      "detail": {
+        "id": 239,
+        "imageUrl": "/uploads/gen_hdYfBLmY60cOMeWU-znGW.png"
+      },
+      "at": "2026-06-14T00:53:43.850Z"
+    },
+    {
+      "step": "10 enviar para aprovacao",
+      "ok": true,
+      "detail": {
+        "experimentId": 20,
+        "variants": 7
+      },
+      "at": "2026-06-14T00:54:05.140Z"
+    },
+    {
+      "step": "11 aprovar posts e verba",
+      "ok": true,
+      "detail": {
+        "approvalId": 13,
+        "selected": [
+          84,
+          85,
+          86
+        ]
+      },
+      "at": "2026-06-14T00:54:29.988Z"
+    },
+    {
+      "step": "12 criar campanha",
+      "ok": true,
+      "detail": {
+        "success": true
+      },
+      "at": "2026-06-14T00:54:39.803Z"
+    },
+    {
+      "step": "13 atualizar acompanhamento",
+      "ok": true,
+      "detail": {
+        "progresso": 18,
+        "foco": "Publicar artigo pilar sobre PCMSO/PGR e rodar primeiro teste LinkedIn."
+      },
+      "at": "2026-06-14T00:54:42.424Z"
+    }
+  ]
+}

@@ -185,7 +185,7 @@ export interface CacaPlan {
     motivo: string;
   }[];
   prescricoesPorCanal?: {
-    canal: "LinkedIn" | "Blog / SEO" | "Instagram" | "TikTok / Reels";
+    canal: "Instagram" | "TikTok / Reels" | "Google (Busca)" | "Blog / SEO";
     funcao: string;
     prioridade: string;
     conteudos: string[];
@@ -207,6 +207,33 @@ export interface CacaPlan {
     tecnologias: string[];
     publicosAnuncio?: { nome: string; alvo: string[]; mensagem: string; oferta: string }[];
     mensagensPorNivel?: { nivel: string; abordagem: string; conteudo: string; anuncio: string }[];
+  };
+  // Visão 360 por canal REAL (Instagram, TikTok, Google) — substitui a densidade do antigo LinkedIn 360.
+  canais360?: {
+    canais: {
+      canal: string;
+      papel: string;
+      leitura: string;
+      publicos: string[];
+      angulosAnuncio: { nome: string; mensagem: string; oferta: string }[];
+      formatos: string[];
+      conteudos: string[];
+      kpis: string[];
+    }[];
+  };
+  // Espião de Anúncios (Sprint 2) — anúncios reais de concorrentes na Meta.
+  anunciosConcorrentes?: any[];
+  anunciosInsights?: { titulo: string; detalhe: string }[];
+  anunciosQuery?: string;
+  anunciosScannedAt?: number;
+  // Inteligência de Google (Sprint 3) — buscas reais (autocomplete) + pautas SEO + volume (DataForSEO opcional).
+  googleSEO?: {
+    termo: string;
+    scannedAt: number;
+    fonteVolume?: string;
+    termos: { termo: string; volume?: number; cpc?: number; competicao?: string }[];
+    perguntas: string[];
+    ideiasConteudo: { titulo: string; tipo: string }[];
   };
   acompanhamento?: {
     ciclo: string;
@@ -480,61 +507,121 @@ function buildLinkedIn360(plan: Partial<CacaPlan>, redes: Record<string, string>
   };
 }
 
+function buildCanais360(plan: Partial<CacaPlan>, redes: Record<string, string> = {}, radar?: any): CacaPlan["canais360"] {
+  const interesses = (plan.interessesPosts ?? []).slice(0, 4);
+  const targeting = Array.from(new Set(interesses.flatMap(i => i.targeting ?? []))).slice(0, 8);
+  const produto = plan.produto || plan.nicho || "seu produto";
+  const nicho = plan.nicho || produto;
+  const dor = interesses.find(i => i.categoria === "dor")?.nome || "a dor central do cliente";
+  const desejo = interesses.find(i => i.categoria === "desejo")?.nome || "a transformacao desejada";
+  const prof = plan.profile;
+  const baseTargeting = targeting.length ? targeting : ["Interessados no nicho", "Lookalike dos seguidores", "Quem engajou no perfil", "Visitantes do site"];
+  const igLeitura = prof
+    ? `@${prof.handle}: ${nf(prof.followers)} seguidores, engajamento ~${prof.engajamentoPct ?? "—"}% (media ${nf(prof.avgLikes)} curtidas/post). Ha audiencia aquecida — falta converter em venda.`
+    : "Perfil ainda nao lido. Conecte o Instagram para uma leitura com numeros reais.";
+  return {
+    canais: [
+      {
+        canal: "Instagram",
+        papel: "Prova social, confianca visual e conversao direta no feed/stories.",
+        leitura: igLeitura,
+        publicos: baseTargeting,
+        angulosAnuncio: [
+          { nome: "Antes e depois", mensagem: `Mostre a transformacao real ligada a ${desejo}.`, oferta: "Convite direto (DM/WhatsApp) ou link na bio." },
+          { nome: "Dor reconhecida", mensagem: `Nomeie ${dor} e mostre o caminho com ${produto}.`, oferta: "Material ou condicao especial para quem chamar." },
+          { nome: "Prova social", mensagem: "Depoimento ou bastidor que gera confianca imediata.", oferta: "Oferta de entrada com baixa friccao." },
+        ],
+        formatos: ["Reels com gancho de 3s", "Carrossel antes/depois", "Stories com enquete + CTA"],
+        conteudos: ["Bastidor real do processo", "Depoimento de cliente", "Erro comum que o publico comete"],
+        kpis: ["salvamentos", "cliques no perfil", "conversas iniciadas"],
+      },
+      {
+        canal: "TikTok / Reels",
+        papel: "Descoberta e alcance — simplificar a dor e atrair quem ainda nao conhece.",
+        leitura: redes?.tiktok
+          ? `Canal informado (${redes.tiktok}). Use para abrir descoberta com videos curtos e analogias.`
+          : "Sem TikTok conectado. Mesmo assim, Reels no Instagram cobrem este papel de descoberta.",
+        publicos: ["Publico frio do nicho", "Tendencias e sons em alta", "Quem busca solucao rapida"],
+        angulosAnuncio: [
+          { nome: "Mito x verdade", mensagem: `Quebre uma crenca errada comum sobre ${nicho}.`, oferta: "Seguir + ver o guia completo." },
+          { nome: "Analogia simples", mensagem: `Explique ${dor} de um jeito que qualquer um entende em 20s.`, oferta: "Comentar palavra-chave para receber material." },
+        ],
+        formatos: ["Video 15-30s com gancho forte", "Tutorial rapido", "Reacao a tendencia"],
+        conteudos: ["3 erros que travam resultado", "Passo a passo em 20s", "Bastidor autentico"],
+        kpis: ["retencao", "compartilhamentos", "visitas ao perfil"],
+      },
+      {
+        canal: "Google (Busca & SEO)",
+        papel: "Capturar quem JA procura a solucao — intencao alta de compra.",
+        leitura: `Quem tem ${dor} pesquisa no Google antes de comprar. Sem presenca na busca, esse lead vai para o concorrente.`,
+        publicos: ["Busca pela solucao direta", "Busca por '[nicho] perto de mim'", "Comparacao de preco/opcoes", "Duvidas tecnicas do nicho"],
+        angulosAnuncio: [
+          { nome: "Anuncio de busca (intencao)", mensagem: `Apareca para quem pesquisa por ${nicho} com uma promessa clara.`, oferta: "Diagnostico ou orcamento rapido." },
+          { nome: "Conteudo que ranqueia", mensagem: `Artigo respondendo a principal duvida sobre ${nicho}.`, oferta: "Checklist ou contato no fim do artigo." },
+        ],
+        formatos: ["Anuncio de busca (Google Ads)", "Artigo pilar SEO", "FAQ otimizado", "Pagina de destino por intencao"],
+        conteudos: ["Guia: como escolher a solucao certa", "FAQ com as duvidas reais do cliente", "Comparativo transparente de opcoes/preco"],
+        kpis: ["palavras ranqueadas", "trafego organico", "conversao da pagina"],
+      },
+    ],
+  };
+}
+
 function buildChannelPrescriptions(plan: Partial<CacaPlan>, radar?: any): CacaPlan["prescricoesPorCanal"] {
   const radarSource = radar?.marketSummary ? "Radar de Mercado + feedbacks" : "Diagnostico 360";
   const coreTheme = plan.nicho || plan.produto || "tema principal";
   return [
     {
-      canal: "LinkedIn",
-      funcao: "Autoridade, demanda B2B e conversa com decisores.",
+      canal: "Instagram",
+      funcao: "Prova social, confianca visual e conversao direta.",
       prioridade: "Prioridade 1",
       conteudos: [
-        `Post de tese sobre a dor central em ${coreTheme}.`,
-        "Casos, comparativos antes/depois e aprendizados de bastidor.",
-        "Comentarios estrategicos em perfis relacionados para abrir rede.",
+        `Carrossel antes/depois mostrando o resultado em ${coreTheme}.`,
+        "Reels com gancho de 3s sobre a dor central do cliente.",
+        "Stories com prova social, enquete e CTA direto (DM/WhatsApp).",
       ],
-      cta: "Diagnostico, conversa consultiva ou material rico.",
-      kpis: ["comentarios qualificados", "visitas ao site", "leads B2B"],
-      origem: "LinkedIn 360",
-    },
-    {
-      canal: "Blog / SEO",
-      funcao: "Respaldar notoriedade e capturar busca tecnica.",
-      prioridade: "Obrigatorio quando ha site ou LinkedIn B2B",
-      conteudos: [
-        "Artigo pilar que sustenta a tese da semana.",
-        "FAQ SEO com perguntas que aparecem nos comentarios e no Radar.",
-        "Glossario/comparativo para termos tecnicos que o comprador pesquisa.",
-      ],
-      cta: "Checklist, diagnostico ou contato comercial.",
-      kpis: ["palavras ranqueadas", "trafego organico", "conversao da pagina"],
-      origem: "Site + LinkedIn",
-    },
-    {
-      canal: "Instagram",
-      funcao: "Prova social, confianca visual e bastidores.",
-      prioridade: "Humanizacao",
-      conteudos: [
-        "Carrosseis de antes/depois e bastidores reais.",
-        "Stories com perguntas, provas e bastidores do processo.",
-        "Depoimentos e sinais visuais de credibilidade.",
-      ],
-      cta: "Direct, WhatsApp ou visita ao site.",
-      kpis: ["salvamentos", "respostas", "cliques no perfil"],
-      origem: "DNA visual + Radar social",
+      cta: "Direct, WhatsApp ou link na bio.",
+      kpis: ["salvamentos", "conversas iniciadas", "cliques no perfil"],
+      origem: "Perfil lido + DNA visual",
     },
     {
       canal: "TikTok / Reels",
-      funcao: "Descoberta e simplificacao de dores complexas.",
-      prioridade: "Teste rapido",
+      funcao: "Descoberta e simplificacao da dor para publico frio.",
+      prioridade: "Alcance",
       conteudos: [
-        "Analogias simples para explicar um problema tecnico.",
-        "Mitos, erros comuns e bastidores em ate 45 segundos.",
-        "Cortes dos temas que performarem no LinkedIn e Instagram.",
+        "Analogia simples que explica um problema complexo em 20s.",
+        "Mitos, erros comuns e bastidores em ate 30 segundos.",
+        "Cortes dos temas que performarem no Instagram.",
       ],
-      cta: "Comentar, seguir ou ver guia completo.",
+      cta: "Comentar palavra-chave, seguir ou ver guia completo.",
       kpis: ["retencao", "compartilhamentos", "visitas ao perfil"],
       origem: radarSource,
+    },
+    {
+      canal: "Google (Busca)",
+      funcao: "Capturar intencao de compra — quem ja procura a solucao.",
+      prioridade: "Intencao alta",
+      conteudos: [
+        `Anuncio de busca para quem pesquisa por ${coreTheme}.`,
+        "Pagina de destino por intencao, com promessa e prova.",
+        "FAQ com as duvidas reais que o cliente digita no Google.",
+      ],
+      cta: "Diagnostico, orcamento rapido ou contato.",
+      kpis: ["palavras ranqueadas", "cliques de busca", "conversao da pagina"],
+      origem: "Intencao de busca + nicho",
+    },
+    {
+      canal: "Blog / SEO",
+      funcao: "Construir autoridade e ranquear no longo prazo.",
+      prioridade: "Ativo de longo prazo",
+      conteudos: [
+        "Artigo pilar que sustenta a tese da semana.",
+        "FAQ SEO com perguntas que aparecem nos comentarios e no Radar.",
+        "Comparativo/guia para termos que o comprador pesquisa.",
+      ],
+      cta: "Checklist, diagnostico ou contato comercial.",
+      kpis: ["palavras ranqueadas", "trafego organico", "conversao da pagina"],
+      origem: "Site + busca",
     },
   ];
 }
@@ -589,7 +676,7 @@ function buildMultichannelTimeline(plan: Partial<CacaPlan>): CacaPlan["cronogram
       semana: "Semana 1",
       tema: "Dor central",
       canais: [
-        { canal: "LinkedIn", acao: `Post de tese: o custo invisivel em ${theme}.`, objetivo: "Gerar conversa qualificada." },
+        { canal: "Google", acao: `Anuncio de busca para quem ja procura ${theme}.`, objetivo: "Capturar intencao de compra." },
         { canal: "Blog", acao: "Artigo pilar com checklist e termos tecnicos.", objetivo: "Criar respaldo e destino de trafego." },
         { canal: "Instagram", acao: "Carrossel visual com bastidor/prova social.", objetivo: "Humanizar a dor." },
         { canal: "TikTok", acao: "Video curto com analogia simples.", objetivo: "Abrir descoberta." },
@@ -600,7 +687,7 @@ function buildMultichannelTimeline(plan: Partial<CacaPlan>): CacaPlan["cronogram
       semana: "Semana 2",
       tema: "Prova e comparacao",
       canais: [
-        { canal: "LinkedIn", acao: "Comparativo antes/depois com metrica ou consequencia.", objetivo: "Reduzir objecao." },
+        { canal: "Google", acao: "Pagina de destino + FAQ com as duvidas reais do cliente.", objetivo: "Converter a busca em lead." },
         { canal: "Blog", acao: "FAQ SEO derivado das duvidas e comentarios.", objetivo: "Responder buscas long tail." },
         { canal: "Instagram", acao: "Depoimento, bastidor ou caso visual.", objetivo: "Aumentar confianca." },
         { canal: "Campanha", acao: "Teste com publico decisor e criativos aprovados.", objetivo: "Medir resposta real." },
@@ -611,7 +698,7 @@ function buildMultichannelTimeline(plan: Partial<CacaPlan>): CacaPlan["cronogram
       semana: "Semana 3",
       tema: "Autoridade tecnica",
       canais: [
-        { canal: "LinkedIn", acao: "Post tecnico com linguagem de decisor.", objetivo: "Firmar autoridade." },
+        { canal: "Instagram", acao: "Post de autoridade com prova e bastidor real.", objetivo: "Firmar autoridade." },
         { canal: "Blog", acao: "Guia pratico com termo ranqueavel.", objetivo: "Construir ativo SEO." },
         { canal: "TikTok", acao: "Erro comum explicado em 30 segundos.", objetivo: "Aumentar alcance." },
         { canal: "Radar", acao: "Refazer Radar com feedbacks.", objetivo: "Trazer novos sinais quentes." },
@@ -622,7 +709,7 @@ function buildMultichannelTimeline(plan: Partial<CacaPlan>): CacaPlan["cronogram
       semana: "Semana 4",
       tema: "Conversao",
       canais: [
-        { canal: "LinkedIn", acao: "Convite para diagnostico com prova concreta.", objetivo: "Gerar leads." },
+        { canal: "Instagram", acao: "Convite direto para diagnostico com prova concreta.", objetivo: "Gerar leads." },
         { canal: "Blog", acao: "Landing/artigo de fundo para campanha.", objetivo: "Converter trafego." },
         { canal: "Instagram", acao: "Stories com perguntas e chamada direta.", objetivo: "Ativar relacionamento." },
         { canal: "Campanha", acao: "Remarketing para quem interagiu.", objetivo: "Aumentar eficiencia." },
@@ -677,20 +764,20 @@ function enhancePlanV2(plan: CacaPlan, redes: Record<string, string> = {}, radar
   const next: CacaPlan = { ...plan, redes: { ...(plan.redes ?? {}), ...redes } };
   next.interessesPosts = inferPostInterests(next, next.profile, radar);
   next.fontesUsadas = next.fontesUsadas?.length ? next.fontesUsadas : buildSources(next, next.redes, radar);
-  if (!next.linkedin360 || !next.linkedin360.publicosAnuncio?.length || !next.linkedin360.mensagensPorNivel?.length) {
-    next.linkedin360 = { ...(buildLinkedIn360(next, next.redes, radar) ?? {}), ...(next.linkedin360 ?? {}) } as CacaPlan["linkedin360"];
-    const freshLinkedin = buildLinkedIn360(next, next.redes, radar);
-    next.linkedin360.publicosAnuncio = next.linkedin360.publicosAnuncio?.length ? next.linkedin360.publicosAnuncio : freshLinkedin?.publicosAnuncio;
-    next.linkedin360.mensagensPorNivel = next.linkedin360.mensagensPorNivel?.length ? next.linkedin360.mensagensPorNivel : freshLinkedin?.mensagensPorNivel;
-  }
-  next.prescricoesPorCanal = next.prescricoesPorCanal?.length ? next.prescricoesPorCanal : buildChannelPrescriptions(next, radar);
+  next.canais360 = next.canais360?.canais?.length ? next.canais360 : buildCanais360(next, next.redes, radar);
+  // Limpa restos de LinkedIn de planos antigos: se detectado, reconstrói por canal real.
+  const hasLinkedin =
+    (next.prescricoesPorCanal ?? []).some((p: any) => /linkedin/i.test(p?.canal || "")) ||
+    (next.cronogramaMulticanal ?? []).some((w: any) => (w?.canais ?? []).some((c: any) => /linkedin/i.test(c?.canal || ""))) ||
+    (next.acoesImediatas ?? []).some((a: any) => /linkedin/i.test(a?.canal || ""));
+  next.prescricoesPorCanal = (next.prescricoesPorCanal?.length && !hasLinkedin) ? next.prescricoesPorCanal : buildChannelPrescriptions(next, radar);
+  next.cronogramaMulticanal = (next.cronogramaMulticanal?.length && !hasLinkedin) ? next.cronogramaMulticanal : buildMultichannelTimeline(next);
+  next.acoesImediatas = (next.acoesImediatas?.length && !hasLinkedin) ? next.acoesImediatas : buildImmediateActions(next, radar);
   next.metodoDiagnostico = next.metodoDiagnostico?.length ? next.metodoDiagnostico : buildDiagnosticMethod(next, radar);
-  next.acoesImediatas = next.acoesImediatas?.length ? next.acoesImediatas : buildImmediateActions(next, radar);
-  next.cronogramaMulticanal = next.cronogramaMulticanal?.length ? next.cronogramaMulticanal : buildMultichannelTimeline(next);
   next.parecerEstrategico = next.parecerEstrategico ?? {
     titulo: "Parecer estrategico",
     analise: next.sumarioExecutivo || next.resumo || "O negocio tem sinais suficientes para organizar canais por funcao e transformar diagnostico em execucao.",
-    prescricaoImediata: "Trabalhar um tema central por semana, conectando LinkedIn, Blog / SEO, Instagram e TikTok / Reels em uma mesma narrativa.",
+    prescricaoImediata: "Trabalhar um tema central por semana, conectando Instagram, TikTok / Reels, Google (Busca) e Blog / SEO em uma mesma narrativa.",
     radarImpacto: radar?.marketSummary ? `Radar: ${truncate(radar.marketSummary, 360)}` : "Aguardando Radar de Mercado para fortalecer o parecer com sinais vivos.",
   };
   next.acompanhamento = next.acompanhamento ?? buildPlanner(next);
@@ -1369,7 +1456,8 @@ export async function getPlan(orgId: number) {
     await db.update(orgProfile).set({ planoJson: enhanced as any }).where(eq(orgProfile.organizationId, orgId));
     return enhanced as unknown as CacaPlan;
   }
-  if (!Array.isArray(plan.interessesPosts) || !plan.interessesPosts.length || !plan.prescricoesPorCanal?.length || !plan.cronogramaMulticanal?.length || !plan.acompanhamento) {
+  const planHasLinkedin = (plan.prescricoesPorCanal ?? []).some((p: any) => /linkedin/i.test(p?.canal || ""));
+  if (!Array.isArray(plan.interessesPosts) || !plan.interessesPosts.length || !plan.prescricoesPorCanal?.length || !plan.cronogramaMulticanal?.length || !plan.acompanhamento || !plan.canais360?.canais?.length || planHasLinkedin) {
     plan.interessesPosts = inferPostInterests(plan, plan.profile ?? savedProfile, row.radarJson);
     const enhanced = enhancePlanV2(plan as CacaPlan, row.redes ?? {}, row.radarJson);
     await db.update(orgProfile).set({ planoJson: enhanced as any }).where(eq(orgProfile.organizationId, orgId));

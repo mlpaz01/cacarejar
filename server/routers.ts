@@ -39,7 +39,7 @@ import { analyzeAndCalibrate } from "./openrouter";
 import fs from "fs";
 import path from "path";
 import { nanoid } from "nanoid";
-import { campaigns, payments, creditLedger } from "../drizzle/schema";
+import { campaigns, payments, creditLedger, notificationPrefs, organizations, orgProfile, users } from "../drizzle/schema";
 import * as creditsService from "./services/credits";
 import * as asaasService from "./services/asaas";
 import * as studioService from "./services/studio";
@@ -939,6 +939,186 @@ const notificationsRouter = router({
     }),
 });
 
+// ─── Settings Router ─────────────────────────────────────────────────────────
+
+const cleanOptionalText = (value?: string | null) => {
+  const text = value?.trim();
+  return text ? text : null;
+};
+
+const settingsRouter = router({
+  get: protectedProcedure.query(async ({ ctx }) => {
+    const orgId = ctx.user.organizationId;
+    const db = await getDb();
+
+    if (!orgId || !db) {
+      return {
+        user: {
+          id: ctx.user.id,
+          name: ctx.user.name,
+          email: ctx.user.email,
+          role: ctx.user.role,
+        },
+        organization: null,
+        profile: null,
+        notifications: {
+          emailEnabled: true,
+          prefs: {},
+        },
+      };
+    }
+
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
+    const [profile] = await db.select().from(orgProfile).where(eq(orgProfile.organizationId, orgId)).limit(1);
+    const [prefs] = await db
+      .select()
+      .from(notificationPrefs)
+      .where(and(eq(notificationPrefs.organizationId, orgId), eq(notificationPrefs.userId, ctx.user.id)))
+      .limit(1);
+
+    return {
+      user: {
+        id: ctx.user.id,
+        name: ctx.user.name,
+        email: ctx.user.email,
+        role: ctx.user.role,
+      },
+      organization: org
+        ? {
+            id: org.id,
+            name: org.name,
+            slug: org.slug,
+            plan: org.plan,
+            isActive: org.isActive,
+          }
+        : null,
+      profile: profile
+        ? {
+            nicho: profile.nicho,
+            produto: profile.produto,
+            objetivo: profile.objetivo,
+            site: profile.site,
+            redes: profile.redes ?? {},
+          }
+        : null,
+      notifications: {
+        emailEnabled: prefs?.emailEnabled ?? true,
+        prefs: prefs?.prefs ?? {},
+      },
+    };
+  }),
+
+  update: protectedProcedure
+    .input(
+      z.object({
+        user: z
+          .object({
+            name: z.string().trim().min(2, "Informe seu nome").max(120).optional(),
+          })
+          .optional(),
+        organization: z
+          .object({
+            name: z.string().trim().min(2, "Informe o nome da empresa").max(160).optional(),
+          })
+          .optional(),
+        profile: z
+          .object({
+            nicho: z.string().trim().max(128).optional(),
+            produto: z.string().trim().max(1000).optional(),
+            objetivo: z.string().trim().max(64).optional(),
+            site: z.string().trim().max(320).optional(),
+            redes: z
+              .object({
+                instagram: z.string().trim().max(120).optional(),
+                linkedin: z.string().trim().max(320).optional(),
+                tiktok: z.string().trim().max(120).optional(),
+              })
+              .optional(),
+          })
+          .optional(),
+        notifications: z
+          .object({
+            emailEnabled: z.boolean().optional(),
+            prefs: z.record(z.string(), z.boolean()).optional(),
+          })
+          .optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const orgId = ctx.user.organizationId;
+      if (!orgId) throw new Error("Organizacao nao encontrada");
+
+      const db = await getDb();
+      if (!db) throw new Error("DB unavailable");
+
+      if (input.user?.name !== undefined) {
+        await db.update(users).set({ name: input.user.name }).where(eq(users.id, ctx.user.id));
+      }
+
+      if (input.organization?.name !== undefined) {
+        await db.update(organizations).set({ name: input.organization.name }).where(eq(organizations.id, orgId));
+      }
+
+      if (input.profile) {
+        const redes = input.profile.redes
+          ? Object.fromEntries(
+              Object.entries(input.profile.redes)
+                .map(([key, value]) => [key, cleanOptionalText(value)])
+                .filter(([, value]) => Boolean(value))
+            )
+          : undefined;
+
+        const profileValues = {
+          organizationId: orgId,
+          nicho: cleanOptionalText(input.profile.nicho),
+          produto: cleanOptionalText(input.profile.produto),
+          objetivo: cleanOptionalText(input.profile.objetivo),
+          site: cleanOptionalText(input.profile.site),
+          ...(redes ? { redes } : {}),
+        };
+
+        await db
+          .insert(orgProfile)
+          .values(profileValues)
+          .onDuplicateKeyUpdate({
+            set: {
+              nicho: profileValues.nicho,
+              produto: profileValues.produto,
+              objetivo: profileValues.objetivo,
+              site: profileValues.site,
+              ...(redes ? { redes } : {}),
+            },
+          });
+      }
+
+      if (input.notifications) {
+        const emailEnabled = input.notifications.emailEnabled ?? true;
+        const prefs = input.notifications.prefs ?? {};
+        const existing = await db
+          .select()
+          .from(notificationPrefs)
+          .where(and(eq(notificationPrefs.organizationId, orgId), eq(notificationPrefs.userId, ctx.user.id)))
+          .limit(1);
+
+        if (existing.length) {
+          await db
+            .update(notificationPrefs)
+            .set({ emailEnabled, prefs })
+            .where(and(eq(notificationPrefs.organizationId, orgId), eq(notificationPrefs.userId, ctx.user.id)));
+        } else {
+          await db.insert(notificationPrefs).values({
+            organizationId: orgId,
+            userId: ctx.user.id,
+            emailEnabled,
+            prefs,
+          });
+        }
+      }
+
+      return { success: true };
+    }),
+});
+
 // ─── Diagnóstico Router (Cacá) ────────────────────────────────────────────────
 
 const diagnosisRouter = router({
@@ -1158,6 +1338,7 @@ export const appRouter = router({
   studio: studioRouter,
   approvals: approvalsRouter,
   notifications: notificationsRouter,
+  settings: settingsRouter,
   ovos: ovosRouter,
   diagnosis: diagnosisRouter,
   radar: radarRouter,

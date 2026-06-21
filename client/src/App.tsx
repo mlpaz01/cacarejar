@@ -22,6 +22,7 @@ import Creditos from "./pages/Creditos";
 import Estudio from "./pages/Estudio";
 import Aprovacao from "./pages/Aprovacao";
 import Notificacoes from "./pages/Notificacoes";
+import Configuracoes from "./pages/Configuracoes";
 import Ovos from "./pages/Ovos";
 import Diagnostico from "./pages/Diagnostico";
 import DiagnosticoPrint from "./pages/DiagnosticoPrint";
@@ -60,6 +61,7 @@ function AppRouter() {
       <Route path="/aprovacao" component={Aprovacao} />
       <Route path="/ovos" component={Ovos} />
       <Route path="/notificacoes" component={Notificacoes} />
+      <Route path="/configuracoes" component={Configuracoes} />
       <Route path="/creditos" component={Creditos} />
       <Route component={NotFound} />
     </Switch>

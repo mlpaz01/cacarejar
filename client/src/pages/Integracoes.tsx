@@ -23,16 +23,9 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-type Channel = "linkedin" | "tiktok" | "instagram" | "google";
+type Channel = "tiktok" | "instagram" | "google";
 
 const CHANNEL_CONFIG: Record<Channel, { label: string; description: string; color: string; bgColor: string; icon: string }> = {
-  linkedin: {
-    label: "LinkedIn",
-    description: "Anúncios e posts patrocinados no LinkedIn Campaign Manager",
-    color: "text-blue-400",
-    bgColor: "bg-blue-500/10 border-blue-500/20",
-    icon: "in",
-  },
   tiktok: {
     label: "TikTok",
     description: "Anúncios e conteúdo patrocinado no TikTok Ads Manager",
@@ -228,7 +221,7 @@ export default function Integracoes() {
     onError: (e) => toast.error(e.message),
   });
 
-  const channels: Channel[] = ["linkedin", "tiktok", "instagram", "google"];
+  const channels: Channel[] = ["tiktok", "instagram", "google"];
 
   function getIntegration(channel: Channel) {
     return integrations?.find((i) => i.channel === channel);

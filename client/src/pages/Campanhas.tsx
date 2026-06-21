@@ -42,7 +42,6 @@ import { ptBR } from "date-fns/locale";
 import { Link } from "wouter";
 
 const CHANNELS = [
-  { id: "linkedin", label: "LinkedIn" },
   { id: "tiktok", label: "TikTok" },
   { id: "instagram", label: "Instagram" },
   { id: "google", label: "Google" },

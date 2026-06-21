@@ -1,13 +1,8 @@
 import { cn } from "@/lib/utils";
 
-type Channel = "linkedin" | "tiktok" | "instagram" | "google";
+type Channel = "tiktok" | "instagram" | "google";
 
 const channelConfig: Record<Channel, { label: string; className: string; icon: string }> = {
-  linkedin: {
-    label: "LinkedIn",
-    className: "bg-blue-600/15 text-blue-400 border-blue-600/30",
-    icon: "in",
-  },
   tiktok: {
     label: "TikTok",
     className: "bg-pink-500/15 text-pink-400 border-pink-500/30",
