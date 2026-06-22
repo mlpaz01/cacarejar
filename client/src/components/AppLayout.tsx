@@ -288,21 +288,23 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
       >
         {/* Header */}
         {(title || actions) && (
-          <header className="h-16 border-b border-border bg-white sticky top-0 z-30 flex items-center px-8 shadow-sm">
-            <div className="flex-1">
-              {title && (
-                <div>
-                  <h1 className="text-base font-black text-foreground">{title}</h1>
-                  {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
-                </div>
-              )}
+          <header className="min-h-[72px] border-b border-border bg-white sticky top-0 z-30 px-5 lg:px-8 py-3 shadow-sm">
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+              <div className="min-w-0 flex-1">
+                {title && (
+                  <div className="max-w-3xl">
+                    <h1 className="text-base font-black leading-tight text-foreground">{title}</h1>
+                    {subtitle && <p className="text-xs leading-snug text-muted-foreground mt-1">{subtitle}</p>}
+                  </div>
+                )}
+              </div>
+              {actions && <div className="flex shrink-0 items-center justify-start xl:justify-end gap-2 flex-wrap">{actions}</div>}
             </div>
-            {actions && <div className="flex items-center gap-3">{actions}</div>}
           </header>
         )}
 
         {/* Page content */}
-        <main className="flex-1 p-8">{children}</main>
+        <main className="flex-1 p-5 lg:p-6 xl:p-8">{children}</main>
       </div>
     </div>
   );
