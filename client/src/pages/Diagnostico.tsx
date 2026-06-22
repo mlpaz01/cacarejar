@@ -322,11 +322,6 @@ export default function Diagnostico() {
                         `Exclusao definitiva de ${label}.\n\nIsso apaga este perfil do historico e remove tudo que estiver ligado a ele: diagnostico salvo, Radar, ideias, criativos gerados, aprovacoes, variantes e revisoes relacionadas.\n\nEssa acao nao pode ser desfeita.`
                       );
                       if (!ok) return;
-                      const typed = window.prompt(`Para confirmar a exclusao definitiva de ${label}, digite EXCLUIR.`);
-                      if (typed !== "EXCLUIR") {
-                        toast.error("Exclusao cancelada. Confirmacao incorreta.");
-                        return;
-                      }
                       deleteArchive.mutate({ id: item.id });
                     }}
                     disabled={deleteArchive.isPending || restoreArchive.isPending}
