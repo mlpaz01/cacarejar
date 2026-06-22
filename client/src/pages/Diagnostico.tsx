@@ -22,6 +22,7 @@ import {
   Target,
   ThumbsDown,
   ThumbsUp,
+  Trash2,
   TrendingUp,
   Video,
 } from "lucide-react";
@@ -95,6 +96,16 @@ export default function Diagnostico() {
       toast.success("Diagnostico restaurado.");
     },
     onError: e => toast.error(e.message || "Erro ao restaurar"),
+  });
+  const deleteArchive = trpc.diagnosis.deleteArchive.useMutation({
+    onSuccess: (res: any) => {
+      utils.diagnosis.archives.invalidate();
+      utils.diagnosis.get.invalidate();
+      utils.radar.get.invalidate();
+      utils.approvals.pendingForClient.invalidate();
+      toast.success(`Perfil excluido definitivamente. ${res?.creativesDeleted ?? 0} criativos e ${res?.approvalsDeleted ?? 0} aprovacoes removidos.`);
+    },
+    onError: e => toast.error(e.message || "Erro ao excluir perfil"),
   });
   const scanRadar = trpc.radar.scan.useMutation({
     onSuccess: () => {
@@ -303,6 +314,25 @@ export default function Diagnostico() {
                   <p className="text-sm text-[#61708a] mt-2 line-clamp-3">{item.summary || "Sem resumo salvo."}</p>
                   <button onClick={() => restoreArchive.mutate({ id: item.id })} disabled={restoreArchive.isPending} className="mt-4 w-full rounded-xl border border-[#e6ebf3] px-4 py-2.5 text-sm font-black text-[#071b44] hover:bg-[#f8fafc] flex items-center justify-center gap-2 disabled:opacity-50">
                     {restoreArchive.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />} Restaurar
+                  </button>
+                  <button
+                    onClick={() => {
+                      const label = item.handle ? `@${item.handle}` : item.produto || item.nicho || "este perfil";
+                      const ok = window.confirm(
+                        `Exclusao definitiva de ${label}.\n\nIsso apaga este perfil do historico e remove tudo que estiver ligado a ele: diagnostico salvo, Radar, ideias, criativos gerados, aprovacoes, variantes e revisoes relacionadas.\n\nEssa acao nao pode ser desfeita.`
+                      );
+                      if (!ok) return;
+                      const typed = window.prompt(`Para confirmar a exclusao definitiva de ${label}, digite EXCLUIR.`);
+                      if (typed !== "EXCLUIR") {
+                        toast.error("Exclusao cancelada. Confirmacao incorreta.");
+                        return;
+                      }
+                      deleteArchive.mutate({ id: item.id });
+                    }}
+                    disabled={deleteArchive.isPending || restoreArchive.isPending}
+                    className="mt-2 w-full rounded-xl border border-[#ffd0c8] bg-[#fff7f5] px-4 py-2.5 text-sm font-black text-[#c20f00] hover:bg-[#fff1ef] flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {deleteArchive.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />} Excluir definitivo
                   </button>
                 </div>
               ))}

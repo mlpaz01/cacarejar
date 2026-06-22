@@ -6,13 +6,13 @@
  *    (padrão Higgsfield: cena, luz, lente, paleta da marca) e roteiro de vídeo (Reels/TikTok).
  * Cérebro: Claude 3.5 Sonnet via OpenRouter.
  */
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { getDb } from "../db";
-import { orgProfile, factorDefinitions } from "../../drizzle/schema";
+import { approvals, creatives, experiments, factorDefinitions, orgProfile, reviewChecks, variants } from "../../drizzle/schema";
 import { openRouterChat, ContentPart } from "../openrouter";
 import { fetchProfile, fetchSite, profileReadingEnabled, SocialProfile, SiteSnapshot } from "./profileProvider";
 import { archivePendingForContext } from "./approvals";
-import { contextFromPlan } from "./context";
+import { contextFromPlan, creativeMatchesContext } from "./context";
 
 const BRAIN = "anthropic/claude-sonnet-4.6";
 const truncate = (s: string, n: number) => (s || "").slice(0, n);
@@ -1206,7 +1206,63 @@ export async function listArchives(orgId: number) {
   }));
 }
 
-/** Exclui um snapshot arquivado. */
+async function deleteProfileArtifacts(orgId: number, context: ReturnType<typeof contextFromPlan>) {
+  const db = await getDb();
+  if (!db || !context) return { creativesDeleted: 0, experimentsDeleted: 0, approvalsDeleted: 0 };
+
+  const allCreatives = await db.select().from(creatives).where(eq(creatives.organizationId, orgId));
+  const scopedCreatives = allCreatives.filter((creative) => creativeMatchesContext(creative, context));
+  const creativeIds = scopedCreatives.map((creative) => creative.id).filter(Boolean);
+  const experimentIds = new Set<number>();
+
+  for (const creative of scopedCreatives) {
+    if (creative.experimentId) experimentIds.add(creative.experimentId);
+  }
+
+  if (creativeIds.length) {
+    const scopedVariants = await db.select().from(variants).where(inArray(variants.creativeId, creativeIds));
+    for (const variant of scopedVariants) experimentIds.add(variant.experimentId);
+  }
+
+  const expIds = Array.from(experimentIds).filter(Boolean);
+  const approvalIds = new Set<number>();
+  if (expIds.length) {
+    const experimentApprovals = await db.select().from(approvals)
+      .where(and(eq(approvals.organizationId, orgId), eq(approvals.itemType, "experiment"), inArray(approvals.itemId, expIds)));
+    for (const approval of experimentApprovals) approvalIds.add(approval.id);
+  }
+  if (creativeIds.length) {
+    const creativeApprovals = await db.select().from(approvals)
+      .where(and(eq(approvals.organizationId, orgId), eq(approvals.itemType, "creative"), inArray(approvals.itemId, creativeIds)));
+    for (const approval of creativeApprovals) approvalIds.add(approval.id);
+  }
+
+  const appIds = Array.from(approvalIds).filter(Boolean);
+  if (appIds.length) {
+    await db.delete(reviewChecks).where(inArray(reviewChecks.approvalId, appIds));
+    await db.delete(approvals).where(inArray(approvals.id, appIds));
+  }
+  if (expIds.length) {
+    await db.delete(variants).where(inArray(variants.experimentId, expIds));
+  }
+  if (creativeIds.length) {
+    await db.delete(variants).where(inArray(variants.creativeId, creativeIds));
+  }
+  if (expIds.length) {
+    await db.delete(experiments).where(and(eq(experiments.organizationId, orgId), inArray(experiments.id, expIds)));
+  }
+  if (creativeIds.length) {
+    await db.delete(creatives).where(and(eq(creatives.organizationId, orgId), inArray(creatives.id, creativeIds)));
+  }
+
+  return {
+    creativesDeleted: creativeIds.length,
+    experimentsDeleted: expIds.length,
+    approvalsDeleted: appIds.length,
+  };
+}
+
+/** Exclui definitivamente um snapshot arquivado e os artefatos ligados ao perfil. */
 export async function deleteArchive(orgId: number, id: string) {
   const db = await getDb();
   if (!db) return { ok: false };
@@ -1214,9 +1270,12 @@ export async function deleteArchive(orgId: number, id: string) {
   const archived = ensureArchiveIds(((rows[0]?.archivedPlans as any[]) ?? []).slice()).archived;
   const index = archived.findIndex(snap => snap?.id === id);
   if (index < 0) return { ok: false };
+  const snap = archived[index];
+  const context = contextFromPlan(snap?.planoJson, { ...snap, radarJson: snap?.radarJson });
+  const deleted = await deleteProfileArtifacts(orgId, context);
   archived.splice(index, 1);
   await db.update(orgProfile).set({ archivedPlans: archived as any }).where(eq(orgProfile.organizationId, orgId));
-  return { ok: true, remaining: archived.length };
+  return { ok: true, remaining: archived.length, ...deleted };
 }
 
 /** Restaura um snapshot arquivado (volta a ser o plano/radar atuais). */
