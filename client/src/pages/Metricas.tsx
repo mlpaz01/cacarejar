@@ -66,6 +66,15 @@ const CustomTooltip = ({ active, payload, label }: any) => {
   );
 };
 
+function MiniOrganic({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-3">
+      <p className="text-[10px] font-black text-[#61708a] uppercase tracking-wide">{label}</p>
+      <p className="text-xl font-black text-[#071b44] mt-1">{value}</p>
+    </div>
+  );
+}
+
 export default function Metricas() {
   const [period, setPeriod] = useState(30);
   const [selectedCampaign, setSelectedCampaign] = useState<number | undefined>();
@@ -75,6 +84,7 @@ export default function Metricas() {
 
   const { data: allMetrics, isLoading } = trpc.metrics.all.useQuery({ from, to });
   const { data: campaigns } = trpc.campaigns.list.useQuery();
+  const { data: diagnosis } = trpc.diagnosis.get.useQuery();
   const { data: campaignMetrics } = trpc.metrics.byCampaign.useQuery(
     { campaignId: selectedCampaign!, from, to },
     { enabled: !!selectedCampaign }
@@ -134,6 +144,24 @@ export default function Metricas() {
   const roi = totals.spend > 0 ? ((totals.revenue - totals.spend) / totals.spend) * 100 : 0;
   const ctr = totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : 0;
   const cpl = totals.conversions > 0 ? totals.spend / totals.conversions : 0;
+  const organicItems = ((diagnosis as any)?.plano7Dias ?? []).filter((item: any) => item.resultado);
+  const organicTotals = organicItems.reduce((acc: any, item: any) => {
+    const r = item.resultado ?? {};
+    acc.alcance += Number(r.alcance ?? 0);
+    acc.salvamentos += Number(r.salvamentos ?? 0);
+    acc.cliques += Number(r.cliques ?? 0);
+    acc.leads += Number(r.leads ?? 0);
+    acc.vendas += Number(r.vendas ?? 0);
+    acc.receita += Number(r.receita ?? 0);
+    return acc;
+  }, { alcance: 0, salvamentos: 0, cliques: 0, leads: 0, vendas: 0, receita: 0 });
+  const bestOrganic = [...organicItems].sort((a: any, b: any) => {
+    const score = (x: any) => {
+      const r = x.resultado ?? {};
+      return Number(r.salvamentos ?? 0) * 6 + Number(r.cliques ?? 0) * 3 + Number(r.leads ?? 0) * 12 + Number(r.vendas ?? 0) * 30 + Number(r.receita ?? 0) / 10;
+    };
+    return score(b) - score(a);
+  })[0];
   const leitura = totals.impressions === 0
     ? "Ainda não há volume suficiente. Aprove posts, publique campanhas e volte para medir a primeira leitura."
     : ctr < 0.8
@@ -215,6 +243,39 @@ export default function Metricas() {
           <p className="text-sm text-[#61708a] mt-2">
             Use esta leitura no check-in para recalcular o plano com dados reais, não só intenção.
           </p>
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-[#e6ebf3] bg-white p-6 shadow-sm mb-6">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <p className="text-xs font-black text-[#ff3217] uppercase tracking-wide">Resultados organicos manuais</p>
+            <h2 className="text-2xl font-black text-[#071b44] mt-1">O que o plano de 7 dias ja ensinou</h2>
+            <p className="text-sm text-[#61708a] mt-2">Esses numeros vêm dos resultados registrados manualmente no Diagnostico.</p>
+          </div>
+          <Link href="/diagnostico">
+            <a className="rounded-xl border border-[#e6ebf3] px-4 py-2 text-xs font-black text-[#071b44] hover:bg-[#f8fafc]">Abrir plano</a>
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mt-5">
+          <MiniOrganic label="Posts medidos" value={organicItems.length} />
+          <MiniOrganic label="Alcance" value={formatNumber(organicTotals.alcance)} />
+          <MiniOrganic label="Salvos" value={formatNumber(organicTotals.salvamentos)} />
+          <MiniOrganic label="Cliques" value={formatNumber(organicTotals.cliques)} />
+          <MiniOrganic label="Leads" value={formatNumber(organicTotals.leads)} />
+          <MiniOrganic label="Vendas" value={formatNumber(organicTotals.vendas)} />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-5">
+          <div className="rounded-2xl bg-[#071b44] text-white p-4">
+            <p className="text-[10px] font-black text-white/60 uppercase">Melhor conteudo organico</p>
+            <p className="text-lg font-black mt-2">{bestOrganic ? `${bestOrganic.dia} - ${bestOrganic.canal}` : "Ainda sem post medido"}</p>
+            <p className="text-sm text-white/80 mt-1">{bestOrganic?.gancho ?? "Publique e registre resultados para o Agente encontrar o vencedor."}</p>
+          </div>
+          <div className="rounded-2xl bg-[#fff8f6] border border-[#ffd5ce] p-4">
+            <p className="text-[10px] font-black text-[#ff3217] uppercase">Receita organica registrada</p>
+            <p className="text-3xl font-black text-[#071b44] mt-2">{formatCurrency(organicTotals.receita)}</p>
+            <p className="text-xs text-[#61708a] mt-1">Use esse sinal para decidir se o post merece campanha assistida.</p>
+          </div>
         </div>
       </section>
 
