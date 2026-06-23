@@ -158,6 +158,9 @@ export default function Diagnostico() {
   const genProposals = trpc.studio.generateProposals.useMutation({
     onError: e => toast.error(e.message || "Erro ao gerar posts"),
   });
+  const ensureOriginCreative = trpc.studio.ensureOriginCreative.useMutation({
+    onError: e => toast.error(e.message || "Erro ao abrir Estudio"),
+  });
   const genRadarIdea = trpc.radar.generateIdea.useMutation({
     onError: e => toast.error(e.message || "Erro ao gerar ideia do Radar"),
   });
@@ -168,6 +171,16 @@ export default function Diagnostico() {
     },
     onError: e => toast.error(e.message || "Erro ao enviar para aprovacao"),
   });
+
+  const openStudioFromPlan = async (index: number, creativeId?: number) => {
+    try {
+      const id = creativeId ?? (await ensureOriginCreative.mutateAsync({ originType: "diagnosis-plan", index })).id;
+      await utils.diagnosis.get.invalidate();
+      navigate(`/criativos/${id}?returnTo=${encodeURIComponent("/diagnostico")}&closeOnSave=1`);
+    } catch (e: any) {
+      toast.error(e?.message || "Erro ao abrir Estudio");
+    }
+  };
 
   const shown = plan ?? (forceForm ? null : existing.data);
   const rd: any = radar.data;
@@ -588,6 +601,7 @@ export default function Diagnostico() {
           <HeaderLine icon={CalendarDays} title="Plano de 7 dias" subtitle="Uma semana de execucao: os Agentes criam a base, voce edita e coloca o toque humano antes de publicar." />
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mt-5">
             {plano7Dias.map((item: any, index: number) => {
+              const creatingCreative = ensureOriginCreative.isPending && (ensureOriginCreative.variables as any)?.index === index;
               const copyText = [
                 `${item.dia} - ${item.canal}`,
                 `Objetivo: ${item.objetivo}`,
@@ -689,15 +703,26 @@ export default function Diagnostico() {
                   </div>
                   <div className="mt-4 pt-4 border-t border-[#e6ebf3] flex items-center justify-between gap-3 flex-wrap">
                     <span className="text-[11px] font-black text-[#61708a]">Medir: {item.metricaChave}</span>
-                    <button
-                      onClick={async () => {
-                        await navigator.clipboard?.writeText(copyText);
-                        toast.success("Conteudo copiado.");
-                      }}
-                      className="rounded-xl bg-[#071b44] text-white px-3 py-2 text-xs font-black hover:bg-[#0d2a5e]"
-                    >
-                      Copiar post
-                    </button>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openStudioFromPlan(index, item.creativeId)}
+                        disabled={creatingCreative}
+                        className="rounded-xl border border-[#e6ebf3] bg-white text-[#071b44] px-3 py-2 text-xs font-black hover:border-[#071b44] disabled:opacity-50 flex items-center gap-1.5"
+                      >
+                        {creatingCreative ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Pencil className="w-3.5 h-3.5" />}
+                        Editar no Estudio
+                      </button>
+                      <button
+                        onClick={async () => {
+                          await navigator.clipboard?.writeText(copyText);
+                          toast.success("Conteudo copiado.");
+                        }}
+                        className="rounded-xl bg-[#071b44] text-white px-3 py-2 text-xs font-black hover:bg-[#0d2a5e]"
+                      >
+                        Copiar post
+                      </button>
+                    </div>
                   </div>
                 </article>
               );

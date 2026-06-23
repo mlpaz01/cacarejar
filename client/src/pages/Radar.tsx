@@ -8,6 +8,7 @@ import {
   Loader2, Telescope, Sparkles, Heart, MessageCircle,
   Film, ExternalLink, Search, Target, BarChart3, Flame,
   ThumbsUp, ThumbsDown, Wand2, MessageSquare, FileDown,
+  Pencil,
 } from "lucide-react";
 import { AnalysisProgress, RADAR_STEPS } from "@/components/AnalysisProgress";
 
@@ -53,6 +54,9 @@ export default function Radar() {
   const genIdea = trpc.radar.generateIdea.useMutation({
     onSuccess: () => { utils.radar.get.invalidate(); toast.success("Conteúdo gerado na sua identidade!"); },
     onError: e => toast.error(e.message || "Erro ao gerar"),
+  });
+  const ensureOriginCreative = trpc.studio.ensureOriginCreative.useMutation({
+    onError: e => toast.error(e.message || "Erro ao abrir Estudio"),
   });
 
   const sendApproval = trpc.approvals.sendToApproval.useMutation({
@@ -141,6 +145,15 @@ export default function Radar() {
   };
   const setIdeaDecision = (index: number, decision: "use" | "skip" | "agent") => {
     decideIdea.mutate({ index, decision, feedback: ideaFeedbacks[index] });
+  };
+  const openStudioFromIdea = async (index: number, creativeId?: number) => {
+    try {
+      const id = creativeId ?? (await ensureOriginCreative.mutateAsync({ originType: "radar-idea", index })).id;
+      await utils.radar.get.invalidate();
+      navigate(`/criativos/${id}?returnTo=${encodeURIComponent("/radar")}&closeOnSave=1`);
+    } catch (e: any) {
+      toast.error(e?.message || "Erro ao abrir Estudio");
+    }
   };
   const sendIdeasToApproval = async () => {
     const sourceIdeas = ((data?.ideas ?? []) as any[]).slice(0, 3);
@@ -480,6 +493,7 @@ export default function Radar() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {data.ideas.map((it: any, i: number) => {
                   const gen = genIdea.isPending && (genIdea.variables as any)?.index === i;
+                  const openingStudio = ensureOriginCreative.isPending && (ensureOriginCreative.variables as any)?.index === i;
                   const decision = it.diagnosisDecision ?? "agent";
                   return (
                     <div key={i} className={`rounded-xl border overflow-hidden flex flex-col ${decision === "use" ? "border-[#18b85c]" : decision === "skip" ? "border-[#ffd0c8]" : "border-[#e6ebf3]"}`}>
@@ -531,6 +545,15 @@ export default function Radar() {
                               className="w-full min-h-[54px] text-[10px] border border-[#e6ebf3] rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-[#ff3217]" />
                           </div>
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => openStudioFromIdea(i, it.creativeId)}
+                          disabled={openingStudio || gen}
+                          className="mt-2 w-full rounded-lg border border-[#e6ebf3] bg-white text-[#071b44] px-3 py-2 text-[11px] font-black hover:border-[#071b44] disabled:opacity-50 flex items-center justify-center gap-1.5"
+                        >
+                          {openingStudio ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Pencil className="w-3.5 h-3.5" />}
+                          Editar no Estudio
+                        </button>
                         {it.roteiro && (
                           <details className="mt-2">
                             <summary className="text-[10px] font-black text-[#071b44] cursor-pointer flex items-center gap-1"><Film className="w-3 h-3" /> Ver roteiro</summary>

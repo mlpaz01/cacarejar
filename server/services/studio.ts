@@ -5,11 +5,104 @@
  */
 import { eq, desc, asc } from "drizzle-orm";
 import { getDb } from "../db";
-import { factorDefinitions, creatives } from "../../drizzle/schema";
+import { factorDefinitions, creatives, orgProfile } from "../../drizzle/schema";
 import { getImageProvider } from "./imageProvider";
 import * as credits from "./credits";
 import { openRouterChat } from "../openrouter";
 import { contextFromPlan, creativeMatchesContext, getActiveOrgContext, mergeContextMeta } from "./context";
+
+type OriginKind = "diagnosis-plan" | "radar-idea";
+
+function creativeSnapshot(c: any) {
+  const meta = (c?.generationMeta as any) ?? {};
+  return {
+    creativeId: c.id,
+    imageUrl: c.imageUrl ?? undefined,
+    titulo: meta.titulo ?? c.briefing,
+    briefing: c.briefing,
+    copy: c.copy ?? "",
+    legenda: c.copy ?? "",
+    gancho: meta.gancho ?? c.briefing,
+    cta: meta.cta,
+    hashtags: Array.isArray(meta.hashtags) ? meta.hashtags : [],
+    pilar: meta.pilar,
+    angulo: meta.angulo ?? c.lente,
+    formato: c.formato ?? meta.formato,
+    roteiro: meta.roteiro,
+    visualPrompt: meta.visualPrompt,
+    direcaoVisual: meta.visualPrompt,
+  };
+}
+
+function mergePostLike(item: any, snap: ReturnType<typeof creativeSnapshot>) {
+  return {
+    ...item,
+    creativeId: snap.creativeId,
+    imageUrl: snap.imageUrl ?? item?.imageUrl,
+    titulo: snap.titulo ?? item?.titulo,
+    copy: snap.copy ?? item?.copy,
+    legenda: snap.legenda ?? item?.legenda,
+    gancho: snap.gancho ?? item?.gancho,
+    cta: snap.cta ?? item?.cta,
+    hashtags: snap.hashtags?.length ? snap.hashtags : item?.hashtags,
+    pilar: snap.pilar ?? item?.pilar,
+    angulo: snap.angulo ?? item?.angulo,
+    formato: snap.formato ?? item?.formato,
+    roteiro: snap.roteiro ?? item?.roteiro,
+    visualPrompt: snap.visualPrompt ?? item?.visualPrompt,
+    direcaoVisual: snap.direcaoVisual ?? item?.direcaoVisual,
+  };
+}
+
+async function syncCreativeToOrigins(orgId: number, creativeId: number) {
+  const db = await getDb();
+  if (!db) return;
+  const c = await getCreative(orgId, creativeId);
+  if (!c) return;
+  const rows = await db.select().from(orgProfile).where(eq(orgProfile.organizationId, orgId)).limit(1);
+  const row = rows[0] as any;
+  if (!row) return;
+  const snap = creativeSnapshot(c);
+  const meta = (c.generationMeta as any) ?? {};
+  let planChanged = false;
+  let radarChanged = false;
+  const plan = row.planoJson ? { ...(row.planoJson as any) } : null;
+  const radar = row.radarJson ? { ...(row.radarJson as any) } : null;
+
+  if (plan?.postIdeas?.length) {
+    plan.postIdeas = plan.postIdeas.map((item: any, index: number) => {
+      const matches = Number(item?.creativeId) === creativeId || (meta.originType === "diagnosis-post" && Number(meta.originIndex) === index);
+      if (!matches) return item;
+      planChanged = true;
+      return mergePostLike(item, snap);
+    });
+  }
+
+  if (plan?.plano7Dias?.length) {
+    plan.plano7Dias = plan.plano7Dias.map((item: any, index: number) => {
+      const matches = Number(item?.creativeId) === creativeId || (meta.originType === "diagnosis-plan" && Number(meta.originIndex) === index);
+      if (!matches) return item;
+      planChanged = true;
+      return mergePostLike(item, snap);
+    });
+  }
+
+  if (radar?.ideas?.length) {
+    radar.ideas = radar.ideas.map((item: any, index: number) => {
+      const matches = Number(item?.creativeId) === creativeId || (meta.originType === "radar-idea" && Number(meta.originIndex) === index);
+      if (!matches) return item;
+      radarChanged = true;
+      return mergePostLike(item, snap);
+    });
+  }
+
+  const set: any = {};
+  if (planChanged) set.planoJson = plan;
+  if (radarChanged) set.radarJson = radar;
+  if (Object.keys(set).length) {
+    await db.update(orgProfile).set(set).where(eq(orgProfile.organizationId, orgId));
+  }
+}
 
 export async function listFactors() {
   const db = await getDb();
@@ -307,6 +400,104 @@ export async function generateFromIdea(orgId: number, userId: number, idea: any,
   }
 }
 
+export async function ensureCreativeForOrigin(orgId: number, userId: number, originType: OriginKind, index: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB indisponivel");
+  const rows = await db.select().from(orgProfile).where(eq(orgProfile.organizationId, orgId)).limit(1);
+  const row = rows[0] as any;
+  if (!row) throw new Error("Perfil da organizacao nao encontrado");
+  const plan = row.planoJson ? { ...(row.planoJson as any) } : null;
+  const radar = row.radarJson ? { ...(row.radarJson as any) } : null;
+  const ctx = contextFromPlan(plan, row);
+
+  if (originType === "diagnosis-plan") {
+    const items = Array.isArray(plan?.plano7Dias) ? [...plan.plano7Dias] : [];
+    const item = items[index];
+    if (!item) throw new Error("Item do plano nao encontrado");
+    if (item.creativeId) {
+      const existingCreative = await getCreative(orgId, Number(item.creativeId));
+      if (existingCreative) return { id: Number(item.creativeId), originType, index };
+    }
+    const meta = mergeContextMeta({
+      source: "diagnosis-plan",
+      originType,
+      originIndex: index,
+      titulo: `${item.dia} - ${item.canal}`,
+      pilar: item.pilar ?? null,
+      formato: item.formato ?? "imagem",
+      angulo: item.angulo ?? null,
+      canal: item.canal ?? null,
+      gancho: item.gancho ?? null,
+      hashtags: item.hashtags ?? [],
+      cta: item.cta ?? null,
+      roteiro: item.roteiro ?? null,
+      visualPrompt: item.visualPrompt ?? item.direcaoVisual ?? null,
+    }, ctx);
+    const ins = await db.insert(creatives).values({
+      organizationId: orgId,
+      userId,
+      briefing: `${item.dia} - ${item.canal}`,
+      copy: item.legenda ?? item.copy ?? "",
+      imageUrl: item.imageUrl ?? null,
+      ratio: "1:1",
+      lente: item.angulo === "dor" ? "dor" : "desejo",
+      formato: item.formato ?? "imagem",
+      factorValues: {},
+      generationMeta: meta,
+      channels: [channelId(item.canal)],
+      status: "rascunho",
+    });
+    const id = credits.insertIdOf(ins);
+    items[index] = { ...item, creativeId: id, imageUrl: item.imageUrl ?? undefined };
+    await db.update(orgProfile).set({ planoJson: { ...plan, plano7Dias: items } as any }).where(eq(orgProfile.organizationId, orgId));
+    return { id, originType, index };
+  }
+
+  if (originType === "radar-idea") {
+    const ideas = Array.isArray(radar?.ideas) ? [...radar.ideas] : [];
+    const idea = ideas[index];
+    if (!idea) throw new Error("Ideia do Radar nao encontrada");
+    if (idea.creativeId) {
+      const existingCreative = await getCreative(orgId, Number(idea.creativeId));
+      if (existingCreative) return { id: Number(idea.creativeId), originType, index };
+    }
+    const meta = mergeContextMeta({
+      source: "radar",
+      originType,
+      originIndex: index,
+      titulo: idea.titulo ?? "Ideia do Radar",
+      pilar: idea.fonte ? `Inspirado em @${idea.fonte}` : (idea.pilar ?? null),
+      formato: idea.formato ?? "imagem",
+      angulo: idea.angulo ?? null,
+      gancho: idea.gancho ?? null,
+      hashtags: idea.hashtags ?? [],
+      cta: idea.cta ?? null,
+      roteiro: idea.roteiro ?? null,
+      visualPrompt: idea.visualPrompt ?? null,
+      fonte: idea.fonte ?? null,
+    }, ctx);
+    const ins = await db.insert(creatives).values({
+      organizationId: orgId,
+      userId,
+      briefing: idea.titulo ?? "Ideia do Radar",
+      copy: idea.copy ?? "",
+      imageUrl: idea.imageUrl ?? null,
+      ratio: "1:1",
+      lente: idea.angulo === "dor" ? "dor" : "desejo",
+      formato: idea.formato ?? "imagem",
+      factorValues: {},
+      generationMeta: meta,
+      status: "rascunho",
+    });
+    const id = credits.insertIdOf(ins);
+    ideas[index] = { ...idea, creativeId: id, imageUrl: idea.imageUrl ?? undefined };
+    await db.update(orgProfile).set({ radarJson: { ...radar, ideas } as any }).where(eq(orgProfile.organizationId, orgId));
+    return { id, originType, index };
+  }
+
+  throw new Error("Origem nao suportada");
+}
+
 /** Detalhe de um criativo (para o editor de Criativos). */
 export async function getCreative(orgId: number, id: number) {
   const db = await getDb();
@@ -339,6 +530,7 @@ export async function updateCreative(orgId: number, id: number, patch: {
   if (metaChanged) set.generationMeta = meta;
 
   if (Object.keys(set).length) await db.update(creatives).set(set).where(eq(creatives.id, id));
+  await syncCreativeToOrigins(orgId, id);
   return { ok: true };
 }
 
@@ -364,6 +556,7 @@ export async function setImageFromDataUrl(orgId: number, id: number, dataUrl: st
   if (!c) throw new Error("Criativo não encontrado");
   const saved = await saveReference(orgId, dataUrl);
   await pushVersion(orgId, id, saved.url, "upload", { source: "user-upload" });
+  await syncCreativeToOrigins(orgId, id);
   return { imageUrl: saved.url };
 }
 
@@ -386,6 +579,7 @@ export async function revertImage(orgId: number, id: number, imageUrl: string) {
   const c = await getCreative(orgId, id);
   if (!c) throw new Error("Criativo não encontrado");
   await pushVersion(orgId, id, imageUrl, "revert");
+  await syncCreativeToOrigins(orgId, id);
   return { imageUrl };
 }
 
@@ -411,6 +605,7 @@ export async function regenerateImage(orgId: number, userId: number, id: number,
     const cur = await getCreative(orgId, id);
     const meta2 = { ...((cur?.generationMeta as any) ?? {}), model: img.model, visualPrompt };
     await db.update(creatives).set({ generationMeta: meta2 }).where(eq(creatives.id, id));
+    await syncCreativeToOrigins(orgId, id);
     await credits.settle(orgId, hold.holdLedgerId, img.realCostUsdMicros);
     return { imageUrl: img.imageUrl };
   } catch (e) {

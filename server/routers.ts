@@ -830,6 +830,18 @@ const studioRouter = router({
       return studioService.generateProposals({ orgId, userId: ctx.user.id, plan });
     }),
 
+  // Cria ou reaproveita um criativo ligado a uma sugestao/post de origem
+  ensureOriginCreative: protectedProcedure
+    .input(z.object({
+      originType: z.enum(["diagnosis-plan", "radar-idea"]),
+      index: z.number().int().min(0),
+    }))
+    .mutation(({ ctx, input }) => {
+      const orgId = ctx.user.organizationId;
+      if (!orgId) throw new Error("OrganizaÃ§Ã£o nÃ£o encontrada");
+      return studioService.ensureCreativeForOrigin(orgId, ctx.user.id, input.originType, input.index);
+    }),
+
   // Detalhe de um criativo (editor)
   getCreative: protectedProcedure
     .input(z.object({ id: z.number() }))

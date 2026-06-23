@@ -181,7 +181,7 @@ export default function Aprovacao() {
                               </button>
                             </div>
                             {c.id && (
-                              <button type="button" onClick={() => navigate(`/criativos/${c.id}`)}
+                              <button type="button" onClick={() => navigate(`/criativos/${c.id}?returnTo=${encodeURIComponent("/aprovacao")}&closeOnSave=1`)}
                                 className="mt-2 w-full text-[11px] font-black text-[#071b44] border border-[#e6ebf3] rounded-lg py-2 flex items-center justify-center gap-1.5 hover:bg-[#f6f8fc]">
                                 <Pencil className="w-3 h-3" /> Editar / regerar
                               </button>

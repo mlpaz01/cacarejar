@@ -22,6 +22,9 @@ export default function CriativoEditor() {
   const id = params?.id ? Number(params.id) : null;
   const utils = trpc.useUtils();
   const fileInput = useRef<HTMLInputElement>(null);
+  const searchParams = useMemo(() => new URLSearchParams(window.location.search), []);
+  const returnTo = searchParams.get("returnTo") || "";
+  const closeOnSave = searchParams.get("closeOnSave") === "1";
 
   const cQuery = trpc.studio.getCreative.useQuery({ id: id! }, { enabled: id != null });
   const c: any = cQuery.data;
@@ -88,20 +91,40 @@ export default function CriativoEditor() {
 
   const versions: any[] = useMemo(() => Array.isArray(meta.versions) ? [...meta.versions].reverse() : [], [meta.versions]);
 
+  const refreshLinkedScreens = async () => {
+    await Promise.allSettled([
+      utils.creatives.list.invalidate(),
+      utils.diagnosis.get.invalidate(),
+      utils.radar.get.invalidate(),
+      utils.approvals.pendingForClient.invalidate(),
+    ]);
+  };
+  const goBack = () => {
+    if (returnTo) navigate(returnTo);
+    else if (window.history.length > 1) window.history.back();
+    else navigate("/criativos");
+  };
+
   const save = trpc.studio.updateCreative.useMutation({
-    onSuccess: () => { utils.creatives.list.invalidate(); cQuery.refetch(); setDirty(false); toast.success("Alterações salvas!"); },
+    onSuccess: async () => {
+      await refreshLinkedScreens();
+      await cQuery.refetch();
+      setDirty(false);
+      toast.success("Alterações salvas!");
+      if (closeOnSave && returnTo) navigate(returnTo);
+    },
     onError: e => toast.error(e.message || "Erro ao salvar"),
   });
   const regen = trpc.studio.regenerateImage.useMutation({
-    onSuccess: () => { cQuery.refetch(); utils.creatives.list.invalidate(); toast.success("Nova imagem gerada!"); },
+    onSuccess: async () => { await refreshLinkedScreens(); cQuery.refetch(); toast.success("Nova imagem gerada!"); },
     onError: e => toast.error(e.message || "Erro ao regerar"),
   });
   const setImg = trpc.studio.setImage.useMutation({
-    onSuccess: () => { cQuery.refetch(); utils.creatives.list.invalidate(); toast.success("Imagem atualizada!"); },
+    onSuccess: async () => { await refreshLinkedScreens(); cQuery.refetch(); toast.success("Imagem atualizada!"); },
     onError: e => toast.error(e.message || "Erro no upload"),
   });
   const revert = trpc.studio.revertImage.useMutation({
-    onSuccess: () => { cQuery.refetch(); utils.creatives.list.invalidate(); toast.success("Versão restaurada!"); },
+    onSuccess: async () => { await refreshLinkedScreens(); cQuery.refetch(); toast.success("Versão restaurada!"); },
     onError: e => toast.error(e.message || "Erro ao restaurar"),
   });
   const sendApproval = trpc.approvals.sendToApproval.useMutation({
@@ -109,7 +132,7 @@ export default function CriativoEditor() {
     onError: e => toast.error(e.message || "Erro ao enviar"),
   });
   const deleteCreative = trpc.studio.deleteCreative.useMutation({
-    onSuccess: () => { utils.creatives.list.invalidate(); toast.success("Criativo excluído"); navigate("/criativos"); },
+    onSuccess: () => { utils.creatives.list.invalidate(); toast.success("Criativo excluído"); navigate(returnTo || "/criativos"); },
     onError: e => toast.error(e.message || "Erro ao excluir"),
   });
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -159,7 +182,7 @@ export default function CriativoEditor() {
       subtitle={c.briefing}
       actions={
         <div className="flex gap-2">
-          <button onClick={() => history.length > 1 ? history.back() : navigate("/criativos")} className="text-xs font-bold text-[#61708a] hover:text-[#070b17] flex items-center gap-1.5 px-3 py-2">
+          <button onClick={goBack} className="text-xs font-bold text-[#61708a] hover:text-[#070b17] flex items-center gap-1.5 px-3 py-2">
             <ArrowLeft className="w-3.5 h-3.5" /> Voltar
           </button>
           <button onClick={saveAll} disabled={!hasUnsavedChanges || save.isPending}
