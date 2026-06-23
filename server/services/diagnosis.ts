@@ -153,6 +153,21 @@ export interface WeeklyContentPlanItem {
   status: "ideia" | "em_edicao" | "aprovado" | "publicado" | "medir";
   metricaChave: string;
   origem: string;
+  publicadoUrl?: string;
+  resultado?: {
+    registradoEm: number;
+    alcance?: number;
+    visualizacoes?: number;
+    curtidas?: number;
+    comentarios?: number;
+    salvamentos?: number;
+    compartilhamentos?: number;
+    cliques?: number;
+    leads?: number;
+    vendas?: number;
+    receita?: number;
+    observacoes?: string;
+  };
 }
 export interface CacaPlan {
   // consultoria
@@ -166,6 +181,14 @@ export interface CacaPlan {
   postIdeas: PostIdea[];
   interessesPosts?: PostInterest[];
   plano7Dias?: WeeklyContentPlanItem[];
+  aprendizadoSemanal?: {
+    atualizadoEm: number;
+    resumo: string;
+    melhorSinal: string;
+    repetir: string[];
+    melhorar: string[];
+    proximaAcao: string;
+  };
   // legado / seções extras
   resumo: string;
   diagnostico: string[];
@@ -928,6 +951,49 @@ function buildSevenDayPlan(plan: Partial<CacaPlan>, radar?: any): CacaPlan["plan
   ];
 }
 
+function numericScore(result: WeeklyContentPlanItem["resultado"] = {}) {
+  const reach = (result.alcance ?? 0) + (result.visualizacoes ?? 0);
+  const engagement = (result.curtidas ?? 0) + (result.comentarios ?? 0) * 4 + (result.salvamentos ?? 0) * 6 + (result.compartilhamentos ?? 0) * 5;
+  const business = (result.cliques ?? 0) * 3 + (result.leads ?? 0) * 12 + (result.vendas ?? 0) * 30 + (result.receita ?? 0) / 10;
+  return Math.round(reach * 0.03 + engagement + business);
+}
+
+function buildWeeklyLearning(items: WeeklyContentPlanItem[] = []): CacaPlan["aprendizadoSemanal"] {
+  const withResults = items.filter(i => i.resultado);
+  const published = items.filter(i => i.status === "publicado" || i.status === "medir" || i.resultado);
+  if (!withResults.length && !published.length) {
+    return {
+      atualizadoEm: Date.now(),
+      resumo: "A semana ainda esta em preparacao. Publique os primeiros itens e registre sinais para o Agente aprender.",
+      melhorSinal: "Sem dados publicados ainda.",
+      repetir: ["Publicar pelo menos 3 itens do plano antes de tirar conclusoes."],
+      melhorar: ["Adicionar detalhes humanos nos posts antes de publicar."],
+      proximaAcao: "Executar os dois primeiros dias do plano e registrar DMs, salvamentos ou cliques.",
+    };
+  }
+  const ranked = [...items].sort((a, b) => numericScore(b.resultado) - numericScore(a.resultado));
+  const best = ranked.find(i => i.resultado) ?? published[0] ?? ranked[0];
+  const low = ranked.filter(i => i.resultado).slice(-2);
+  const totalLeads = withResults.reduce((s, i) => s + (i.resultado?.leads ?? 0), 0);
+  const totalSales = withResults.reduce((s, i) => s + (i.resultado?.vendas ?? 0), 0);
+  const totalSaves = withResults.reduce((s, i) => s + (i.resultado?.salvamentos ?? 0), 0);
+  return {
+    atualizadoEm: Date.now(),
+    resumo: `${published.length} item(ns) publicados/medidos. Sinais registrados: ${totalSaves} salvamentos, ${totalLeads} leads e ${totalSales} venda(s).`,
+    melhorSinal: best ? `${best.dia} (${best.canal}) - ${best.gancho}` : "Ainda sem vencedor claro.",
+    repetir: [
+      best?.pilar ? `Repetir o pilar "${best.pilar}" com novo exemplo real.` : "Repetir o tema que gerou mais conversa.",
+      best?.formato ? `Criar uma variacao no formato ${best.formato}.` : "Criar uma variacao do melhor gancho.",
+    ].filter(Boolean),
+    melhorar: low.length
+      ? low.map(i => `Revisar ${i.dia}: trocar gancho/CTA se nao gerou cliques, comentarios ou salvamentos.`)
+      : ["Registrar resultados dos posts fracos para o Agente diferenciar gosto de performance."],
+    proximaAcao: best && numericScore(best.resultado) > 0
+      ? "Transformar o melhor sinal da semana em nova versao e, se houver venda/lead, em campanha assistida."
+      : "Publicar mais itens antes de investir verba. Primeiro precisamos de sinal organico.",
+  };
+}
+
 function buildPlanner(plan: Partial<CacaPlan>): CacaPlan["acompanhamento"] {
   const timeline = plan.cronogramaMulticanal ?? buildMultichannelTimeline(plan) ?? [];
   return {
@@ -982,6 +1048,7 @@ function enhancePlanV2(plan: CacaPlan, redes: Record<string, string> = {}, radar
   next.prescricoesPorCanal = (next.prescricoesPorCanal?.length && !hasLinkedin) ? next.prescricoesPorCanal : buildChannelPrescriptions(next, radar);
   next.cronogramaMulticanal = (next.cronogramaMulticanal?.length && !hasLinkedin) ? next.cronogramaMulticanal : buildMultichannelTimeline(next);
   next.plano7Dias = next.plano7Dias?.length ? next.plano7Dias : buildSevenDayPlan(next, radar);
+  next.aprendizadoSemanal = next.aprendizadoSemanal ?? buildWeeklyLearning(next.plano7Dias ?? []);
   next.acoesImediatas = (next.acoesImediatas?.length && !hasLinkedin) ? next.acoesImediatas : buildImmediateActions(next, radar);
   next.metodoDiagnostico = next.metodoDiagnostico?.length ? next.metodoDiagnostico : buildDiagnosticMethod(next, radar);
   next.parecerEstrategico = next.parecerEstrategico ?? {
@@ -1735,7 +1802,7 @@ export async function getPlan(orgId: number) {
     return enhanced as unknown as CacaPlan;
   }
   const planHasLinkedin = (plan.prescricoesPorCanal ?? []).some((p: any) => /linkedin/i.test(p?.canal || ""));
-  if (!Array.isArray(plan.interessesPosts) || !plan.interessesPosts.length || !plan.prescricoesPorCanal?.length || !plan.cronogramaMulticanal?.length || !plan.acompanhamento || !plan.canais360?.canais?.length || planHasLinkedin) {
+  if (!Array.isArray(plan.interessesPosts) || !plan.interessesPosts.length || !plan.prescricoesPorCanal?.length || !plan.cronogramaMulticanal?.length || !plan.plano7Dias?.length || !plan.acompanhamento || !plan.canais360?.canais?.length || planHasLinkedin) {
     plan.interessesPosts = inferPostInterests(plan, plan.profile ?? savedProfile, row.radarJson);
     const enhanced = enhancePlanV2(plan as CacaPlan, row.redes ?? {}, row.radarJson);
     await db.update(orgProfile).set({ planoJson: enhanced as any }).where(eq(orgProfile.organizationId, orgId));
@@ -1800,6 +1867,50 @@ export async function updateAcompanhamento(orgId: number, acompanhamentoPatch: a
   }
 
   const updatedPlan = enhancePlanV2({ ...plan, acompanhamento: next }, row.redes ?? {}, row.radarJson);
+  await db.update(orgProfile).set({ planoJson: updatedPlan as any }).where(eq(orgProfile.organizationId, orgId));
+  return updatedPlan;
+}
+
+export async function updateSevenDayPlanItem(orgId: number, index: number, patch: Partial<WeeklyContentPlanItem>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB indisponivel");
+  const rows = await db.select().from(orgProfile).where(eq(orgProfile.organizationId, orgId)).limit(1);
+  const row = rows[0];
+  const plan = row?.planoJson as unknown as CacaPlan | undefined;
+  if (!plan) throw new Error("Faca o diagnostico primeiro");
+  const items = Array.isArray(plan.plano7Dias) && plan.plano7Dias.length ? [...plan.plano7Dias] : buildSevenDayPlan(plan, row.radarJson) ?? [];
+  if (index < 0 || index >= items.length) throw new Error("Item do plano nao encontrado");
+
+  const current = items[index];
+  const cleanResult = patch.resultado
+    ? {
+        ...(current.resultado ?? {}),
+        ...patch.resultado,
+        registradoEm: Date.now(),
+      }
+    : current.resultado;
+  items[index] = {
+    ...current,
+    ...patch,
+    resultado: cleanResult,
+  };
+
+  const publishedOrMeasured = items.filter(i => i.status === "publicado" || i.status === "medir" || i.resultado).length;
+  const acompanhamento = plan.acompanhamento ?? buildPlanner(plan);
+  const nextAcompanhamento = {
+    ...acompanhamento,
+    updatedAt: Date.now(),
+    progresso: Math.round((publishedOrMeasured / Math.max(1, items.length)) * 100),
+    conteudos: { total: items.length, feitos: publishedOrMeasured },
+    proximoFoco: items.find(i => i.status === "ideia" || i.status === "em_edicao")?.dia ?? "Revisar aprendizado semanal",
+    novaPrescricao: "Plano de 7 dias atualizado. Registre resultados reais para recalibrar a proxima semana.",
+  };
+  const updatedPlan = enhancePlanV2({
+    ...plan,
+    plano7Dias: items,
+    acompanhamento: nextAcompanhamento,
+    aprendizadoSemanal: buildWeeklyLearning(items),
+  }, row.redes ?? {}, row.radarJson);
   await db.update(orgProfile).set({ planoJson: updatedPlan as any }).where(eq(orgProfile.organizationId, orgId));
   return updatedPlan;
 }

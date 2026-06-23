@@ -52,6 +52,7 @@ export default function DiagnosticoPrint() {
   const timeline = shown.cronogramaMulticanal ?? [];
   const interests = shown.interessesPosts ?? [];
   const acompanhamento = shown.acompanhamento;
+  const aprendizado = shown.aprendizadoSemanal;
   const today = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
   const hotHits = ((rd?.hits ?? []) as any[]).slice(0, 6);
   const liked = new Set((rd?.feedback?.likedPostKeys ?? []) as string[]);
@@ -200,6 +201,27 @@ export default function DiagnosticoPrint() {
                   <p style={{ color: "#18a34a", fontSize: 9.3, fontWeight: 850, marginTop: 5 }}>Medir: {item.metricaChave}</p>
                 </div>
               ))}
+            </div>
+          </section>
+        )}
+
+        {aprendizado && (
+          <section className="section" style={{ background: "#071b44", color: "#fff" }}>
+            <h3 style={{ color: "#ff8a72" }}>Aprendizado semanal</h3>
+            <p style={{ fontSize: 11, fontWeight: 800, color: "rgba(255,255,255,.9)" }}>{aprendizado.resumo}</p>
+            <div className="grid3" style={{ marginTop: 8 }}>
+              <div className="mini" style={{ background: "rgba(255,255,255,.08)", borderColor: "rgba(255,255,255,.16)" }}>
+                <p style={{ fontSize: 9, fontWeight: 950, color: "rgba(255,255,255,.58)", textTransform: "uppercase" }}>Melhor sinal</p>
+                <p style={{ fontSize: 9.8, fontWeight: 800, color: "#fff", marginTop: 3 }}>{aprendizado.melhorSinal}</p>
+              </div>
+              <div className="mini" style={{ background: "rgba(255,255,255,.08)", borderColor: "rgba(255,255,255,.16)" }}>
+                <p style={{ fontSize: 9, fontWeight: 950, color: "rgba(255,255,255,.58)", textTransform: "uppercase" }}>Repetir</p>
+                {(aprendizado.repetir ?? []).slice(0, 2).map((x: string) => <p key={x} style={{ fontSize: 9.3, color: "rgba(255,255,255,.84)", marginTop: 3 }}>- {x}</p>)}
+              </div>
+              <div className="mini" style={{ background: "rgba(255,255,255,.08)", borderColor: "rgba(255,255,255,.16)" }}>
+                <p style={{ fontSize: 9, fontWeight: 950, color: "rgba(255,255,255,.58)", textTransform: "uppercase" }}>Proxima acao</p>
+                <p style={{ fontSize: 9.3, color: "rgba(255,255,255,.84)", marginTop: 3 }}>{aprendizado.proximaAcao}</p>
+              </div>
             </div>
           </section>
         )}

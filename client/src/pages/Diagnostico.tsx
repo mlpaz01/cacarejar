@@ -75,6 +75,7 @@ export default function Diagnostico() {
   const [googleQuery, setGoogleQuery] = useState("");
   const [feedback, setFeedback] = useState("");
   const [preparingApproval, setPreparingApproval] = useState(false);
+  const [resultDrafts, setResultDrafts] = useState<Record<number, any>>({});
 
   const analyze = trpc.diagnosis.analyze.useMutation({
     onSuccess: p => {
@@ -145,6 +146,14 @@ export default function Diagnostico() {
       toast.success("Buscas do Google atualizadas.");
     },
     onError: e => toast.error(e.message || "Erro ao buscar no Google"),
+  });
+  const updateSevenDayItem = trpc.diagnosis.updateSevenDayItem.useMutation({
+    onSuccess: p => {
+      setPlan(p);
+      utils.diagnosis.get.invalidate();
+      toast.success("Plano atualizado.");
+    },
+    onError: e => toast.error(e.message || "Erro ao atualizar plano"),
   });
   const genProposals = trpc.studio.generateProposals.useMutation({
     onError: e => toast.error(e.message || "Erro ao gerar posts"),
@@ -411,6 +420,33 @@ export default function Diagnostico() {
   const interests = shown.interessesPosts ?? [];
   const hotHits = ((rd?.hits ?? []) as any[]).slice().sort((a, b) => (b.hotScore ?? 0) - (a.hotScore ?? 0)).slice(0, 4);
   const radarFreeLeft = Math.max(0, ((rd?.feedback?.freeLimit ?? 3) - (rd?.feedback?.refinementCount ?? 0)));
+  const aprendizado = shown.aprendizadoSemanal;
+  const numberOrUndefined = (value: any) => {
+    const n = Number(value);
+    return Number.isFinite(n) && n >= 0 ? n : undefined;
+  };
+  const updatePlanStatus = (index: number, status: "ideia" | "em_edicao" | "aprovado" | "publicado" | "medir") => {
+    updateSevenDayItem.mutate({ index, patch: { status } });
+  };
+  const savePlanResult = (index: number) => {
+    const draft = resultDrafts[index] ?? {};
+    updateSevenDayItem.mutate({
+      index,
+      patch: {
+        status: "medir",
+        publicadoUrl: draft.publicadoUrl || undefined,
+        resultado: {
+          alcance: numberOrUndefined(draft.alcance),
+          salvamentos: numberOrUndefined(draft.salvamentos),
+          cliques: numberOrUndefined(draft.cliques),
+          leads: numberOrUndefined(draft.leads),
+          vendas: numberOrUndefined(draft.vendas),
+          receita: numberOrUndefined(draft.receita),
+          observacoes: draft.observacoes || undefined,
+        },
+      },
+    });
+  };
 
   return (
     <AppLayout
@@ -536,6 +572,23 @@ export default function Diagnostico() {
                     <span className="rounded-full bg-white border border-[#e6ebf3] text-[#071b44] text-[10px] font-black px-3 py-1">{item.formato}</span>
                   </div>
                   <p className="text-xs font-bold text-[#61708a] mt-2">{item.objetivo}</p>
+                  <div className="flex flex-wrap gap-1.5 mt-3">
+                    {(["ideia", "em_edicao", "aprovado", "publicado"] as const).map(status => (
+                      <button
+                        key={status}
+                        type="button"
+                        onClick={() => updatePlanStatus(index, status)}
+                        disabled={updateSevenDayItem.isPending}
+                        className={`rounded-full border px-2.5 py-1 text-[10px] font-black disabled:opacity-50 ${
+                          item.status === status
+                            ? "bg-[#071b44] border-[#071b44] text-white"
+                            : "bg-white border-[#e6ebf3] text-[#61708a] hover:text-[#071b44]"
+                        }`}
+                      >
+                        {status.replace("_", " ")}
+                      </button>
+                    ))}
+                  </div>
                   <div className="mt-4 rounded-xl bg-white border border-[#e6ebf3] p-3">
                     <p className="text-[10px] font-black text-[#ff3217] uppercase">Gancho</p>
                     <p className="text-sm font-black text-[#071b44] leading-snug mt-1">{item.gancho}</p>
@@ -557,6 +610,49 @@ export default function Diagnostico() {
                       <li key={check} className="text-[11px] text-[#22304b] leading-snug flex gap-2"><span className="text-[#ff3217] font-black">-</span>{check}</li>
                     ))}
                   </ul>
+                  <div className="mt-4 rounded-xl bg-white border border-[#e6ebf3] p-3">
+                    <p className="text-[10px] font-black text-[#61708a] uppercase">Resultado manual</p>
+                    <input
+                      value={resultDrafts[index]?.publicadoUrl ?? item.publicadoUrl ?? ""}
+                      onChange={e => setResultDrafts(prev => ({ ...prev, [index]: { ...(prev[index] ?? {}), publicadoUrl: e.target.value } }))}
+                      placeholder="Link do post publicado"
+                      className="mt-2 w-full rounded-lg border border-[#e6ebf3] bg-[#fbfcff] px-3 py-2 text-xs font-semibold text-[#071b44] outline-none focus:border-[#ff3217]"
+                    />
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
+                      {[
+                        ["alcance", "Alcance"],
+                        ["salvamentos", "Salvos"],
+                        ["cliques", "Cliques"],
+                        ["leads", "Leads"],
+                        ["vendas", "Vendas"],
+                        ["receita", "Receita R$"],
+                      ].map(([key, label]) => (
+                        <input
+                          key={key}
+                          type="number"
+                          min={0}
+                          value={resultDrafts[index]?.[key] ?? item.resultado?.[key] ?? ""}
+                          onChange={e => setResultDrafts(prev => ({ ...prev, [index]: { ...(prev[index] ?? {}), [key]: e.target.value } }))}
+                          placeholder={label}
+                          className="rounded-lg border border-[#e6ebf3] bg-[#fbfcff] px-3 py-2 text-xs font-semibold text-[#071b44] outline-none focus:border-[#ff3217]"
+                        />
+                      ))}
+                    </div>
+                    <textarea
+                      value={resultDrafts[index]?.observacoes ?? item.resultado?.observacoes ?? ""}
+                      onChange={e => setResultDrafts(prev => ({ ...prev, [index]: { ...(prev[index] ?? {}), observacoes: e.target.value } }))}
+                      placeholder="Observacao humana: o que aconteceu, comentarios, DMs, percepcao..."
+                      className="mt-2 w-full min-h-[64px] resize-none rounded-lg border border-[#e6ebf3] bg-[#fbfcff] px-3 py-2 text-xs font-semibold text-[#071b44] outline-none focus:border-[#ff3217]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => savePlanResult(index)}
+                      disabled={updateSevenDayItem.isPending}
+                      className="mt-2 w-full rounded-xl border border-[#18b85c] bg-[#eafff1] text-[#087a32] px-3 py-2 text-xs font-black hover:bg-[#dffbea] disabled:opacity-50"
+                    >
+                      Salvar resultado e aprender
+                    </button>
+                  </div>
                   <div className="mt-4 pt-4 border-t border-[#e6ebf3] flex items-center justify-between gap-3 flex-wrap">
                     <span className="text-[11px] font-black text-[#61708a]">Medir: {item.metricaChave}</span>
                     <button
@@ -572,6 +668,32 @@ export default function Diagnostico() {
                 </article>
               );
             })}
+          </div>
+        </section>
+      )}
+
+      {aprendizado && (
+        <section className="rounded-2xl bg-[#071b44] text-white p-6 shadow-sm mb-5">
+          <p className="text-xs font-black text-white/60 uppercase tracking-wide">Aprendizado semanal</p>
+          <h2 className="text-2xl font-black mt-2">O que a semana esta ensinando</h2>
+          <p className="text-sm text-white/80 leading-relaxed mt-3">{aprendizado.resumo}</p>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-5">
+            <div className="rounded-2xl bg-white/8 border border-white/10 p-4">
+              <p className="text-[10px] font-black text-white/50 uppercase">Melhor sinal</p>
+              <p className="text-sm font-bold mt-2">{aprendizado.melhorSinal}</p>
+            </div>
+            <div className="rounded-2xl bg-white/8 border border-white/10 p-4">
+              <p className="text-[10px] font-black text-white/50 uppercase">Repetir</p>
+              {(aprendizado.repetir ?? []).map((x: string) => <p key={x} className="text-xs text-white/80 mt-2">- {x}</p>)}
+            </div>
+            <div className="rounded-2xl bg-white/8 border border-white/10 p-4">
+              <p className="text-[10px] font-black text-white/50 uppercase">Melhorar</p>
+              {(aprendizado.melhorar ?? []).slice(0, 2).map((x: string) => <p key={x} className="text-xs text-white/80 mt-2">- {x}</p>)}
+            </div>
+          </div>
+          <div className="mt-5 rounded-2xl bg-white text-[#071b44] p-4">
+            <p className="text-[10px] font-black text-[#ff3217] uppercase">Proxima acao</p>
+            <p className="text-sm font-black mt-1">{aprendizado.proximaAcao}</p>
           </div>
         </section>
       )}

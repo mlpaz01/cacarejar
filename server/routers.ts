@@ -1196,6 +1196,32 @@ const diagnosisRouter = router({
       return diagnosisService.updateAcompanhamento(orgId, input.acompanhamento, input.feedback);
     }),
   // Espião de Anúncios — 1º scan grátis por org; a partir do 2º cobra 25 CC.
+  updateSevenDayItem: protectedProcedure
+    .input(z.object({
+      index: z.number().int().min(0),
+      patch: z.object({
+        status: z.enum(["ideia", "em_edicao", "aprovado", "publicado", "medir"]).optional(),
+        publicadoUrl: z.string().optional(),
+        resultado: z.object({
+          alcance: z.number().optional(),
+          visualizacoes: z.number().optional(),
+          curtidas: z.number().optional(),
+          comentarios: z.number().optional(),
+          salvamentos: z.number().optional(),
+          compartilhamentos: z.number().optional(),
+          cliques: z.number().optional(),
+          leads: z.number().optional(),
+          vendas: z.number().optional(),
+          receita: z.number().optional(),
+          observacoes: z.string().optional(),
+        }).optional(),
+      }),
+    }))
+    .mutation(({ ctx, input }) => {
+      const orgId = ctx.user.organizationId;
+      if (!orgId) throw new Error("Organizacao nao encontrada");
+      return diagnosisService.updateSevenDayPlanItem(orgId, input.index, input.patch as any);
+    }),
   scanAds: protectedProcedure
     .input(z.object({ query: z.string().optional() }).nullish())
     .mutation(async ({ ctx, input }) => {
