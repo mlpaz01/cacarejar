@@ -202,7 +202,7 @@ export default function DiagnosticoPrint() {
         {plano7Dias.length > 0 && (
           <section className="section">
             <h3>Plano de 7 dias</h3>
-            <p className="small" style={{ marginBottom: 8 }}>A IA entrega a base. Antes de publicar, edite com detalhe real, opiniao e acabamento humano.</p>
+            <p className="small" style={{ marginBottom: 8 }}>Os Agentes entregam a base. Antes de publicar, edite com detalhe real, opiniao e acabamento humano.</p>
             <div className="grid2">
               {plano7Dias.map((item: any, i: number) => (
                 <div className="mini" key={i}>

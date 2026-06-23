@@ -8,5 +8,5 @@ export type GenerateImageResponse = {
 };
 
 export async function generateImage(_opts: GenerateImageOptions): Promise<GenerateImageResponse> {
-  throw new Error("Geração de imagem por IA está desabilitada. Use a opção de URL externa.");
+  throw new Error("Geração de imagem por Agente está desabilitada. Use a opção de URL externa.");
 }

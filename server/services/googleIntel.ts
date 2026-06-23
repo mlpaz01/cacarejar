@@ -1,7 +1,7 @@
 /**
  * Inteligência de Google (SEO) — Sprint 3 (versão grátis).
  * Puxa as buscas REAIS que as pessoas digitam no Google (autocomplete/Suggest) sobre o nicho
- * e transforma em pautas de conteúdo/SEO com IA. Sem credenciais, sem custo.
+ * e transforma em pautas de conteúdo/SEO com Agentes. Sem credenciais, sem custo.
  * (O volume/dificuldade via DataForSEO entra depois, quando houver conta paga.)
  */
 import { eq } from "drizzle-orm";

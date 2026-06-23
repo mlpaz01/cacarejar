@@ -1,6 +1,6 @@
 /**
  * Carteira de créditos (CC) — hold → settle → release.
- * Garante que nenhuma operação de IA rode sem crédito reservado (anti-prejuízo).
+ * Garante que nenhuma operação dos Agentes rode sem crédito reservado (anti-prejuízo).
  *
  * Fluxo:
  *  1. hold(orgId, cc, ref) — checa saldo e cota diária, reserva CC (move de balance p/ held).
@@ -73,7 +73,7 @@ export async function getDailyQuota(orgId: number): Promise<number> {
 }
 
 /**
- * Reserva CC antes de chamar a IA. Checa saldo e cota diária.
+ * Reserva CC antes de chamar os Agentes. Checa saldo e cota diária.
  * `bypassDaily` para top-ups avulsos que não respeitam cota.
  */
 export async function hold(

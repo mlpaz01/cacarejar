@@ -3,9 +3,9 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Gerador de Legenda para Instagram com IA (grátis) | Cacarejar</title>
-  <meta name="description" content="Gere legendas prontas para Instagram e TikTok com IA, grátis e sem cadastro. Diga o tema e receba 3 legendas com gancho, CTA e hashtags. Ferramenta do Cacarejar.">
-  <meta property="og:title" content="Gerador de Legenda com IA — grátis">
+  <title>Gerador de Legenda para Instagram com Agente (grátis) | Cacarejar</title>
+  <meta name="description" content="Gere legendas prontas para Instagram e TikTok com Agentes, grátis e sem cadastro. Diga o tema e receba 3 legendas com gancho, CTA e hashtags. Ferramenta do Cacarejar.">
+  <meta property="og:title" content="Gerador de Legenda com Agente — grátis">
   <meta property="og:description" content="Diga o tema e receba 3 legendas prontas com gancho, CTA e hashtags.">
   <meta property="og:image" content="/assets/logo-dark.png">
   <meta property="og:type" content="website">
@@ -66,7 +66,7 @@
   <div class="tool-wrap">
     <a class="back-link" href="/ferramentas">← Ferramentas</a>
     <div class="tool-head" style="margin-top:14px">
-      <h1>Gerador de <span>Legenda</span> com IA</h1>
+      <h1>Gerador de <span>Legenda</span> com Agente</h1>
       <p>Diga o tema do seu post e receba 3 legendas prontas — com gancho, CTA e hashtags. Grátis, sem cadastro.</p>
     </div>
 
@@ -124,7 +124,7 @@
     var btn = document.getElementById('btn');
     var status = document.getElementById('status');
     var box = document.getElementById('legendas');
-    btn.disabled = true; btn.textContent = 'Gerando...'; status.textContent = 'A IA está escrevendo suas legendas...'; box.innerHTML = '';
+    btn.disabled = true; btn.textContent = 'Gerando...'; status.textContent = 'O Agente está escrevendo suas legendas...'; box.innerHTML = '';
     try {
       var res = await fetch('/api/ferramentas/legenda', {
         method: 'POST',

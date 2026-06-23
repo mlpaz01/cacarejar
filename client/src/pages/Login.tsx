@@ -53,7 +53,7 @@ export default function Login() {
             <span style={{ color: "#ff3217" }}>Tem que cacarejar.</span>
           </h2>
           <p className="text-sm text-white/60 leading-relaxed">
-            Crie campanhas, gerencie criativos e otimize seus resultados com inteligência artificial.
+            Crie campanhas, gerencie criativos e otimize seus resultados com Agentes autônomos.
           </p>
         </div>
 

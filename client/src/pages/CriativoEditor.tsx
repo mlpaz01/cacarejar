@@ -300,7 +300,7 @@ export default function CriativoEditor() {
                         <h4 className="text-xs font-black text-[#071b44] uppercase tracking-wide flex items-center gap-1.5">
                           <AlertTriangle className="w-3.5 h-3.5 text-[#ff3217]" /> Checklist anti-generico
                         </h4>
-                        <p className="text-[11px] text-[#61708a] mt-1">A IA entrega a base; marque quando o criativo ganhou verdade humana.</p>
+                        <p className="text-[11px] text-[#61708a] mt-1">Os Agentes entregam a base; marque quando o criativo ganhou verdade humana.</p>
                       </div>
                       <span className="rounded-full bg-white border border-[#e6ebf3] px-3 py-1 text-[10px] font-black text-[#071b44]">
                         {Object.values(humanChecks).filter(Boolean).length}/5

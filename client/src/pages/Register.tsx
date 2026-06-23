@@ -9,7 +9,7 @@ import { BrandLogo } from "@/components/BrandLogo";
 const BENEFITS = [
   "Diagnóstico gratuito na criação da conta",
   "Créditos avulsos via PIX — sem assinatura",
-  "Agentes de IA para criar, analisar e otimizar",
+  "Agentes autônomos para criar, analisar e otimizar",
   "Suporte humano disponível",
 ];
 

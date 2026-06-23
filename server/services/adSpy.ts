@@ -2,7 +2,7 @@
  * Espião de Anúncios — lê anúncios REAIS de concorrentes na Biblioteca de Anúncios da Meta
  * (Facebook/Instagram) via Apify (actor curious_coder/facebook-ads-library-scraper).
  * Sinal-chave: anúncio ATIVO há muitos dias = provável vencedor (lucrativo).
- * Gera insights com IA (ângulos, ofertas, formatos) para municiar o diagnóstico.
+ * Gera insights com Agentes (ângulos, ofertas, formatos) para municiar o diagnóstico.
  * Requer APIFY_TOKEN. Sem token → retorna vazio (falha graciosa).
  */
 import { eq } from "drizzle-orm";
@@ -126,7 +126,7 @@ export async function fetchCompetitorAds(keyword: string, opts: { country?: stri
   }
 }
 
-/** Insights da IA sobre o conjunto de anúncios (ângulos, ofertas, formatos, o que fazer diferente). */
+/** Insights dos Agentes sobre o conjunto de anúncios (ângulos, ofertas, formatos, o que fazer diferente). */
 async function generateInsights(keyword: string, ads: CompetitorAd[]): Promise<{ titulo: string; detalhe: string }[]> {
   if (!process.env.OPENROUTER_API_KEY || !ads.length) return [];
   const lines = ads.slice(0, 12).map((a, i) =>

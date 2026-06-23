@@ -74,7 +74,7 @@ export default function Creditos() {
   }
 
   return (
-    <AppLayout title="Carteira de créditos" subtitle="Seus créditos de IA (CC) para o estúdio de criação">
+    <AppLayout title="Carteira de créditos" subtitle="Seus créditos dos Agentes (CC) para o estúdio de criação">
       {/* Saldo + cota */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-white rounded-xl border border-[#e6ebf3] p-5 shadow-sm">

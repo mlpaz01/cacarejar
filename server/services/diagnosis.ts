@@ -1750,7 +1750,7 @@ export async function recalibrateWithRadar(orgId: number, feedback?: string) {
         {
           role: "system",
           content: `Voce e o Agente Especialista da Cacarejar. Recalibre um diagnostico existente usando as escolhas do usuario e o Radar de Mercado.
-Use sempre o termo Agente, nunca "IA". Respeite escolhas explicitas:
+Use sempre o termo Agente ou Agente autonomo. Nunca use rotulos genericos de modelos generativos nas respostas ao usuario. Respeite escolhas explicitas:
 - decision "use": precisa entrar no diagnostico.
 - decision "skip": precisa ficar fora.
 - decision "agent": voce decide se entra ou nao.

@@ -31,8 +31,8 @@ const FEATURES = [
   },
   {
     icon: BrainCircuit,
-    title: "Recalibração com IA",
-    desc: "Análise automática de desempenho com sugestões práticas geradas por IA.",
+    title: "Recalibração com Agentes",
+    desc: "Análise automática de desempenho com sugestões práticas geradas pelos Agentes.",
   },
   {
     icon: Globe,
@@ -64,7 +64,7 @@ const PLANS = [
       "5 campanhas ativas",
       "500 criativos",
       "Métricas avançadas",
-      "Recalibração com IA",
+      "Recalibração com Agentes",
       "Suporte prioritário",
     ],
     cta: "Assinar Starter",
@@ -115,8 +115,8 @@ export default function Landing() {
           <span className="text-primary">realmente funciona</span>
         </h1>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-10">
-          Gerencie campanhas, criativos e métricas em múltiplos canais. Com IA para
-          otimizar seu ROI automaticamente.
+          Gerencie campanhas, criativos e métricas em múltiplos canais. Com Agentes
+          autônomos para otimizar seu ROI automaticamente.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Button size="lg" onClick={() => setLocation("/register")}>

@@ -117,7 +117,7 @@ export function AIChatBox({
   placeholder = "Type your message...",
   className,
   height = "600px",
-  emptyStateMessage = "Start a conversation with AI",
+  emptyStateMessage = "Start a conversation with an Agent",
   suggestedPrompts,
 }: AIChatBoxProps) {
   const [input, setInput] = useState("");

@@ -585,7 +585,7 @@ export default function Diagnostico() {
 
       {plano7Dias.length > 0 && (
         <section className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
-          <HeaderLine icon={CalendarDays} title="Plano de 7 dias" subtitle="Uma semana de execucao: IA cria a base, voce edita e coloca o toque humano antes de publicar." />
+          <HeaderLine icon={CalendarDays} title="Plano de 7 dias" subtitle="Uma semana de execucao: os Agentes criam a base, voce edita e coloca o toque humano antes de publicar." />
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mt-5">
             {plano7Dias.map((item: any, index: number) => {
               const copyText = [

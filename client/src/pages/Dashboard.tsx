@@ -113,7 +113,7 @@ export default function Dashboard() {
               {pendingCalibrations.length} sugestão{pendingCalibrations.length > 1 ? "ões" : ""} de recalibração pendente{pendingCalibrations.length > 1 ? "s" : ""}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              O motor de IA identificou oportunidades de otimização nas suas campanhas.
+              O motor de Agentes identificou oportunidades de otimização nas suas campanhas.
             </p>
           </div>
           <Link href="/recalibracao">

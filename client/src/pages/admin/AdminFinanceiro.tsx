@@ -118,7 +118,7 @@ export default function AdminFinanceiro() {
               icon={<TrendingDown className="w-5 h-5" />}
               label="Custo estimado"
               value={fmtBRL(data.cost.totalBrl)}
-              sub="APIs de IA (estimativa)"
+              sub="APIs dos Agentes (estimativa)"
               accent="orange"
             />
             <StatCard
@@ -157,7 +157,7 @@ export default function AdminFinanceiro() {
                 <DollarSign className="w-4 h-4 text-[#ff3217]" />
                 <h2 className="text-sm font-black text-[#011643]">Breakdown de custo estimado</h2>
               </div>
-              <Row label="Criativos (imagem IA)" value={fmtBRL(data.cost.breakdown.creative)} />
+              <Row label="Criativos (imagem por Agente)" value={fmtBRL(data.cost.breakdown.creative)} />
               <Row label="Radar (análise)" value={fmtBRL(data.cost.breakdown.radar)} />
               <Row label="AdSpy (scan)" value={fmtBRL(data.cost.breakdown.adspy)} />
               <Row label="Diagnósticos" value={fmtBRL(data.cost.breakdown.diagnosis)} />
