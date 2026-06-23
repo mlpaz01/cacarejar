@@ -421,6 +421,8 @@ export default function Diagnostico() {
   const hotHits = ((rd?.hits ?? []) as any[]).slice().sort((a, b) => (b.hotScore ?? 0) - (a.hotScore ?? 0)).slice(0, 4);
   const radarFreeLeft = Math.max(0, ((rd?.feedback?.freeLimit ?? 3) - (rd?.feedback?.refinementCount ?? 0)));
   const aprendizado = shown.aprendizadoSemanal;
+  const motorOrganico = shown.motorOrganico;
+  const campanhaAssistida = shown.campanhaAssistida;
   const numberOrUndefined = (value: any) => {
     const n = Number(value);
     return Number.isFinite(n) && n >= 0 ? n : undefined;
@@ -474,6 +476,38 @@ export default function Diagnostico() {
       )}
 
       <ProfileHero plan={shown} />
+
+      {motorOrganico && (
+        <section className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
+          <HeaderLine icon={Sparkles} title="Motor organico" subtitle="Antes de comprar trafego, fortalecer perfil, social SEO e consistencia de conteudo." />
+          <div className="grid grid-cols-1 xl:grid-cols-[260px_1fr] gap-5 mt-5">
+            <div className="rounded-3xl bg-[#071b44] text-white p-5">
+              <p className="text-xs font-black text-white/60 uppercase">Score organico</p>
+              <p className="text-5xl font-black mt-2">{motorOrganico.score}</p>
+              <div className="h-2 rounded-full bg-white/15 mt-4 overflow-hidden">
+                <div className="h-full bg-[#ff3217]" style={{ width: `${Math.min(100, motorOrganico.score)}%` }} />
+              </div>
+              <p className="text-xs text-white/75 leading-relaxed mt-4">{motorOrganico.leitura}</p>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-4">
+                <p className="text-[10px] font-black text-[#ff3217] uppercase">Ajustes do perfil</p>
+                {(motorOrganico.ajustesPerfil ?? []).map((x: string) => <p key={x} className="text-xs text-[#22304b] leading-snug mt-2">- {x}</p>)}
+              </div>
+              <div className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-4">
+                <p className="text-[10px] font-black text-[#ff3217] uppercase">Social SEO</p>
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {(motorOrganico.termosBuscaSocial ?? []).map((x: string) => <Tag key={x}>{x}</Tag>)}
+                </div>
+              </div>
+              <div className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-4">
+                <p className="text-[10px] font-black text-[#ff3217] uppercase">Oportunidades</p>
+                {(motorOrganico.oportunidades ?? []).map((x: string) => <p key={x} className="text-xs text-[#22304b] leading-snug mt-2">- {x}</p>)}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="grid grid-cols-1 xl:grid-cols-[1.2fr_.8fr] gap-5 mb-5">
         <div className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm">
@@ -694,6 +728,41 @@ export default function Diagnostico() {
           <div className="mt-5 rounded-2xl bg-white text-[#071b44] p-4">
             <p className="text-[10px] font-black text-[#ff3217] uppercase">Proxima acao</p>
             <p className="text-sm font-black mt-1">{aprendizado.proximaAcao}</p>
+          </div>
+        </section>
+      )}
+
+      {campanhaAssistida && (
+        <section className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
+          <HeaderLine icon={Megaphone} title="Campanha assistida" subtitle="Transforme o melhor sinal organico em teste pago manual, com controle humano antes de investir." />
+          <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-5 mt-5">
+            <div>
+              <p className="text-xs font-black text-[#ff3217] uppercase">{campanhaAssistida.canal}</p>
+              <h3 className="text-2xl font-black text-[#071b44] mt-1">{campanhaAssistida.titulo}</h3>
+              <p className="text-sm font-bold text-[#22304b] leading-relaxed mt-3">{campanhaAssistida.objetivo}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+                <div className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-4">
+                  <p className="text-[10px] font-black text-[#61708a] uppercase">Base</p>
+                  <p className="text-sm font-black text-[#071b44] mt-1">{campanhaAssistida.base}</p>
+                </div>
+                <div className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-4">
+                  <p className="text-[10px] font-black text-[#61708a] uppercase">Orcamento</p>
+                  <p className="text-sm font-black text-[#071b44] mt-1">{campanhaAssistida.orcamento}</p>
+                </div>
+              </div>
+              <div className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-4 mt-3">
+                <p className="text-[10px] font-black text-[#61708a] uppercase">Copy sugerida</p>
+                <p className="text-sm text-[#22304b] leading-relaxed mt-2">{campanhaAssistida.copy}</p>
+              </div>
+            </div>
+            <aside className="rounded-2xl bg-[#fff8f6] border border-[#ffd5ce] p-4">
+              <p className="text-xs font-black text-[#ff3217] uppercase">Checklist antes de subir</p>
+              {(campanhaAssistida.checklist ?? []).map((x: string) => <p key={x} className="text-xs font-bold text-[#22304b] leading-snug mt-2">- {x}</p>)}
+              <p className="text-xs font-black text-[#071b44] uppercase mt-4">KPIs</p>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {(campanhaAssistida.kpis ?? []).map((x: string) => <Tag key={x}>{x}</Tag>)}
+              </div>
+            </aside>
           </div>
         </section>
       )}

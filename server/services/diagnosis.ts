@@ -189,6 +189,26 @@ export interface CacaPlan {
     melhorar: string[];
     proximaAcao: string;
   };
+  motorOrganico?: {
+    score: number;
+    leitura: string;
+    ajustesPerfil: string[];
+    termosBuscaSocial: string[];
+    pilares: string[];
+    oportunidades: string[];
+  };
+  campanhaAssistida?: {
+    titulo: string;
+    base: string;
+    objetivo: string;
+    canal: string;
+    publico: string[];
+    copy: string;
+    criativo: string;
+    orcamento: string;
+    checklist: string[];
+    kpis: string[];
+  };
   // legado / seções extras
   resumo: string;
   diagnostico: string[];
@@ -994,6 +1014,80 @@ function buildWeeklyLearning(items: WeeklyContentPlanItem[] = []): CacaPlan["apr
   };
 }
 
+function buildOrganicEngine(plan: Partial<CacaPlan>, radar?: any): CacaPlan["motorOrganico"] {
+  const bio = [plan.profile?.bio, plan.site?.description, plan.sumarioExecutivo].filter(Boolean).join(" ");
+  const hasOffer = /\b(compre|comprar|or[cç]amento|diagnostico|diagnóstico|aula|curso|kit|produto|servi[cç]o|whatsapp|link)\b/i.test(bio);
+  const hasProof = !!plan.profile?.followers || /\b(cliente|resultado|case|depoimento|prova|anos|especialista)\b/i.test(bio);
+  const hasCta = /\b(link|bio|direct|whatsapp|chame|contato|diagnostico|diagnóstico)\b/i.test(bio);
+  const hasRadar = !!radar?.hits?.length || !!radar?.ideas?.length;
+  const hasPlan = !!plan.plano7Dias?.length;
+  const score = Math.min(100, 35 + (hasOffer ? 15 : 0) + (hasProof ? 15 : 0) + (hasCta ? 15 : 0) + (hasRadar ? 10 : 0) + (hasPlan ? 10 : 0));
+  const rawTerms = [
+    plan.produto,
+    plan.nicho,
+    ...(plan.pilaresConteudo ?? []),
+    ...(plan.interessesPosts ?? []).map(i => i.nome),
+    ...(radar?.opportunities ?? []).map((o: any) => o.title || o.theme),
+  ].filter(Boolean).join(" ");
+  const terms = Array.from(new Set(
+    stripAccents(rawTerms)
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter(w => w.length > 3 && !["para", "como", "mais", "sobre", "conteudo", "negocio"].includes(w))
+  )).slice(0, 14);
+  return {
+    score,
+    leitura: score >= 75
+      ? "A base organica esta pronta para consistencia semanal e testes de campanha."
+      : score >= 55
+        ? "Existe base organica, mas ainda falta deixar oferta, prova e CTA mais obvios."
+        : "Antes de trafego pago, fortaleça perfil, prova e conteudo util para nao comprar clique frio demais.",
+    ajustesPerfil: [
+      hasOffer ? "Oferta aparece no contexto." : "Deixar a oferta principal explicita na bio/perfil.",
+      hasProof ? "Existe algum sinal de prova/autoridade." : "Adicionar prova social, numero, case ou bastidor real.",
+      hasCta ? "CTA identificado." : "Adicionar CTA direto: WhatsApp, direct, diagnostico ou link.",
+      "Fixar 3 posts: promessa, prova e melhor conteudo educativo.",
+    ],
+    termosBuscaSocial: terms.length ? terms : ["problema do cliente", "solucao", "preco", "como escolher", "resultado"],
+    pilares: (plan.pilaresConteudo?.length ? plan.pilaresConteudo : ["Prova social", "Bastidores", "Educacao", "Oferta"]).slice(0, 5),
+    oportunidades: [
+      "Transformar comentarios e DMs em novos posts.",
+      "Reaproveitar cada ideia em Reels, carrossel, Story e post de autoridade.",
+      "Usar salvamentos e cliques como criterio para decidir o que vira anuncio.",
+    ],
+  };
+}
+
+function buildAssistedCampaign(plan: Partial<CacaPlan>): CacaPlan["campanhaAssistida"] {
+  const items = plan.plano7Dias ?? [];
+  const ranked = [...items].sort((a, b) => numericScore(b.resultado) - numericScore(a.resultado));
+  const best = ranked.find(i => i.resultado && numericScore(i.resultado) > 0) ?? ranked.find(i => i.status === "aprovado" || i.status === "publicado") ?? items[0];
+  const produto = plan.produto || plan.nicho || "oferta";
+  const base = best ? `${best.dia} - ${best.canal}: ${best.gancho}` : "Primeiro post aprovado do plano de 7 dias";
+  return {
+    titulo: `Campanha assistida - ${produto}`.slice(0, 80),
+    base,
+    objetivo: best?.resultado?.leads || best?.resultado?.vendas ? "Escalar um conteudo com sinal real de conversao." : "Testar interesse com baixo investimento antes de escalar.",
+    canal: best?.canal?.includes("Google") ? "Google / Busca" : "Meta Ads (Instagram/Facebook)",
+    publico: [
+      "Pessoas que engajaram com o perfil nos ultimos 30 dias.",
+      `Interesses e termos ligados a ${plan.nicho || produto}.`,
+      "Remarketing de visitantes/site/WhatsApp quando existir base.",
+    ],
+    copy: best?.legenda || `Mostre a promessa de ${produto}, uma prova simples e um convite direto para conversar.`,
+    criativo: best?.direcaoVisual || plan.brandDNA?.resumoVisual || "Criativo com rosto, contexto real e CTA claro.",
+    orcamento: "Comecar com R$ 20-30/dia por 3 dias. So aumentar se houver clique, DM, lead ou venda.",
+    checklist: [
+      "Conferir se oferta e CTA estao claros.",
+      "Usar criativo com checklist humano 4/5 ou superior.",
+      "Enviar para uma pagina, WhatsApp ou direct que responda rapido.",
+      "Medir CTR, cliques, leads e vendas antes de escalar.",
+      "Nao automatizar verba alta sem resultado manual registrado.",
+    ],
+    kpis: ["CTR", "CPC", "DMs/leads", "CPL", "vendas", "receita"],
+  };
+}
+
 function buildPlanner(plan: Partial<CacaPlan>): CacaPlan["acompanhamento"] {
   const timeline = plan.cronogramaMulticanal ?? buildMultichannelTimeline(plan) ?? [];
   return {
@@ -1049,6 +1143,8 @@ function enhancePlanV2(plan: CacaPlan, redes: Record<string, string> = {}, radar
   next.cronogramaMulticanal = (next.cronogramaMulticanal?.length && !hasLinkedin) ? next.cronogramaMulticanal : buildMultichannelTimeline(next);
   next.plano7Dias = next.plano7Dias?.length ? next.plano7Dias : buildSevenDayPlan(next, radar);
   next.aprendizadoSemanal = next.aprendizadoSemanal ?? buildWeeklyLearning(next.plano7Dias ?? []);
+  next.motorOrganico = buildOrganicEngine(next, radar);
+  next.campanhaAssistida = buildAssistedCampaign(next);
   next.acoesImediatas = (next.acoesImediatas?.length && !hasLinkedin) ? next.acoesImediatas : buildImmediateActions(next, radar);
   next.metodoDiagnostico = next.metodoDiagnostico?.length ? next.metodoDiagnostico : buildDiagnosticMethod(next, radar);
   next.parecerEstrategico = next.parecerEstrategico ?? {
@@ -1802,7 +1898,7 @@ export async function getPlan(orgId: number) {
     return enhanced as unknown as CacaPlan;
   }
   const planHasLinkedin = (plan.prescricoesPorCanal ?? []).some((p: any) => /linkedin/i.test(p?.canal || ""));
-  if (!Array.isArray(plan.interessesPosts) || !plan.interessesPosts.length || !plan.prescricoesPorCanal?.length || !plan.cronogramaMulticanal?.length || !plan.plano7Dias?.length || !plan.acompanhamento || !plan.canais360?.canais?.length || planHasLinkedin) {
+  if (!Array.isArray(plan.interessesPosts) || !plan.interessesPosts.length || !plan.prescricoesPorCanal?.length || !plan.cronogramaMulticanal?.length || !plan.plano7Dias?.length || !plan.motorOrganico || !plan.campanhaAssistida || !plan.acompanhamento || !plan.canais360?.canais?.length || planHasLinkedin) {
     plan.interessesPosts = inferPostInterests(plan, plan.profile ?? savedProfile, row.radarJson);
     const enhanced = enhancePlanV2(plan as CacaPlan, row.redes ?? {}, row.radarJson);
     await db.update(orgProfile).set({ planoJson: enhanced as any }).where(eq(orgProfile.organizationId, orgId));

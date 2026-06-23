@@ -53,6 +53,8 @@ export default function DiagnosticoPrint() {
   const interests = shown.interessesPosts ?? [];
   const acompanhamento = shown.acompanhamento;
   const aprendizado = shown.aprendizadoSemanal;
+  const motorOrganico = shown.motorOrganico;
+  const campanhaAssistida = shown.campanhaAssistida;
   const today = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
   const hotHits = ((rd?.hits ?? []) as any[]).slice(0, 6);
   const liked = new Set((rd?.feedback?.likedPostKeys ?? []) as string[]);
@@ -132,6 +134,21 @@ export default function DiagnosticoPrint() {
             </div>
           </div>
         </section>
+
+        {motorOrganico && (
+          <section className="section">
+            <h3>Motor organico</h3>
+            <div className="grid3">
+              <div className="mini" style={{ background: "#071b44", color: "#fff" }}>
+                <p style={{ fontSize: 9, color: "rgba(255,255,255,.65)", fontWeight: 950, textTransform: "uppercase" }}>Score</p>
+                <p style={{ fontSize: 25, fontWeight: 950, color: "#fff" }}>{motorOrganico.score}/100</p>
+                <p style={{ fontSize: 9.2, color: "rgba(255,255,255,.82)" }}>{motorOrganico.leitura}</p>
+              </div>
+              <Info title="Ajustes do perfil" text={(motorOrganico.ajustesPerfil ?? []).slice(0, 3).join(" | ")} />
+              <Info title="Social SEO" text={(motorOrganico.termosBuscaSocial ?? []).slice(0, 8).join(", ")} />
+            </div>
+          </section>
+        )}
 
         <section className="section">
           <h3>Parecer</h3>
@@ -221,6 +238,24 @@ export default function DiagnosticoPrint() {
               <div className="mini" style={{ background: "rgba(255,255,255,.08)", borderColor: "rgba(255,255,255,.16)" }}>
                 <p style={{ fontSize: 9, fontWeight: 950, color: "rgba(255,255,255,.58)", textTransform: "uppercase" }}>Proxima acao</p>
                 <p style={{ fontSize: 9.3, color: "rgba(255,255,255,.84)", marginTop: 3 }}>{aprendizado.proximaAcao}</p>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {campanhaAssistida && (
+          <section className="section">
+            <h3>Campanha assistida</h3>
+            <div className="grid2">
+              <div className="mini">
+                <h4 style={{ color: "#071b44", fontSize: 12, fontWeight: 950 }}>{campanhaAssistida.titulo}</h4>
+                <p className="small" style={{ marginTop: 3 }}>{campanhaAssistida.canal} - {campanhaAssistida.objetivo}</p>
+                <p style={{ fontSize: 9.5, color: "#22304b", fontWeight: 750, marginTop: 5 }}>Base: {campanhaAssistida.base}</p>
+                <p style={{ fontSize: 9.5, color: "#ff3217", fontWeight: 850, marginTop: 5 }}>{campanhaAssistida.orcamento}</p>
+              </div>
+              <div className="mini">
+                <p style={{ fontSize: 9, fontWeight: 950, color: "#61708a", textTransform: "uppercase" }}>Checklist</p>
+                {(campanhaAssistida.checklist ?? []).slice(0, 4).map((x: string) => <p key={x} className="bullet">{x}</p>)}
               </div>
             </div>
           </section>
