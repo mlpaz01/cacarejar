@@ -135,6 +135,8 @@ describe("diagnosis growth engine", () => {
     expect(engine?.score).toBeGreaterThanOrEqual(85);
     expect(engine?.ajustesPerfil.join(" ")).toContain("CTA");
     expect(engine?.termosBuscaSocial.length).toBeGreaterThan(0);
+    expect(engine?.scoreBreakdown?.map((item) => item.nome)).toEqual(["Oferta", "Prova", "CTA", "Radar", "Execucao"]);
+    expect(engine?.proximosPassos?.[0]?.acao).toContain("oferta");
   });
 
   it("escolhe o melhor sinal organico como base de campanha assistida", () => {
@@ -158,6 +160,7 @@ describe("diagnosis growth engine", () => {
     expect(enhanced.plano7Dias).toHaveLength(7);
     expect(enhanced.aprendizadoSemanal?.resumo).toContain("semana");
     expect(enhanced.motorOrganico?.score).toBeGreaterThanOrEqual(85);
+    expect(enhanced.motorOrganico?.scoreBreakdown?.length).toBe(5);
     expect(enhanced.campanhaAssistida?.titulo).toContain("Gud Gud Acai");
   });
 });

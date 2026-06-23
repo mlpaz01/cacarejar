@@ -192,10 +192,12 @@ export interface CacaPlan {
   motorOrganico?: {
     score: number;
     leitura: string;
+    scoreBreakdown?: { nome: string; valor: number; detalhe: string }[];
     ajustesPerfil: string[];
     termosBuscaSocial: string[];
     pilares: string[];
     oportunidades: string[];
+    proximosPassos?: { acao: string; motivo: string; impacto: string }[];
   };
   campanhaAssistida?: {
     titulo: string;
@@ -1021,7 +1023,14 @@ export function buildOrganicEngine(plan: Partial<CacaPlan>, radar?: any): CacaPl
   const hasCta = /\b(link|bio|direct|whatsapp|chame|contato|diagnostico|diagnóstico)\b/i.test(bio);
   const hasRadar = !!radar?.hits?.length || !!radar?.ideas?.length;
   const hasPlan = !!plan.plano7Dias?.length;
-  const score = Math.min(100, 35 + (hasOffer ? 15 : 0) + (hasProof ? 15 : 0) + (hasCta ? 15 : 0) + (hasRadar ? 10 : 0) + (hasPlan ? 10 : 0));
+  const scoreBreakdown = [
+    { nome: "Oferta", valor: hasOffer ? 15 : 4, detalhe: hasOffer ? "Oferta identificada no perfil/contexto." : "Oferta ainda precisa ficar obvia." },
+    { nome: "Prova", valor: hasProof ? 15 : 5, detalhe: hasProof ? "Existe sinal de autoridade ou base social." : "Falta prova social, numero ou bastidor real." },
+    { nome: "CTA", valor: hasCta ? 15 : 3, detalhe: hasCta ? "Ha caminho de conversa/conversao." : "CTA ainda esta fraco ou invisivel." },
+    { nome: "Radar", valor: hasRadar ? 10 : 2, detalhe: hasRadar ? "Mercado ja trouxe sinais externos." : "Radar precisa ser rodado/refinado." },
+    { nome: "Execucao", valor: hasPlan ? 10 : 3, detalhe: hasPlan ? "Plano semanal existe." : "Ainda falta rotina semanal." },
+  ];
+  const score = Math.min(100, 35 + scoreBreakdown.reduce((s, item) => s + item.valor, 0));
   const rawTerms = [
     plan.produto,
     plan.nicho,
@@ -1037,6 +1046,7 @@ export function buildOrganicEngine(plan: Partial<CacaPlan>, radar?: any): CacaPl
   )).slice(0, 14);
   return {
     score,
+    scoreBreakdown,
     leitura: score >= 75
       ? "A base organica esta pronta para consistencia semanal e testes de campanha."
       : score >= 55
@@ -1054,6 +1064,23 @@ export function buildOrganicEngine(plan: Partial<CacaPlan>, radar?: any): CacaPl
       "Transformar comentarios e DMs em novos posts.",
       "Reaproveitar cada ideia em Reels, carrossel, Story e post de autoridade.",
       "Usar salvamentos e cliques como criterio para decidir o que vira anuncio.",
+    ],
+    proximosPassos: [
+      {
+        acao: hasOffer ? "Transformar oferta em post fixado" : "Reescrever bio com oferta principal",
+        motivo: hasOffer ? "A promessa ja existe; precisa ganhar visibilidade." : "Sem oferta clara, o conteudo atrai mas nao converte.",
+        impacto: "Mais cliques, DMs e conversas qualificadas.",
+      },
+      {
+        acao: hasProof ? "Criar prova semanal recorrente" : "Publicar prova social simples",
+        motivo: hasProof ? "Prova precisa virar rotina, nao excecao." : "Prova reduz desconfianca antes de vender.",
+        impacto: "Mais salvamentos, respostas e confianca.",
+      },
+      {
+        acao: hasRadar ? "Reaproveitar sinais do Radar no plano" : "Rodar Radar com perfis inspiradores",
+        motivo: hasRadar ? "O mercado ja mostrou mecanismos que podem ser adaptados." : "Sem radar, o plano depende demais de intuicao.",
+        impacto: "Ideias mais atuais e menos genericas.",
+      },
     ],
   };
 }

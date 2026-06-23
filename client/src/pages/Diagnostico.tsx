@@ -15,6 +15,7 @@ import {
   Loader2,
   Megaphone,
   MessageSquareText,
+  Palette,
   Pencil,
   RotateCcw,
   Search,
@@ -444,6 +445,7 @@ export default function Diagnostico() {
   const aprendizado = shown.aprendizadoSemanal;
   const motorOrganico = shown.motorOrganico;
   const campanhaAssistida = shown.campanhaAssistida;
+  const brandDNA = shown.brandDNA;
   const numberOrUndefined = (value: any) => {
     const n = Number(value);
     return Number.isFinite(n) && n >= 0 ? n : undefined;
@@ -498,10 +500,12 @@ export default function Diagnostico() {
 
       <ProfileHero plan={shown} />
 
+      {brandDNA && <BrandDNASection dna={brandDNA} />}
+
       {motorOrganico && (
         <section className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
           <HeaderLine icon={Sparkles} title="Motor organico" subtitle="Antes de comprar trafego, fortalecer perfil, social SEO e consistencia de conteudo." />
-          <div className="grid grid-cols-1 xl:grid-cols-[260px_1fr] gap-5 mt-5">
+          <div className="grid grid-cols-1 xl:grid-cols-[260px_1fr_320px] gap-5 mt-5">
             <div className="rounded-3xl bg-[#071b44] text-white p-5">
               <p className="text-xs font-black text-white/60 uppercase">Score organico</p>
               <p className="text-5xl font-black mt-2">{motorOrganico.score}</p>
@@ -526,7 +530,38 @@ export default function Diagnostico() {
                 {(motorOrganico.oportunidades ?? []).map((x: string) => <p key={x} className="text-xs text-[#22304b] leading-snug mt-2">- {x}</p>)}
               </div>
             </div>
+            {motorOrganico.scoreBreakdown?.length > 0 && (
+              <div className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-4">
+                <p className="text-[10px] font-black text-[#ff3217] uppercase">Por que esta nota</p>
+                <div className="space-y-3 mt-3">
+                  {motorOrganico.scoreBreakdown.map((item: any) => (
+                    <div key={item.nome}>
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-xs font-black text-[#071b44]">{item.nome}</p>
+                        <span className="text-[10px] font-black text-[#61708a]">{item.valor} pts</span>
+                      </div>
+                      <div className="h-1.5 rounded-full bg-[#e6ebf3] overflow-hidden mt-1">
+                        <div className="h-full bg-[#ff3217]" style={{ width: `${Math.min(100, (Number(item.valor) / 15) * 100)}%` }} />
+                      </div>
+                      <p className="text-[10px] text-[#61708a] mt-1">{item.detalhe}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
+          {motorOrganico.proximosPassos?.length > 0 && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-5">
+              {motorOrganico.proximosPassos.map((item: any) => (
+                <article key={item.acao} className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-4">
+                  <p className="text-[10px] font-black text-[#ff3217] uppercase">Proximo passo</p>
+                  <h3 className="text-sm font-black text-[#071b44] mt-1">{item.acao}</h3>
+                  <p className="text-xs text-[#22304b] font-semibold leading-snug mt-2">{item.motivo}</p>
+                  <p className="text-[11px] text-[#61708a] leading-snug mt-2">{item.impacto}</p>
+                </article>
+              ))}
+            </div>
+          )}
         </section>
       )}
 
@@ -1127,6 +1162,60 @@ function ProfileHero({ plan }: { plan: any }) {
         </div>
       </div>
     </section>
+  );
+}
+
+function BrandDNASection({ dna }: { dna: any }) {
+  const paleta = Array.isArray(dna.paleta) ? dna.paleta.filter(Boolean) : [];
+  const motivos = Array.isArray(dna.motivos) ? dna.motivos.filter(Boolean) : [];
+  return (
+    <section className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
+      <HeaderLine icon={Palette} title="DNA da marca" subtitle="A base visual e verbal que os Agentes devem preservar antes do toque humano final." />
+      <div className="grid grid-cols-1 xl:grid-cols-[1.1fr_.9fr] gap-5 mt-5">
+        <div className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-5">
+          <p className="text-[10px] font-black text-[#ff3217] uppercase">Leitura visual</p>
+          <p className="text-sm font-bold text-[#071b44] leading-relaxed mt-2">{dna.resumoVisual || "Visual humano, coerente e reconhecivel."}</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
+            <InfoTile title="Tom" value={dna.tom || "Direto, util e humano"} />
+            <InfoTile title="Estilo de imagem" value={dna.estiloFoto || "Editorial realista com contexto"} />
+            <InfoTile title="Tipografia" value={dna.tipografia || "Sans-serif forte"} />
+            <InfoTile title="Regra pratica" value="Agente cria a base; humano adiciona verdade, detalhe e criterio." />
+          </div>
+        </div>
+        <div className="space-y-4">
+          {paleta.length > 0 && (
+            <div className="rounded-2xl border border-[#e6ebf3] bg-white p-4">
+              <p className="text-[10px] font-black text-[#ff3217] uppercase">Paleta</p>
+              <div className="flex flex-wrap gap-2 mt-3">
+                {paleta.slice(0, 6).map((color: string) => (
+                  <span key={color} className="inline-flex items-center gap-2 rounded-full border border-[#e6ebf3] bg-[#fbfcff] px-3 py-1.5 text-[10px] font-black text-[#071b44]">
+                    <span className="w-4 h-4 rounded-full border border-black/10" style={{ background: color }} />
+                    {color}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {motivos.length > 0 && (
+            <div className="rounded-2xl border border-[#e6ebf3] bg-white p-4">
+              <p className="text-[10px] font-black text-[#ff3217] uppercase">Motivos recorrentes</p>
+              <div className="flex flex-wrap gap-2 mt-3">
+                {motivos.slice(0, 8).map((item: string) => <Tag key={item}>{item}</Tag>)}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function InfoTile({ title, value }: { title: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-[#e6ebf3] bg-white p-3">
+      <p className="text-[10px] font-black text-[#61708a] uppercase">{title}</p>
+      <p className="text-xs font-bold text-[#22304b] leading-snug mt-1">{value}</p>
+    </div>
   );
 }
 

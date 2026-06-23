@@ -54,6 +54,24 @@ function mergePostLike(item: any, snap: ReturnType<typeof creativeSnapshot>) {
   };
 }
 
+function creativeTextSnapshot(c: any) {
+  const meta = (c?.generationMeta as any) ?? {};
+  return {
+    at: Date.now(),
+    briefing: c?.briefing ?? "",
+    copy: c?.copy ?? "",
+    gancho: meta.gancho ?? "",
+    cta: meta.cta ?? "",
+    hashtags: Array.isArray(meta.hashtags) ? meta.hashtags : [],
+    pilar: meta.pilar ?? "",
+    angulo: meta.angulo ?? c?.lente ?? "",
+    formato: c?.formato ?? meta.formato ?? "imagem",
+    roteiro: meta.roteiro ?? null,
+    visualPrompt: meta.visualPrompt ?? "",
+    humanReview: meta.humanReview ?? null,
+  };
+}
+
 async function syncCreativeToOrigins(orgId: number, creativeId: number) {
   const db = await getDb();
   if (!db) return;
@@ -526,6 +544,13 @@ export async function updateCreative(orgId: number, id: number, patch: {
   let metaChanged = false;
   for (const k of ["visualPrompt", "gancho", "hashtags", "cta", "pilar", "angulo", "formato", "roteiro", "humanReview"] as const) {
     if ((patch as any)[k] !== undefined) { meta[k] = (patch as any)[k]; metaChanged = true; }
+  }
+  if (Object.keys(set).length || metaChanged) {
+    if (!meta.agentDraft) meta.agentDraft = creativeTextSnapshot(c);
+    const textVersions = Array.isArray(meta.textVersions) ? meta.textVersions : [];
+    meta.textVersions = [...textVersions, creativeTextSnapshot(c)].slice(-20);
+    meta.lastTextEditedAt = Date.now();
+    metaChanged = true;
   }
   if (metaChanged) set.generationMeta = meta;
 

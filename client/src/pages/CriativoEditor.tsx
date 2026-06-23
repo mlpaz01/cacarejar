@@ -27,8 +27,10 @@ export default function CriativoEditor() {
   const closeOnSave = searchParams.get("closeOnSave") === "1";
 
   const cQuery = trpc.studio.getCreative.useQuery({ id: id! }, { enabled: id != null });
+  const diagnosis = trpc.diagnosis.get.useQuery();
   const c: any = cQuery.data;
   const meta: any = c?.generationMeta ?? {};
+  const brandDNA: any = (diagnosis.data as any)?.brandDNA;
 
   const [tab, setTab] = useState<Tab>("brief");
   const [copy, setCopy] = useState("");
@@ -96,6 +98,8 @@ export default function CriativoEditor() {
   }, [c?.id]);
 
   const versions: any[] = useMemo(() => Array.isArray(meta.versions) ? [...meta.versions].reverse() : [], [meta.versions]);
+  const textVersions: any[] = useMemo(() => Array.isArray(meta.textVersions) ? [...meta.textVersions].reverse() : [], [meta.textVersions]);
+  const agentDraft: any = meta.agentDraft ?? textVersions[textVersions.length - 1];
 
   const refreshLinkedScreens = async () => {
     await Promise.allSettled([
@@ -176,6 +180,22 @@ export default function CriativoEditor() {
   function handleRegen() {
     if (!id) return;
     regen.mutate({ id, promptOverride: promptOverride.trim() || visualPrompt.trim() || undefined, keepStyle });
+  }
+
+  function restoreTextVersion(v: any) {
+    setBriefing(v.briefing ?? "");
+    setCopy(v.copy ?? "");
+    setGancho(v.gancho ?? "");
+    setCta(v.cta ?? "");
+    setHashtagsTxt(Array.isArray(v.hashtags) ? v.hashtags.join(" ") : "");
+    setPilar(v.pilar ?? "");
+    setAngulo(v.angulo ?? "");
+    setFormato(v.formato ?? "imagem");
+    setVisualPrompt(v.visualPrompt ?? "");
+    setRoteiroTxt(v.roteiro ? JSON.stringify(v.roteiro, null, 2) : "");
+    if (v.humanReview?.checks) setHumanChecks(v.humanReview.checks);
+    setDirty(true);
+    toast.success("Versao carregada. Revise e salve para aplicar.");
   }
 
   if (!id) return <AppLayout title="Criativo"><p className="text-sm text-muted-foreground">Criativo inválido.</p></AppLayout>;
@@ -307,6 +327,11 @@ export default function CriativoEditor() {
               {/* ─── BRIEF ─── */}
               {tab === "brief" && (
                 <>
+                  <Field icon={<FileText className="w-3 h-3" />} label="Nome interno / brief" hint="Identifica este criativo no Estudio e nas telas de origem.">
+                    <input value={briefing} onChange={e => { setBriefing(e.target.value); setDirty(true); }}
+                      placeholder="Ex.: Dia 1 - Instagram"
+                      className="w-full border border-[#e6ebf3] rounded-lg px-3 py-2.5 text-sm bg-[#f6f8fc] focus:outline-none focus:border-[#ff3217]" />
+                  </Field>
                   <Field icon={<Target className="w-3 h-3" />} label="Gancho (3 segundos)" hint="Frase que prende nos primeiros segundos. Pergunta intrigante, número surpreendente, promessa.">
                     <input value={gancho} onChange={e => { setGancho(e.target.value); setDirty(true); }}
                       placeholder="Ex.: Quanto rende R$100/mês investido?"
@@ -371,6 +396,17 @@ export default function CriativoEditor() {
                       </p>
                     )}
                   </div>
+                  {(brandDNA || agentDraft) && (
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                      {brandDNA && <StudioBrandKit dna={brandDNA} />}
+                      {agentDraft && (
+                        <AgentDraftCompare
+                          draft={agentDraft}
+                          current={{ gancho, copy, cta, hashtagsTxt, visualPrompt }}
+                        />
+                      )}
+                    </div>
+                  )}
                   <div className="grid grid-cols-3 gap-3">
                     <Field icon={<Layers className="w-3 h-3" />} label="Pilar">
                       <input value={pilar} onChange={e => { setPilar(e.target.value); setDirty(true); }}
@@ -400,6 +436,35 @@ export default function CriativoEditor() {
                       <textarea value={roteiroTxt} onChange={e => { setRoteiroTxt(e.target.value); setDirty(true); }} rows={8}
                         className="w-full border border-[#e6ebf3] rounded-lg px-3 py-2.5 text-xs font-mono bg-[#f6f8fc] focus:outline-none focus:border-[#ff3217] resize-none" />
                     </Field>
+                  )}
+                  {textVersions.length > 0 && (
+                    <div className="rounded-xl border border-[#e6ebf3] bg-[#fbfcff] p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <h4 className="text-xs font-black text-[#071b44] uppercase tracking-wide flex items-center gap-1.5">
+                            <History className="w-3.5 h-3.5 text-[#ff3217]" /> Versoes de texto
+                          </h4>
+                          <p className="text-[11px] text-[#61708a] mt-1">Recupere uma versao anterior da legenda, gancho, CTA, roteiro ou direcao de arte.</p>
+                        </div>
+                        <span className="rounded-full bg-white border border-[#e6ebf3] px-3 py-1 text-[10px] font-black text-[#071b44]">{textVersions.length}</span>
+                      </div>
+                      <div className="space-y-2 mt-3">
+                        {textVersions.slice(0, 5).map((v, i) => (
+                          <button
+                            key={`${v.at ?? i}-${i}`}
+                            type="button"
+                            onClick={() => restoreTextVersion(v)}
+                            className="w-full text-left rounded-lg border border-[#e6ebf3] bg-white hover:border-[#071b44] p-3 transition-colors"
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <p className="text-[11px] font-black text-[#071b44] truncate">{v.gancho || v.briefing || "Versao anterior"}</p>
+                              <span className="text-[10px] font-bold text-[#61708a] whitespace-nowrap">{v.at ? new Date(v.at).toLocaleString("pt-BR") : `#${i + 1}`}</span>
+                            </div>
+                            {v.copy && <p className="text-[11px] text-[#61708a] line-clamp-2 mt-1">{v.copy}</p>}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </>
               )}
@@ -529,6 +594,77 @@ function Field({ icon, label, hint, children }: { icon?: React.ReactNode; label:
       </label>
       {children}
       {hint && <p className="text-[10px] text-[#9aa7bd] mt-1">{hint}</p>}
+    </div>
+  );
+}
+
+function StudioBrandKit({ dna }: { dna: any }) {
+  const palette = Array.isArray(dna.paleta) ? dna.paleta.filter(Boolean).slice(0, 5) : [];
+  const motivos = Array.isArray(dna.motivos) ? dna.motivos.filter(Boolean).slice(0, 4) : [];
+  return (
+    <div className="rounded-xl border border-[#e6ebf3] bg-white p-4">
+      <h4 className="text-xs font-black text-[#071b44] uppercase tracking-wide flex items-center gap-1.5">
+        <Palette className="w-3.5 h-3.5 text-[#ff3217]" /> DNA ativo da marca
+      </h4>
+      <p className="text-[11px] text-[#22304b] font-semibold leading-snug mt-2">{dna.resumoVisual || "Preserve consistencia visual, tom e contexto real."}</p>
+      {palette.length > 0 && (
+        <div className="flex flex-wrap gap-2 mt-3">
+          {palette.map((color: string) => (
+            <span key={color} className="inline-flex items-center gap-1.5 rounded-full border border-[#e6ebf3] bg-[#fbfcff] px-2.5 py-1 text-[10px] font-black text-[#071b44]">
+              <span className="w-3.5 h-3.5 rounded-full border border-black/10" style={{ background: color }} />
+              {color}
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
+        <MiniInfo label="Tom" value={dna.tom || "Humano e direto"} />
+        <MiniInfo label="Imagem" value={dna.estiloFoto || "Realista com contexto"} />
+      </div>
+      {motivos.length > 0 && <p className="text-[10px] text-[#61708a] font-bold mt-3">{motivos.join(" · ")}</p>}
+    </div>
+  );
+}
+
+function AgentDraftCompare({ draft, current }: { draft: any; current: any }) {
+  const currentText = current.copy || "";
+  const draftText = draft.copy || "";
+  const changed = currentText.trim() !== draftText.trim() || (current.gancho || "") !== (draft.gancho || "");
+  return (
+    <div className="rounded-xl border border-[#e6ebf3] bg-white p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h4 className="text-xs font-black text-[#071b44] uppercase tracking-wide flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-[#ff3217]" /> Base dos Agentes x edicao
+          </h4>
+          <p className="text-[11px] text-[#61708a] mt-1">{changed ? "A versao humana ja mudou a base inicial." : "A base inicial ainda esta praticamente igual."}</p>
+        </div>
+        <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${changed ? "bg-[#eafff1] text-[#087a32] border border-[#bfeccb]" : "bg-[#fff8f6] text-[#8f2014] border border-[#ffd5ce]"}`}>
+          {changed ? "humanizado" : "base pura"}
+        </span>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+        <CompareBox title="Base" text={draftText || draft.gancho || "Sem base registrada."} />
+        <CompareBox title="Atual" text={currentText || current.gancho || "Sem edicao atual."} />
+      </div>
+    </div>
+  );
+}
+
+function CompareBox({ title, text }: { title: string; text: string }) {
+  return (
+    <div className="rounded-lg border border-[#e6ebf3] bg-[#fbfcff] p-3">
+      <p className="text-[10px] font-black text-[#61708a] uppercase">{title}</p>
+      <p className="text-[11px] text-[#22304b] leading-snug mt-1 line-clamp-5">{text}</p>
+    </div>
+  );
+}
+
+function MiniInfo({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-[#e6ebf3] bg-[#fbfcff] p-2">
+      <p className="text-[9px] font-black text-[#61708a] uppercase">{label}</p>
+      <p className="text-[11px] font-bold text-[#22304b] leading-snug mt-0.5">{value}</p>
     </div>
   );
 }
