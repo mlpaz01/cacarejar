@@ -320,7 +320,7 @@ export async function getCreative(orgId: number, id: number) {
 /** Edita campos textuais e o brief do criativo. Aceita qualquer campo do brief (gancho, hashtags, cta, roteiro...). */
 export async function updateCreative(orgId: number, id: number, patch: {
   copy?: string; briefing?: string; visualPrompt?: string; gancho?: string; hashtags?: string[]; cta?: string;
-  pilar?: string; angulo?: string; formato?: string; roteiro?: any;
+  pilar?: string; angulo?: string; formato?: string; roteiro?: any; humanReview?: any;
 }) {
   const db = await getDb();
   if (!db) throw new Error("DB indisponível");
@@ -333,7 +333,7 @@ export async function updateCreative(orgId: number, id: number, patch: {
 
   const meta = { ...((c.generationMeta as any) ?? {}) };
   let metaChanged = false;
-  for (const k of ["visualPrompt", "gancho", "hashtags", "cta", "pilar", "angulo", "formato", "roteiro"] as const) {
+  for (const k of ["visualPrompt", "gancho", "hashtags", "cta", "pilar", "angulo", "formato", "roteiro", "humanReview"] as const) {
     if ((patch as any)[k] !== undefined) { meta[k] = (patch as any)[k]; metaChanged = true; }
   }
   if (metaChanged) set.generationMeta = meta;

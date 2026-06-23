@@ -853,6 +853,7 @@ const studioRouter = router({
       angulo: z.string().optional(),
       formato: z.string().optional(),
       roteiro: z.any().optional(),
+      humanReview: z.any().optional(),
     }))
     .mutation(({ ctx, input }) => {
       const orgId = ctx.user.organizationId;

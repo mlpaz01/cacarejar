@@ -40,6 +40,14 @@ export default function CriativoEditor() {
   const [promptOverride, setPromptOverride] = useState("");
   const [keepStyle, setKeepStyle] = useState(true);
   const [roteiroTxt, setRoteiroTxt] = useState("");
+  const emptyHumanChecks = {
+    detalheReal: false,
+    pontoDeVista: false,
+    visualHumano: false,
+    ctaClaro: false,
+    naoGenerico: false,
+  };
+  const [humanChecks, setHumanChecks] = useState(emptyHumanChecks);
   const [dirty, setDirty] = useState(false);
 
   const loadedRoteiroTxt = useMemo(() => meta.roteiro ? JSON.stringify(meta.roteiro, null, 2) : "", [meta.roteiro]);
@@ -56,8 +64,9 @@ export default function CriativoEditor() {
       || angulo !== (meta.angulo ?? c.lente ?? "")
       || formato !== (c.formato ?? meta.formato ?? "imagem")
       || visualPrompt !== (meta.visualPrompt ?? "")
-      || roteiroTxt !== loadedRoteiroTxt;
-  }, [dirty, c, meta.gancho, meta.cta, meta.pilar, meta.angulo, meta.formato, meta.visualPrompt, loadedHashtagsTxt, loadedRoteiroTxt, copy, briefing, gancho, cta, hashtagsTxt, pilar, angulo, formato, visualPrompt, roteiroTxt]);
+      || roteiroTxt !== loadedRoteiroTxt
+      || JSON.stringify(humanChecks) !== JSON.stringify(meta.humanReview?.checks ?? emptyHumanChecks);
+  }, [dirty, c, meta.gancho, meta.cta, meta.pilar, meta.angulo, meta.formato, meta.visualPrompt, meta.humanReview, loadedHashtagsTxt, loadedRoteiroTxt, copy, briefing, gancho, cta, hashtagsTxt, pilar, angulo, formato, visualPrompt, roteiroTxt, humanChecks]);
 
   // Sincroniza estado local quando criativo carrega ou refetch.
   useEffect(() => {
@@ -72,6 +81,7 @@ export default function CriativoEditor() {
     setAngulo(meta.angulo ?? c.lente ?? "");
     setVisualPrompt(meta.visualPrompt ?? "");
     setRoteiroTxt(meta.roteiro ? JSON.stringify(meta.roteiro, null, 2) : "");
+    setHumanChecks(meta.humanReview?.checks ?? emptyHumanChecks);
     setPromptOverride("");
     setDirty(false);
   }, [c?.id, c?.imageUrl]);
@@ -112,6 +122,11 @@ export default function CriativoEditor() {
       id, copy, briefing,
       gancho, cta, pilar, angulo, formato, visualPrompt,
       hashtags: hashtagsTxt.split(/\s+/).filter(Boolean).map(h => h.startsWith("#") ? h : "#" + h),
+      humanReview: {
+        checks: humanChecks,
+        score: Object.values(humanChecks).filter(Boolean).length,
+        reviewedAt: Date.now(),
+      },
       ...(roteiro !== undefined ? { roteiro } : {}),
     });
   }
@@ -278,6 +293,49 @@ export default function CriativoEditor() {
                         placeholder="Ex.: Toca no link e garante o seu"
                         className="w-full border border-[#e6ebf3] rounded-lg px-3 py-2.5 text-sm bg-[#f6f8fc] focus:outline-none focus:border-[#ff3217]" />
                     </Field>
+                  </div>
+                  <div className="rounded-xl border border-[#e6ebf3] bg-[#fbfcff] p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h4 className="text-xs font-black text-[#071b44] uppercase tracking-wide flex items-center gap-1.5">
+                          <AlertTriangle className="w-3.5 h-3.5 text-[#ff3217]" /> Checklist anti-generico
+                        </h4>
+                        <p className="text-[11px] text-[#61708a] mt-1">A IA entrega a base; marque quando o criativo ganhou verdade humana.</p>
+                      </div>
+                      <span className="rounded-full bg-white border border-[#e6ebf3] px-3 py-1 text-[10px] font-black text-[#071b44]">
+                        {Object.values(humanChecks).filter(Boolean).length}/5
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
+                      {[
+                        ["detalheReal", "Tem um detalhe real da marca"],
+                        ["pontoDeVista", "Tem opiniao ou ponto de vista"],
+                        ["visualHumano", "Visual parece humano e especifico"],
+                        ["ctaClaro", "CTA esta claro e sem exagero"],
+                        ["naoGenerico", "Nao poderia ser de qualquer empresa"],
+                      ].map(([key, label]) => (
+                        <label key={key} className="flex items-center gap-2 rounded-lg border border-[#e6ebf3] bg-white px-3 py-2 text-xs font-bold text-[#22304b] cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={(humanChecks as any)[key]}
+                            onChange={e => {
+                              setHumanChecks(prev => ({ ...prev, [key]: e.target.checked }));
+                              setDirty(true);
+                            }}
+                          />
+                          {label}
+                        </label>
+                      ))}
+                    </div>
+                    {Object.values(humanChecks).filter(Boolean).length < 4 ? (
+                      <p className="text-[11px] text-[#8f2014] bg-[#fff8f6] border border-[#ffd5ce] rounded-lg px-3 py-2 mt-3">
+                        Antes de aprovar, refine copy ou imagem para sair da cara de anuncio automatico.
+                      </p>
+                    ) : (
+                      <p className="text-[11px] text-[#087a32] bg-[#eafff1] border border-[#bfeccb] rounded-lg px-3 py-2 mt-3">
+                        Criativo com toque humano suficiente para teste.
+                      </p>
+                    )}
                   </div>
                   <div className="grid grid-cols-3 gap-3">
                     <Field icon={<Layers className="w-3 h-3" />} label="Pilar">
