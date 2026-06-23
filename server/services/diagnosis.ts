@@ -136,6 +136,24 @@ export interface PostInterest {
   targeting: string[];
   evidencias: { fonte: string; trecho: string; url?: string; hotScore?: number }[];
 }
+export interface WeeklyContentPlanItem {
+  dia: string;
+  canal: string;
+  objetivo: string;
+  formato: PostIdea["formato"] | "story" | "blog" | "check-in";
+  pilar: string;
+  gancho: string;
+  legenda: string;
+  roteiro?: PostIdea["roteiro"];
+  direcaoVisual: string;
+  visualPrompt: string;
+  cta: string;
+  hashtags: string[];
+  checklistHumano: string[];
+  status: "ideia" | "em_edicao" | "aprovado" | "publicado" | "medir";
+  metricaChave: string;
+  origem: string;
+}
 export interface CacaPlan {
   // consultoria
   sumarioExecutivo: string;
@@ -147,6 +165,7 @@ export interface CacaPlan {
   conclusao: string;
   postIdeas: PostIdea[];
   interessesPosts?: PostInterest[];
+  plano7Dias?: WeeklyContentPlanItem[];
   // legado / seções extras
   resumo: string;
   diagnostico: string[];
@@ -629,7 +648,7 @@ function buildChannelPrescriptions(plan: Partial<CacaPlan>, radar?: any): CacaPl
 }
 
 function buildDiagnosticMethod(plan: Partial<CacaPlan>, radar?: any): CacaPlan["metodoDiagnostico"] {
-  const sources = plan.fontesUsadas?.length ? plan.fontesUsadas : buildSources(plan, plan.redes ?? {}, radar);
+  const sources = (plan.fontesUsadas?.length ? plan.fontesUsadas : buildSources(plan, plan.redes ?? {}, radar)) ?? [];
   const channels = (plan.prescricoesPorCanal ?? buildChannelPrescriptions(plan, radar) ?? []).map(p => p.canal);
   const sourceNames = sources.map(s => s.canal).join(", ") || "briefing informado";
   return [
@@ -721,6 +740,194 @@ function buildMultichannelTimeline(plan: Partial<CacaPlan>): CacaPlan["cronogram
   ];
 }
 
+function buildSevenDayPlan(plan: Partial<CacaPlan>, radar?: any): CacaPlan["plano7Dias"] {
+  const produto = plan.produto || plan.nicho || "sua oferta";
+  const niche = plan.nicho || produto;
+  const ideas = plan.postIdeas?.length ? plan.postIdeas : [];
+  const pick = (index: number, fallback: Partial<PostIdea>): PostIdea => ({
+    titulo: fallback.titulo || `Conteudo ${index + 1}`,
+    pilar: fallback.pilar || "Execucao semanal",
+    formato: fallback.formato || "imagem",
+    angulo: fallback.angulo || "desejo",
+    gancho: fallback.gancho || `O que ninguem te conta sobre ${produto}`,
+    copy: fallback.copy || `Mostre uma historia real sobre ${produto}, com contexto, prova e convite simples.`,
+    hashtags: fallback.hashtags || ["#conteudo", "#marketing", "#negocios"],
+    cta: fallback.cta || "Chame no direct para saber mais",
+    visualPrompt: fallback.visualPrompt || buildFallbackVisualPrompt(produto, fallback.pilar || "Execucao semanal", plan.brandDNA || {
+      paleta: ["#071b44", "#ff3217", "#f8fafc"],
+      tipografia: "Sans-serif bold",
+      estiloFoto: "Realistic editorial social media photo",
+      motivos: ["human presence", "real environment"],
+      tom: "authentic and useful",
+      resumoVisual: "Realistic, direct and human.",
+    }),
+    roteiro: fallback.roteiro,
+  });
+  const sourceIdeas = [
+    pick(0, ideas[0] ?? {}),
+    pick(1, ideas[1] ?? {}),
+    pick(2, ideas[2] ?? {}),
+    pick(3, ideas[3] ?? {}),
+  ];
+  const radarIdea = radar?.ideas?.find((i: any) => i?.diagnosisDecision === "use") ?? radar?.ideas?.[0];
+  const radarGancho = radarIdea?.gancho || radarIdea?.titulo || `O sinal quente do mercado para ${niche}`;
+  const humanChecklist = [
+    "Adicionar um detalhe real que so esta marca teria.",
+    "Trocar qualquer frase generica por uma frase com ponto de vista.",
+    "Confirmar se o visual parece humano, especifico e coerente com o DNA.",
+  ];
+  return [
+    {
+      dia: "Dia 1",
+      canal: "Instagram",
+      objetivo: "Abrir a semana com a tese central do diagnostico.",
+      formato: sourceIdeas[0].formato,
+      pilar: sourceIdeas[0].pilar,
+      gancho: sourceIdeas[0].gancho,
+      legenda: sourceIdeas[0].copy,
+      roteiro: sourceIdeas[0].roteiro,
+      direcaoVisual: plan.brandDNA?.resumoVisual || "Visual real, humano e coerente com a marca.",
+      visualPrompt: sourceIdeas[0].visualPrompt,
+      cta: sourceIdeas[0].cta,
+      hashtags: sourceIdeas[0].hashtags,
+      checklistHumano: humanChecklist,
+      status: "ideia",
+      metricaChave: "Salvamentos e comentarios qualificados",
+      origem: "Diagnostico + DNA visual",
+    },
+    {
+      dia: "Dia 2",
+      canal: "Stories / WhatsApp",
+      objetivo: "Transformar atencao em conversa.",
+      formato: "story",
+      pilar: "Prova e bastidor",
+      gancho: `Mostre um bastidor real de ${produto}`,
+      legenda: `Hoje eu mostraria um bastidor simples: o antes, o durante e o depois de ${produto}. Feche com uma pergunta direta para puxar conversa.`,
+      direcaoVisual: "Stories com prova real, enquete e print/depoimento quando existir.",
+      visualPrompt: buildFallbackVisualPrompt(produto, "bastidor real e prova humana", plan.brandDNA || {
+        paleta: ["#071b44", "#ff3217", "#f8fafc"],
+        tipografia: "Sans-serif bold",
+        estiloFoto: "Realistic editorial social media photo",
+        motivos: ["human presence", "real environment"],
+        tom: "authentic and useful",
+        resumoVisual: "Realistic, direct and human.",
+      }),
+      cta: "Responda este story ou chame no WhatsApp",
+      hashtags: [],
+      checklistHumano: humanChecklist,
+      status: "ideia",
+      metricaChave: "Respostas, DMs e cliques",
+      origem: "Funil de conversa",
+    },
+    {
+      dia: "Dia 3",
+      canal: "Reels / TikTok",
+      objetivo: "Ganhar descoberta com uma ideia simples e memoravel.",
+      formato: "reels",
+      pilar: sourceIdeas[1].pilar,
+      gancho: sourceIdeas[1].gancho,
+      legenda: sourceIdeas[1].copy,
+      roteiro: sourceIdeas[1].roteiro,
+      direcaoVisual: "Video vertical, ritmo rapido, rosto ou objeto real nos 3 primeiros segundos.",
+      visualPrompt: sourceIdeas[1].visualPrompt,
+      cta: sourceIdeas[1].cta,
+      hashtags: sourceIdeas[1].hashtags,
+      checklistHumano: humanChecklist,
+      status: "ideia",
+      metricaChave: "Retencao e compartilhamentos",
+      origem: "Post idea + formato de descoberta",
+    },
+    {
+      dia: "Dia 4",
+      canal: "Instagram",
+      objetivo: "Usar sinal do mercado sem copiar concorrente.",
+      formato: sourceIdeas[2].formato,
+      pilar: "Radar traduzido para a marca",
+      gancho: radarGancho,
+      legenda: radarIdea?.copy || sourceIdeas[2].copy,
+      roteiro: sourceIdeas[2].roteiro,
+      direcaoVisual: radarIdea?.creativeDirection || "Adaptar o mecanismo vencedor ao DNA visual da marca.",
+      visualPrompt: radarIdea?.visualPrompt || sourceIdeas[2].visualPrompt,
+      cta: radarIdea?.cta || sourceIdeas[2].cta,
+      hashtags: radarIdea?.hashtags || sourceIdeas[2].hashtags,
+      checklistHumano: [
+        "Garantir que a ideia foi adaptada, nao copiada.",
+        ...humanChecklist,
+      ],
+      status: "ideia",
+      metricaChave: "Alcance e salvamentos",
+      origem: radar?.marketSummary ? "Radar de Mercado" : "Hipotese do diagnostico",
+    },
+    {
+      dia: "Dia 5",
+      canal: "Blog / SEO / LinkedIn",
+      objetivo: "Criar ativo de autoridade pesquisavel.",
+      formato: "blog",
+      pilar: "Autoridade e busca social",
+      gancho: `Guia pratico: como decidir sobre ${niche}`,
+      legenda: `Transforme a principal duvida do cliente em um post/artigo simples: problema, criterios de decisao, erro comum, exemplo real e convite para conversar.`,
+      direcaoVisual: "Capa limpa com titulo forte, prova ou bastidor real.",
+      visualPrompt: buildFallbackVisualPrompt(produto, "autoridade pratica e guia pesquisavel", plan.brandDNA || {
+        paleta: ["#071b44", "#ff3217", "#f8fafc"],
+        tipografia: "Sans-serif bold",
+        estiloFoto: "Realistic editorial social media photo",
+        motivos: ["human presence", "real environment"],
+        tom: "authentic and useful",
+        resumoVisual: "Realistic, direct and human.",
+      }),
+      cta: "Salvar, compartilhar ou pedir o diagnostico",
+      hashtags: ["#seo", "#conteudo", "#autoridade"],
+      checklistHumano: humanChecklist,
+      status: "ideia",
+      metricaChave: "Cliques, tempo de leitura e comentarios",
+      origem: "Motor organico",
+    },
+    {
+      dia: "Dia 6",
+      canal: "Instagram",
+      objetivo: "Fazer oferta sem perder o tom humano.",
+      formato: sourceIdeas[3].formato,
+      pilar: sourceIdeas[3].pilar,
+      gancho: sourceIdeas[3].gancho,
+      legenda: sourceIdeas[3].copy,
+      roteiro: sourceIdeas[3].roteiro,
+      direcaoVisual: "Oferta com contexto, prova e friccao baixa.",
+      visualPrompt: sourceIdeas[3].visualPrompt,
+      cta: sourceIdeas[3].cta,
+      hashtags: sourceIdeas[3].hashtags,
+      checklistHumano: [
+        "Checar se existe uma oferta clara.",
+        "Remover promessa exagerada.",
+        ...humanChecklist,
+      ],
+      status: "ideia",
+      metricaChave: "Cliques, DMs, leads e vendas",
+      origem: "Oferta + conversao",
+    },
+    {
+      dia: "Dia 7",
+      canal: "Check-in",
+      objetivo: "Medir sinais e preparar a proxima semana.",
+      formato: "check-in",
+      pilar: "Aprendizado semanal",
+      gancho: "O que esta semana ensinou?",
+      legenda: "Registre quais posts foram publicados, quais geraram conversa, quais tiveram salvamentos e quais merecem virar campanha.",
+      direcaoVisual: "Nao precisa publicar; e uma tarefa interna de aprendizado.",
+      visualPrompt: "",
+      cta: "Registrar resultados e recalibrar o plano",
+      hashtags: [],
+      checklistHumano: [
+        "Registrar numeros reais, mesmo que pequenos.",
+        "Marcar o melhor gancho da semana.",
+        "Escolher um conteudo para repetir ou transformar em campanha.",
+      ],
+      status: "medir",
+      metricaChave: "Aprendizados acionaveis",
+      origem: "Loop semanal",
+    },
+  ];
+}
+
 function buildPlanner(plan: Partial<CacaPlan>): CacaPlan["acompanhamento"] {
   const timeline = plan.cronogramaMulticanal ?? buildMultichannelTimeline(plan) ?? [];
   return {
@@ -774,6 +981,7 @@ function enhancePlanV2(plan: CacaPlan, redes: Record<string, string> = {}, radar
     (next.acoesImediatas ?? []).some((a: any) => /linkedin/i.test(a?.canal || ""));
   next.prescricoesPorCanal = (next.prescricoesPorCanal?.length && !hasLinkedin) ? next.prescricoesPorCanal : buildChannelPrescriptions(next, radar);
   next.cronogramaMulticanal = (next.cronogramaMulticanal?.length && !hasLinkedin) ? next.cronogramaMulticanal : buildMultichannelTimeline(next);
+  next.plano7Dias = next.plano7Dias?.length ? next.plano7Dias : buildSevenDayPlan(next, radar);
   next.acoesImediatas = (next.acoesImediatas?.length && !hasLinkedin) ? next.acoesImediatas : buildImmediateActions(next, radar);
   next.metodoDiagnostico = next.metodoDiagnostico?.length ? next.metodoDiagnostico : buildDiagnosticMethod(next, radar);
   next.parecerEstrategico = next.parecerEstrategico ?? {

@@ -405,6 +405,7 @@ export default function Diagnostico() {
   const parecer = shown.parecerEstrategico ?? {};
   const acoesImediatas = shown.acoesImediatas ?? [];
   const prescricoes = shown.prescricoesPorCanal ?? [];
+  const plano7Dias = shown.plano7Dias ?? [];
   const timeline = shown.cronogramaMulticanal ?? [];
   const acompanhamento = shown.acompanhamento;
   const interests = shown.interessesPosts ?? [];
@@ -508,6 +509,69 @@ export default function Diagnostico() {
                 <p className="text-xs text-[#61708a] leading-relaxed mt-2">{a.motivo}</p>
               </article>
             ))}
+          </div>
+        </section>
+      )}
+
+      {plano7Dias.length > 0 && (
+        <section className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
+          <HeaderLine icon={CalendarDays} title="Plano de 7 dias" subtitle="Uma semana de execucao: IA cria a base, voce edita e coloca o toque humano antes de publicar." />
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mt-5">
+            {plano7Dias.map((item: any, index: number) => {
+              const copyText = [
+                `${item.dia} - ${item.canal}`,
+                `Objetivo: ${item.objetivo}`,
+                `Gancho: ${item.gancho}`,
+                `Legenda: ${item.legenda}`,
+                `CTA: ${item.cta}`,
+                item.hashtags?.length ? `Hashtags: ${item.hashtags.join(" ")}` : "",
+              ].filter(Boolean).join("\n\n");
+              return (
+                <article key={`${item.dia}-${index}`} className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-5 flex flex-col">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-black text-[#ff3217] uppercase">{item.dia}</p>
+                      <h3 className="text-lg font-black text-[#071b44] mt-1">{item.canal}</h3>
+                    </div>
+                    <span className="rounded-full bg-white border border-[#e6ebf3] text-[#071b44] text-[10px] font-black px-3 py-1">{item.formato}</span>
+                  </div>
+                  <p className="text-xs font-bold text-[#61708a] mt-2">{item.objetivo}</p>
+                  <div className="mt-4 rounded-xl bg-white border border-[#e6ebf3] p-3">
+                    <p className="text-[10px] font-black text-[#ff3217] uppercase">Gancho</p>
+                    <p className="text-sm font-black text-[#071b44] leading-snug mt-1">{item.gancho}</p>
+                    <p className="text-xs text-[#22304b] leading-relaxed mt-2">{item.legenda}</p>
+                  </div>
+                  {item.roteiro?.cenas?.length ? (
+                    <div className="mt-3 rounded-xl bg-white border border-[#e6ebf3] p-3">
+                      <p className="text-[10px] font-black text-[#61708a] uppercase">Roteiro rapido</p>
+                      <div className="space-y-1.5 mt-2">
+                        {item.roteiro.cenas.slice(0, 4).map((cena: any, i: number) => (
+                          <p key={i} className="text-[11px] text-[#22304b] leading-snug"><b>{cena.tempo}:</b> {cena.acao}</p>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                  <p className="text-[10px] font-black text-[#61708a] uppercase tracking-wide mt-3">Toque humano antes de publicar</p>
+                  <ul className="mt-1 space-y-1">
+                    {(item.checklistHumano ?? []).slice(0, 3).map((check: string) => (
+                      <li key={check} className="text-[11px] text-[#22304b] leading-snug flex gap-2"><span className="text-[#ff3217] font-black">-</span>{check}</li>
+                    ))}
+                  </ul>
+                  <div className="mt-4 pt-4 border-t border-[#e6ebf3] flex items-center justify-between gap-3 flex-wrap">
+                    <span className="text-[11px] font-black text-[#61708a]">Medir: {item.metricaChave}</span>
+                    <button
+                      onClick={async () => {
+                        await navigator.clipboard?.writeText(copyText);
+                        toast.success("Conteudo copiado.");
+                      }}
+                      className="rounded-xl bg-[#071b44] text-white px-3 py-2 text-xs font-black hover:bg-[#0d2a5e]"
+                    >
+                      Copiar post
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </section>
       )}

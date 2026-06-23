@@ -48,6 +48,7 @@ export default function DiagnosticoPrint() {
   const metodo = shown.metodoDiagnostico ?? [];
   const acoesImediatas = shown.acoesImediatas ?? [];
   const prescricoes = shown.prescricoesPorCanal ?? [];
+  const plano7Dias = shown.plano7Dias ?? [];
   const timeline = shown.cronogramaMulticanal ?? [];
   const interests = shown.interessesPosts ?? [];
   const acompanhamento = shown.acompanhamento;
@@ -174,6 +175,29 @@ export default function DiagnosticoPrint() {
                   <h4 style={{ color: "#071b44", fontSize: 12, fontWeight: 950, marginTop: 6 }}>{a.canal}</h4>
                   <p className="text" style={{ fontSize: 10, marginTop: 4 }}>{a.acao}</p>
                   <p className="small" style={{ marginTop: 4 }}>{a.motivo}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {plano7Dias.length > 0 && (
+          <section className="section">
+            <h3>Plano de 7 dias</h3>
+            <p className="small" style={{ marginBottom: 8 }}>A IA entrega a base. Antes de publicar, edite com detalhe real, opiniao e acabamento humano.</p>
+            <div className="grid2">
+              {plano7Dias.map((item: any, i: number) => (
+                <div className="mini" key={i}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                    <h4 style={{ color: "#071b44", fontSize: 12, fontWeight: 950 }}>{item.dia} - {item.canal}</h4>
+                    <span className="pill" style={{ color: "#fff", background: item.formato === "check-in" ? "#18a34a" : "#071b44" }}>{item.formato}</span>
+                  </div>
+                  <p className="small" style={{ marginTop: 4 }}>{item.objetivo}</p>
+                  <p style={{ fontSize: 10.3, color: "#071b44", fontWeight: 900, marginTop: 5 }}>{item.gancho}</p>
+                  <p style={{ fontSize: 9.5, color: "#22304b", fontWeight: 650, marginTop: 4 }}>{item.legenda}</p>
+                  <p style={{ fontSize: 9.3, color: "#ff3217", fontWeight: 850, marginTop: 5 }}>CTA: {item.cta}</p>
+                  {(item.checklistHumano ?? []).slice(0, 2).map((check: string, j: number) => <p key={j} className="bullet">{check}</p>)}
+                  <p style={{ color: "#18a34a", fontSize: 9.3, fontWeight: 850, marginTop: 5 }}>Medir: {item.metricaChave}</p>
                 </div>
               ))}
             </div>
