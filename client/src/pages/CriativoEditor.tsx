@@ -53,6 +53,7 @@ export default function CriativoEditor() {
     naoGenerico: false,
   };
   const [humanChecks, setHumanChecks] = useState(emptyHumanChecks);
+  const [humanNote, setHumanNote] = useState("");
   const [dirty, setDirty] = useState(false);
   const [originImageSaved, setOriginImageSaved] = useState(false);
 
@@ -72,8 +73,9 @@ export default function CriativoEditor() {
       || formato !== (c.formato ?? meta.formato ?? "imagem")
       || visualPrompt !== (meta.visualPrompt ?? "")
       || roteiroTxt !== loadedRoteiroTxt
-      || JSON.stringify(humanChecks) !== JSON.stringify(meta.humanReview?.checks ?? emptyHumanChecks);
-  }, [originImageSaved, dirty, c, meta.gancho, meta.cta, meta.pilar, meta.angulo, meta.formato, meta.visualPrompt, meta.humanReview, loadedHashtagsTxt, loadedRoteiroTxt, copy, briefing, gancho, cta, hashtagsTxt, pilar, angulo, formato, visualPrompt, roteiroTxt, humanChecks]);
+      || JSON.stringify(humanChecks) !== JSON.stringify(meta.humanReview?.checks ?? emptyHumanChecks)
+      || humanNote !== (meta.humanReview?.note ?? "");
+  }, [originImageSaved, dirty, c, meta.gancho, meta.cta, meta.pilar, meta.angulo, meta.formato, meta.visualPrompt, meta.humanReview, loadedHashtagsTxt, loadedRoteiroTxt, copy, briefing, gancho, cta, hashtagsTxt, pilar, angulo, formato, visualPrompt, roteiroTxt, humanChecks, humanNote]);
 
   // Sincroniza estado local quando criativo carrega ou refetch.
   useEffect(() => {
@@ -89,6 +91,7 @@ export default function CriativoEditor() {
     setVisualPrompt(meta.visualPrompt ?? "");
     setRoteiroTxt(meta.roteiro ? JSON.stringify(meta.roteiro, null, 2) : "");
     setHumanChecks(meta.humanReview?.checks ?? emptyHumanChecks);
+    setHumanNote(meta.humanReview?.note ?? "");
     setPromptOverride("");
     setDirty(false);
   }, [c?.id, c?.imageUrl]);
@@ -162,6 +165,7 @@ export default function CriativoEditor() {
       hashtags: hashtagsTxt.split(/\s+/).filter(Boolean).map(h => h.startsWith("#") ? h : "#" + h),
       humanReview: {
         checks: humanChecks,
+        note: humanNote.trim() || null,
         score: Object.values(humanChecks).filter(Boolean).length,
         reviewedAt: Date.now(),
       },
@@ -194,6 +198,7 @@ export default function CriativoEditor() {
     setVisualPrompt(v.visualPrompt ?? "");
     setRoteiroTxt(v.roteiro ? JSON.stringify(v.roteiro, null, 2) : "");
     if (v.humanReview?.checks) setHumanChecks(v.humanReview.checks);
+    if (v.humanReview?.note !== undefined) setHumanNote(v.humanReview.note ?? "");
     setDirty(true);
     toast.success("Versao carregada. Revise e salve para aplicar.");
   }
@@ -386,6 +391,12 @@ export default function CriativoEditor() {
                         </label>
                       ))}
                     </div>
+                    <textarea
+                      value={humanNote}
+                      onChange={e => { setHumanNote(e.target.value); setDirty(true); }}
+                      placeholder="Ex.: adicionei um bastidor real da loja, troquei promessa generica por uma opiniao nossa, usei uma imagem que parece feita por humano."
+                      className="mt-3 w-full min-h-[72px] resize-none rounded-lg border border-[#e6ebf3] bg-white px-3 py-2 text-xs font-semibold text-[#071b44] outline-none focus:border-[#ff3217]"
+                    />
                     {Object.values(humanChecks).filter(Boolean).length < 4 ? (
                       <p className="text-[11px] text-[#8f2014] bg-[#fff8f6] border border-[#ffd5ce] rounded-lg px-3 py-2 mt-3">
                         Antes de aprovar, refine copy ou imagem para sair da cara de anuncio automatico.
