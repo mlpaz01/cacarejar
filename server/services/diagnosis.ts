@@ -155,7 +155,7 @@ export interface WeeklyContentPlanItem {
   origem: string;
   publicadoUrl?: string;
   resultado?: {
-    registradoEm: number;
+    registradoEm?: number;
     alcance?: number;
     visualizacoes?: number;
     curtidas?: number;
@@ -1992,7 +1992,7 @@ export async function updateSevenDayPlanItem(orgId: number, index: number, patch
   };
 
   const publishedOrMeasured = items.filter(i => i.status === "publicado" || i.status === "medir" || i.resultado).length;
-  const acompanhamento = plan.acompanhamento ?? buildPlanner(plan);
+  const acompanhamento = (plan.acompanhamento ?? buildPlanner(plan)) as any;
   const nextAcompanhamento = {
     ...acompanhamento,
     updatedAt: Date.now(),
@@ -2004,7 +2004,7 @@ export async function updateSevenDayPlanItem(orgId: number, index: number, patch
   const updatedPlan = enhancePlanV2({
     ...plan,
     plano7Dias: items,
-    acompanhamento: nextAcompanhamento,
+    acompanhamento: nextAcompanhamento as any,
     aprendizadoSemanal: buildWeeklyLearning(items),
   }, row.redes ?? {}, row.radarJson);
   await db.update(orgProfile).set({ planoJson: updatedPlan as any }).where(eq(orgProfile.organizationId, orgId));
