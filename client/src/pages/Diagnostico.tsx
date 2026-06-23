@@ -55,7 +55,7 @@ const channelIcon = (canal?: string) => {
 };
 
 export default function Diagnostico() {
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const utils = trpc.useUtils();
   const existing = trpc.diagnosis.get.useQuery();
   const radar = trpc.radar.get.useQuery();
@@ -176,7 +176,7 @@ export default function Diagnostico() {
     try {
       const id = creativeId ?? (await ensureOriginCreative.mutateAsync({ originType: "diagnosis-plan", index })).id;
       await utils.diagnosis.get.invalidate();
-      navigate(`/criativos/${id}?returnTo=${encodeURIComponent("/diagnostico")}&closeOnSave=1`);
+      navigate(`/criativos/${id}?returnTo=${encodeURIComponent(`/diagnostico?studioReturn=${Date.now()}`)}&closeOnSave=1`);
     } catch (e: any) {
       toast.error(e?.message || "Erro ao abrir Estudio");
     }
@@ -184,6 +184,14 @@ export default function Diagnostico() {
 
   const shown = plan ?? (forceForm ? null : existing.data);
   const rd: any = radar.data;
+
+  useEffect(() => {
+    if (!location.includes("studioReturn=")) return;
+    setPlan(null);
+    setForceForm(false);
+    utils.diagnosis.get.invalidate();
+    existing.refetch();
+  }, [location]);
 
   useEffect(() => {
     if (!rd) return;

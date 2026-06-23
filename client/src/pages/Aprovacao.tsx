@@ -38,7 +38,7 @@ const originLabel = (c: any) => {
 };
 
 export default function Aprovacao() {
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const utils = trpc.useUtils();
   const pending = trpc.approvals.pendingForClient.useQuery();
   const diagnosis = trpc.diagnosis.get.useQuery();
@@ -63,6 +63,12 @@ export default function Aprovacao() {
       return next;
     });
   }, [pending.data]);
+
+  useEffect(() => {
+    if (!location.includes("studioReturn=")) return;
+    utils.approvals.pendingForClient.invalidate();
+    pending.refetch();
+  }, [location]);
 
   const approve = trpc.approvals.clientApprove.useMutation({
     onSuccess: () => {
@@ -181,7 +187,7 @@ export default function Aprovacao() {
                               </button>
                             </div>
                             {c.id && (
-                              <button type="button" onClick={() => navigate(`/criativos/${c.id}?returnTo=${encodeURIComponent("/aprovacao")}&closeOnSave=1`)}
+                              <button type="button" onClick={() => navigate(`/criativos/${c.id}?returnTo=${encodeURIComponent(`/aprovacao?studioReturn=${Date.now()}`)}&closeOnSave=1`)}
                                 className="mt-2 w-full text-[11px] font-black text-[#071b44] border border-[#e6ebf3] rounded-lg py-2 flex items-center justify-center gap-1.5 hover:bg-[#f6f8fc]">
                                 <Pencil className="w-3 h-3" /> Editar / regerar
                               </button>

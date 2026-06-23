@@ -52,12 +52,14 @@ export default function CriativoEditor() {
   };
   const [humanChecks, setHumanChecks] = useState(emptyHumanChecks);
   const [dirty, setDirty] = useState(false);
+  const [originImageSaved, setOriginImageSaved] = useState(false);
 
   const loadedRoteiroTxt = useMemo(() => meta.roteiro ? JSON.stringify(meta.roteiro, null, 2) : "", [meta.roteiro]);
   const loadedHashtagsTxt = useMemo(() => Array.isArray(meta.hashtags) ? meta.hashtags.join(" ") : "", [meta.hashtags]);
   const hasUnsavedChanges = useMemo(() => {
     if (!c) return false;
-    return dirty
+    return originImageSaved
+      || dirty
       || copy !== (c.copy ?? "")
       || briefing !== (c.briefing ?? "")
       || gancho !== (meta.gancho ?? "")
@@ -69,7 +71,7 @@ export default function CriativoEditor() {
       || visualPrompt !== (meta.visualPrompt ?? "")
       || roteiroTxt !== loadedRoteiroTxt
       || JSON.stringify(humanChecks) !== JSON.stringify(meta.humanReview?.checks ?? emptyHumanChecks);
-  }, [dirty, c, meta.gancho, meta.cta, meta.pilar, meta.angulo, meta.formato, meta.visualPrompt, meta.humanReview, loadedHashtagsTxt, loadedRoteiroTxt, copy, briefing, gancho, cta, hashtagsTxt, pilar, angulo, formato, visualPrompt, roteiroTxt, humanChecks]);
+  }, [originImageSaved, dirty, c, meta.gancho, meta.cta, meta.pilar, meta.angulo, meta.formato, meta.visualPrompt, meta.humanReview, loadedHashtagsTxt, loadedRoteiroTxt, copy, briefing, gancho, cta, hashtagsTxt, pilar, angulo, formato, visualPrompt, roteiroTxt, humanChecks]);
 
   // Sincroniza estado local quando criativo carrega ou refetch.
   useEffect(() => {
@@ -89,6 +91,10 @@ export default function CriativoEditor() {
     setDirty(false);
   }, [c?.id, c?.imageUrl]);
 
+  useEffect(() => {
+    setOriginImageSaved(false);
+  }, [c?.id]);
+
   const versions: any[] = useMemo(() => Array.isArray(meta.versions) ? [...meta.versions].reverse() : [], [meta.versions]);
 
   const refreshLinkedScreens = async () => {
@@ -100,6 +106,10 @@ export default function CriativoEditor() {
     ]);
   };
   const goBack = () => {
+    if (returnTo && closeOnSave && hasUnsavedChanges) {
+      saveAll();
+      return;
+    }
     if (returnTo) navigate(returnTo);
     else if (window.history.length > 1) window.history.back();
     else navigate("/criativos");
@@ -110,21 +120,22 @@ export default function CriativoEditor() {
       await refreshLinkedScreens();
       await cQuery.refetch();
       setDirty(false);
+      setOriginImageSaved(false);
       toast.success("Alterações salvas!");
       if (closeOnSave && returnTo) navigate(returnTo);
     },
     onError: e => toast.error(e.message || "Erro ao salvar"),
   });
   const regen = trpc.studio.regenerateImage.useMutation({
-    onSuccess: async () => { await refreshLinkedScreens(); cQuery.refetch(); toast.success("Nova imagem gerada!"); },
+    onSuccess: async () => { await refreshLinkedScreens(); await cQuery.refetch(); setOriginImageSaved(true); toast.success("Nova imagem gerada! Clique em Salvar para voltar."); },
     onError: e => toast.error(e.message || "Erro ao regerar"),
   });
   const setImg = trpc.studio.setImage.useMutation({
-    onSuccess: async () => { await refreshLinkedScreens(); cQuery.refetch(); toast.success("Imagem atualizada!"); },
+    onSuccess: async () => { await refreshLinkedScreens(); await cQuery.refetch(); setOriginImageSaved(true); toast.success("Imagem atualizada! Clique em Salvar para voltar."); },
     onError: e => toast.error(e.message || "Erro no upload"),
   });
   const revert = trpc.studio.revertImage.useMutation({
-    onSuccess: async () => { await refreshLinkedScreens(); cQuery.refetch(); toast.success("Versão restaurada!"); },
+    onSuccess: async () => { await refreshLinkedScreens(); await cQuery.refetch(); setOriginImageSaved(true); toast.success("Versão restaurada! Clique em Salvar para voltar."); },
     onError: e => toast.error(e.message || "Erro ao restaurar"),
   });
   const sendApproval = trpc.approvals.sendToApproval.useMutation({

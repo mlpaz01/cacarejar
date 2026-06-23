@@ -36,7 +36,7 @@ const profileContext = (plan: any) => {
 };
 
 export default function Radar() {
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const utils = trpc.useUtils();
   const radar = trpc.radar.get.useQuery();
   const diagnosis = trpc.diagnosis.get.useQuery();
@@ -112,6 +112,12 @@ export default function Radar() {
     setIdeaFeedbacks(nextFeedbacks);
   }, [data?.scannedAt]);
 
+  useEffect(() => {
+    if (!location.includes("studioReturn=")) return;
+    utils.radar.get.invalidate();
+    radar.refetch();
+  }, [location]);
+
   const parseHandles = () => handles.split(",").map(s => cleanHandle(s)).filter(Boolean);
   const runScan = () => {
     const parsed = parseHandles();
@@ -150,7 +156,7 @@ export default function Radar() {
     try {
       const id = creativeId ?? (await ensureOriginCreative.mutateAsync({ originType: "radar-idea", index })).id;
       await utils.radar.get.invalidate();
-      navigate(`/criativos/${id}?returnTo=${encodeURIComponent("/radar")}&closeOnSave=1`);
+      navigate(`/criativos/${id}?returnTo=${encodeURIComponent(`/radar?studioReturn=${Date.now()}`)}&closeOnSave=1`);
     } catch (e: any) {
       toast.error(e?.message || "Erro ao abrir Estudio");
     }
