@@ -783,7 +783,7 @@ function buildMultichannelTimeline(plan: Partial<CacaPlan>): CacaPlan["cronogram
   ];
 }
 
-function buildSevenDayPlan(plan: Partial<CacaPlan>, radar?: any): CacaPlan["plano7Dias"] {
+export function buildSevenDayPlan(plan: Partial<CacaPlan>, radar?: any): CacaPlan["plano7Dias"] {
   const produto = plan.produto || plan.nicho || "sua oferta";
   const niche = plan.nicho || produto;
   const ideas = plan.postIdeas?.length ? plan.postIdeas : [];
@@ -964,7 +964,7 @@ function buildSevenDayPlan(plan: Partial<CacaPlan>, radar?: any): CacaPlan["plan
         "Marcar o melhor gancho da semana.",
         "Escolher um conteudo para repetir ou transformar em campanha.",
       ],
-      status: "medir",
+      status: "ideia",
       metricaChave: "Aprendizados acionaveis",
       origem: "Loop semanal",
     },
@@ -978,7 +978,7 @@ function numericScore(result: WeeklyContentPlanItem["resultado"] = {}) {
   return Math.round(reach * 0.03 + engagement + business);
 }
 
-function buildWeeklyLearning(items: WeeklyContentPlanItem[] = []): CacaPlan["aprendizadoSemanal"] {
+export function buildWeeklyLearning(items: WeeklyContentPlanItem[] = []): CacaPlan["aprendizadoSemanal"] {
   const withResults = items.filter(i => i.resultado);
   const published = items.filter(i => i.status === "publicado" || i.status === "medir" || i.resultado);
   if (!withResults.length && !published.length) {
@@ -1014,7 +1014,7 @@ function buildWeeklyLearning(items: WeeklyContentPlanItem[] = []): CacaPlan["apr
   };
 }
 
-function buildOrganicEngine(plan: Partial<CacaPlan>, radar?: any): CacaPlan["motorOrganico"] {
+export function buildOrganicEngine(plan: Partial<CacaPlan>, radar?: any): CacaPlan["motorOrganico"] {
   const bio = [plan.profile?.bio, plan.site?.description, plan.sumarioExecutivo].filter(Boolean).join(" ");
   const hasOffer = /\b(compre|comprar|or[cç]amento|diagnostico|diagnóstico|aula|curso|kit|produto|servi[cç]o|whatsapp|link)\b/i.test(bio);
   const hasProof = !!plan.profile?.followers || /\b(cliente|resultado|case|depoimento|prova|anos|especialista)\b/i.test(bio);
@@ -1058,7 +1058,7 @@ function buildOrganicEngine(plan: Partial<CacaPlan>, radar?: any): CacaPlan["mot
   };
 }
 
-function buildAssistedCampaign(plan: Partial<CacaPlan>): CacaPlan["campanhaAssistida"] {
+export function buildAssistedCampaign(plan: Partial<CacaPlan>): CacaPlan["campanhaAssistida"] {
   const items = plan.plano7Dias ?? [];
   const ranked = [...items].sort((a, b) => numericScore(b.resultado) - numericScore(a.resultado));
   const best = ranked.find(i => i.resultado && numericScore(i.resultado) > 0) ?? ranked.find(i => i.status === "aprovado" || i.status === "publicado") ?? items[0];
@@ -1129,7 +1129,7 @@ function buildPlanner(plan: Partial<CacaPlan>): CacaPlan["acompanhamento"] {
   };
 }
 
-function enhancePlanV2(plan: CacaPlan, redes: Record<string, string> = {}, radar?: any): CacaPlan {
+export function enhancePlanV2(plan: CacaPlan, redes: Record<string, string> = {}, radar?: any): CacaPlan {
   const next: CacaPlan = { ...plan, redes: { ...(plan.redes ?? {}), ...redes } };
   next.interessesPosts = inferPostInterests(next, next.profile, radar);
   next.fontesUsadas = next.fontesUsadas?.length ? next.fontesUsadas : buildSources(next, next.redes, radar);
