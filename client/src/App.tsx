@@ -12,6 +12,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Dashboard from "./pages/Dashboard";
 import Campanhas from "./pages/Campanhas";
+import CampanhaDetalhe from "./pages/CampanhaDetalhe";
 import Criativos from "./pages/Criativos";
 import CriativoEditor from "./pages/CriativoEditor";
 import Metricas from "./pages/Metricas";
@@ -47,7 +48,7 @@ function AppRouter() {
       <Route path="/register">{() => { window.location.href = "/register"; return null; }}</Route>
       <Route path="/" component={Dashboard} />
       <Route path="/campanhas" component={Campanhas} />
-      <Route path="/campanhas/:id" component={Campanhas} />
+      <Route path="/campanhas/:id" component={CampanhaDetalhe} />
       <Route path="/criativos/:id" component={CriativoEditor} />
       <Route path="/criativos" component={Criativos} />
       <Route path="/metricas" component={Metricas} />
