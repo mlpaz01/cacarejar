@@ -61,6 +61,15 @@ export default function Recalibracao() {
     },
     onError: e => toast.error(e.message || "Erro ao recalcular diagnostico"),
   });
+  const duplicateCreative = trpc.studio.duplicateCreative.useMutation({
+    onSuccess: (data: any) => {
+      toast.success("Variacao criada a partir do melhor sinal.");
+      navigate(
+        `/criativos/${data.id}?returnTo=${encodeURIComponent("/recalibracao")}&closeOnSave=1`
+      );
+    },
+    onError: e => toast.error(e.message || "Erro ao criar variacao"),
+  });
 
   const totals = useMemo(() => {
     const rows = metrics.data ?? [];
@@ -342,6 +351,25 @@ export default function Recalibracao() {
               tone="warn"
             />
           </div>
+          {bestPlanItem?.creativeId ? (
+            <button
+              type="button"
+              onClick={() =>
+                duplicateCreative.mutate({
+                  id: Number(bestPlanItem.creativeId),
+                })
+              }
+              disabled={duplicateCreative.isPending}
+              className="mt-4 rounded-xl bg-[#071b44] text-white px-4 py-2.5 text-xs font-black inline-flex items-center gap-2 disabled:opacity-50"
+            >
+              {duplicateCreative.isPending ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Sparkles className="w-3.5 h-3.5" />
+              )}
+              Criar variacao do vencedor
+            </button>
+          ) : null}
         </div>
       </section>
       <section className="grid grid-cols-1 xl:grid-cols-[.85fr_1.15fr] gap-5 mb-5">

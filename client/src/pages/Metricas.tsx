@@ -29,9 +29,12 @@ import {
   DollarSign,
   RefreshCcw,
   ArrowRight,
+  Copy,
+  Loader2,
 } from "lucide-react";
 import { MetricCard } from "@/components/ui/MetricCard";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
+import { toast } from "sonner";
 
 const CHANNEL_COLORS: Record<string, string> = {
   linkedin: "oklch(0.62 0.22 240)",
@@ -102,6 +105,7 @@ function MiniOrganic({
 }
 
 export default function Metricas() {
+  const [, navigate] = useLocation();
   const [period, setPeriod] = useState(30);
   const [selectedCampaign, setSelectedCampaign] = useState<
     number | undefined
@@ -120,6 +124,15 @@ export default function Metricas() {
     { campaignId: selectedCampaign!, from, to },
     { enabled: !!selectedCampaign }
   );
+  const duplicateCreative = trpc.studio.duplicateCreative.useMutation({
+    onSuccess: (data: any) => {
+      toast.success("Variacao criada a partir do vencedor.");
+      navigate(
+        `/criativos/${data.id}?returnTo=${encodeURIComponent("/metricas")}&closeOnSave=1`
+      );
+    },
+    onError: e => toast.error(e.message || "Erro ao criar variacao"),
+  });
 
   // Aggregate totals
   const totals = useMemo(() => {
@@ -447,6 +460,25 @@ export default function Metricas() {
               {bestOrganic?.gancho ??
                 "Publique e registre resultados para o Agente encontrar o vencedor."}
             </p>
+            {bestOrganic?.creativeId ? (
+              <button
+                type="button"
+                onClick={() =>
+                  duplicateCreative.mutate({
+                    id: Number(bestOrganic.creativeId),
+                  })
+                }
+                disabled={duplicateCreative.isPending}
+                className="mt-4 rounded-xl bg-white text-[#071b44] px-4 py-2 text-xs font-black inline-flex items-center gap-2 disabled:opacity-50"
+              >
+                {duplicateCreative.isPending ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Copy className="w-3.5 h-3.5" />
+                )}
+                Criar variacao no Estudio
+              </button>
+            ) : null}
           </div>
           <div className="rounded-2xl bg-[#fff8f6] border border-[#ffd5ce] p-4">
             <p className="text-[10px] font-black text-[#ff3217] uppercase">
