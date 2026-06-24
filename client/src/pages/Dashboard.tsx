@@ -12,6 +12,8 @@ import {
   Zap,
   AlertTriangle,
   ArrowRight,
+  CalendarDays,
+  CheckSquare,
   Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -58,6 +60,7 @@ export default function Dashboard() {
   const { data: summary, isLoading: loadingSummary } = trpc.metrics.dashboard.useQuery();
   const { data: campaigns, isLoading: loadingCampaigns } = trpc.campaigns.list.useQuery();
   const { data: calibrations } = trpc.calibration.list.useQuery();
+  const { data: diagnosis } = trpc.diagnosis.get.useQuery();
   const { data: allMetrics } = trpc.metrics.all.useQuery({
     from: subDays(new Date(), 30).toISOString(),
     to: new Date().toISOString(),
@@ -65,6 +68,10 @@ export default function Dashboard() {
 
   const activeCampaigns = campaigns?.filter((c) => c.status === "ativa") ?? [];
   const pendingCalibrations = calibrations?.filter((c) => c.status === "pendente") ?? [];
+  const planItems = ((diagnosis as any)?.plano7Dias ?? []) as any[];
+  const doneItems = planItems.filter((item) => ["publicado", "medir"].includes(item.status) || item.resultado).length;
+  const nextItem = planItems.find((item) => !["publicado", "medir"].includes(item.status) && !item.resultado) ?? planItems[0];
+  const planProgress = planItems.length ? Math.round((doneItems / planItems.length) * 100) : 0;
 
   const chartData = useMemo(() => {
     const days = Array.from({ length: 14 }, (_, i) => {
@@ -125,6 +132,48 @@ export default function Dashboard() {
       )}
 
       {/* Métricas principais */}
+      <section className="mb-6">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <p className="text-xs font-black text-[#ff3217] uppercase tracking-wide">Jornada atual</p>
+            <h2 className="text-xl font-black text-[#071b44] mt-1">
+              {(diagnosis as any)?.produto || (diagnosis as any)?.nicho || "Motor semanal"}
+            </h2>
+            <p className="text-sm text-[#61708a] mt-1">
+              {nextItem ? `${nextItem.dia} - ${nextItem.canal}: ${nextItem.gancho}` : "Nenhum plano ativo encontrado."}
+            </p>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <Link href="/diagnostico">
+              <a className="rounded-xl bg-[#071b44] text-white px-4 py-2 text-xs font-black inline-flex items-center gap-2">
+                <CalendarDays className="w-3.5 h-3.5" /> Abrir plano
+              </a>
+            </Link>
+            <Link href="/aprovacao">
+              <a className="rounded-xl border border-[#e6ebf3] text-[#071b44] px-4 py-2 text-xs font-black inline-flex items-center gap-2 hover:bg-[#f8fafc]">
+                <CheckSquare className="w-3.5 h-3.5" /> Revisar posts
+              </a>
+            </Link>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-4 mt-5">
+          <div className="rounded-2xl bg-[#071b44] text-white p-4">
+            <p className="text-[10px] font-black text-white/60 uppercase">Semana</p>
+            <p className="text-4xl font-black mt-1">{planProgress}%</p>
+            <div className="h-2 rounded-full bg-white/15 mt-3 overflow-hidden">
+              <div className="h-full bg-[#18b85c]" style={{ width: `${planProgress}%` }} />
+            </div>
+            <p className="text-[11px] text-white/75 mt-3">{doneItems} de {planItems.length || 0} itens medidos/publicados</p>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <JourneyMetric label="Diagnostico" value={(diagnosis as any)?.produto ? "ativo" : "pendente"} />
+            <JourneyMetric label="Plano" value={planItems.length ? `${planItems.length} itens` : "vazio"} />
+            <JourneyMetric label="Campanhas" value={`${activeCampaigns.length} ativa(s)`} />
+            <JourneyMetric label="Aprendizado" value={doneItems ? "com dados" : "sem dados"} />
+          </div>
+        </div>
+      </section>
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <MetricCard
           label="Impressões Totais"
@@ -296,5 +345,14 @@ export default function Dashboard() {
         </div>
       </div>
     </AppLayout>
+  );
+}
+
+function JourneyMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-4">
+      <p className="text-[10px] font-black text-[#61708a] uppercase tracking-wide">{label}</p>
+      <p className="text-lg font-black text-[#071b44] mt-1">{value}</p>
+    </div>
   );
 }

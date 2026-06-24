@@ -6,6 +6,9 @@ import {
   BarChart3,
   BookOpen,
   CalendarDays,
+  CheckCircle2,
+  ClipboardList,
+  Copy,
   ExternalLink,
   FileDown,
   Flame,
@@ -450,6 +453,26 @@ export default function Diagnostico() {
     const n = Number(value);
     return Number.isFinite(n) && n >= 0 ? n : undefined;
   };
+  const executionDone = plano7Dias.filter((item: any) => ["publicado", "medir"].includes(item.status) || item.resultado).length;
+  const executionApproved = plano7Dias.filter((item: any) => item.status === "aprovado").length;
+  const executionEditing = plano7Dias.filter((item: any) => item.status === "em_edicao").length;
+  const nextExecutionIndex = plano7Dias.findIndex((item: any) => !["publicado", "medir"].includes(item.status) && !item.resultado);
+  const nextExecutionItem = nextExecutionIndex >= 0 ? plano7Dias[nextExecutionIndex] : plano7Dias[0];
+  const executionProgress = plano7Dias.length ? Math.round((executionDone / plano7Dias.length) * 100) : 0;
+  const weeklyPackageText = plano7Dias.map((item: any) => [
+    `${item.dia} - ${item.canal}`,
+    `Status: ${String(item.status || "ideia").replace("_", " ")}`,
+    `Objetivo: ${item.objetivo}`,
+    `Gancho: ${item.gancho}`,
+    `Legenda: ${item.legenda}`,
+    item.cta ? `CTA: ${item.cta}` : "",
+    item.hashtags?.length ? `Hashtags: ${item.hashtags.join(" ")}` : "",
+    item.metricaChave ? `Medir: ${item.metricaChave}` : "",
+  ].filter(Boolean).join("\n")).join("\n\n---\n\n");
+  const copyWeeklyPackage = async () => {
+    await navigator.clipboard?.writeText(weeklyPackageText);
+    toast.success("Pacote da semana copiado.");
+  };
   const updatePlanStatus = (index: number, status: "ideia" | "em_edicao" | "aprovado" | "publicado" | "medir") => {
     updateSevenDayItem.mutate({ index, patch: { status } });
   };
@@ -635,6 +658,80 @@ export default function Diagnostico() {
                 <p className="text-xs text-[#61708a] leading-relaxed mt-2">{a.motivo}</p>
               </article>
             ))}
+          </div>
+        </section>
+      )}
+
+      {plano7Dias.length > 0 && (
+        <section className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <HeaderLine icon={ClipboardList} title="Central da semana" subtitle="O plano vivo para transformar diagnostico em execucao, medicao e aprendizado." />
+            <button
+              type="button"
+              onClick={copyWeeklyPackage}
+              className="rounded-xl border border-[#e6ebf3] bg-white px-4 py-2 text-xs font-black text-[#071b44] hover:border-[#071b44] flex items-center gap-2"
+            >
+              <Copy className="w-3.5 h-3.5" /> Copiar pacote
+            </button>
+          </div>
+          <div className="grid grid-cols-1 xl:grid-cols-[260px_1fr_320px] gap-5 mt-5">
+            <div className="rounded-3xl bg-[#071b44] text-white p-5">
+              <p className="text-xs font-black text-white/60 uppercase">Execucao</p>
+              <p className="text-5xl font-black mt-2">{executionProgress}%</p>
+              <div className="h-2 rounded-full bg-white/15 mt-4 overflow-hidden">
+                <div className="h-full bg-[#18b85c]" style={{ width: `${executionProgress}%` }} />
+              </div>
+              <p className="text-xs text-white/75 leading-relaxed mt-4">
+                {executionDone} de {plano7Dias.length} itens publicados ou medidos. {executionApproved} aprovado(s), {executionEditing} em edicao.
+              </p>
+            </div>
+            {nextExecutionItem && (
+              <div className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[10px] font-black text-[#ff3217] uppercase">{nextExecutionItem.dia} - {nextExecutionItem.canal}</p>
+                    <h3 className="text-xl font-black text-[#071b44] mt-1">{nextExecutionItem.gancho}</h3>
+                  </div>
+                  <span className="rounded-full bg-white border border-[#e6ebf3] px-3 py-1 text-[10px] font-black text-[#071b44]">{nextExecutionItem.formato}</span>
+                </div>
+                <p className="text-sm text-[#22304b] font-semibold leading-relaxed mt-3">{nextExecutionItem.legenda}</p>
+                <div className="flex flex-wrap gap-2 mt-4">
+                  <button
+                    type="button"
+                    onClick={() => openStudioFromPlan(nextExecutionIndex >= 0 ? nextExecutionIndex : 0, nextExecutionItem.creativeId)}
+                    className="rounded-xl bg-[#ff3217] text-white px-4 py-2 text-xs font-black hover:bg-[#e12a12] flex items-center gap-2"
+                  >
+                    <Pencil className="w-3.5 h-3.5" /> Editar proximo post
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => updatePlanStatus(nextExecutionIndex >= 0 ? nextExecutionIndex : 0, "aprovado")}
+                    disabled={updateSevenDayItem.isPending}
+                    className="rounded-xl border border-[#18b85c] bg-[#eafff1] text-[#087a32] px-4 py-2 text-xs font-black disabled:opacity-50 flex items-center gap-2"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Marcar aprovado
+                  </button>
+                </div>
+              </div>
+            )}
+            <div className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-5">
+              <p className="text-[10px] font-black text-[#ff3217] uppercase">Pipeline</p>
+              <div className="space-y-3 mt-3">
+                {[
+                  ["E", "Em edicao", executionEditing],
+                  ["A", "Aprovados", executionApproved],
+                  ["M", "Medidos", executionDone],
+                ].map(([n, title, value]) => (
+                  <div key={title} className="flex gap-3">
+                    <span className="w-7 h-7 rounded-full bg-white border border-[#e6ebf3] flex items-center justify-center text-xs font-black text-[#071b44]">{n}</span>
+                    <div>
+                      <p className="text-xs font-black text-[#071b44]">{title}</p>
+                      <p className="text-[11px] text-[#61708a] leading-snug">{value} item(ns)</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </section>
       )}
