@@ -145,6 +145,10 @@ export default function Metricas() {
   const ctr = totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : 0;
   const cpl = totals.conversions > 0 ? totals.spend / totals.conversions : 0;
   const organicItems = ((diagnosis as any)?.plano7Dias ?? []).filter((item: any) => item.resultado);
+  const organicScore = (x: any) => {
+    const r = x.resultado ?? {};
+    return Number(r.salvamentos ?? 0) * 6 + Number(r.cliques ?? 0) * 3 + Number(r.leads ?? 0) * 12 + Number(r.vendas ?? 0) * 30 + Number(r.receita ?? 0) / 10;
+  };
   const organicTotals = organicItems.reduce((acc: any, item: any) => {
     const r = item.resultado ?? {};
     acc.alcance += Number(r.alcance ?? 0);
@@ -155,13 +159,13 @@ export default function Metricas() {
     acc.receita += Number(r.receita ?? 0);
     return acc;
   }, { alcance: 0, salvamentos: 0, cliques: 0, leads: 0, vendas: 0, receita: 0 });
-  const bestOrganic = [...organicItems].sort((a: any, b: any) => {
-    const score = (x: any) => {
-      const r = x.resultado ?? {};
-      return Number(r.salvamentos ?? 0) * 6 + Number(r.cliques ?? 0) * 3 + Number(r.leads ?? 0) * 12 + Number(r.vendas ?? 0) * 30 + Number(r.receita ?? 0) / 10;
-    };
-    return score(b) - score(a);
-  })[0];
+  const organicRanking = [...organicItems].sort((a: any, b: any) => organicScore(b) - organicScore(a)).slice(0, 5);
+  const bestOrganic = organicRanking[0];
+  const organicDecision = bestOrganic?.resultado?.vendas || bestOrganic?.resultado?.leads
+    ? "Transformar o melhor post em campanha assistida."
+    : bestOrganic?.resultado?.salvamentos || bestOrganic?.resultado?.cliques
+      ? "Criar nova versao do melhor gancho antes de investir."
+      : "Publicar mais itens antes de escolher um vencedor.";
   const leitura = totals.impressions === 0
     ? "Ainda não há volume suficiente. Aprove posts, publique campanhas e volte para medir a primeira leitura."
     : ctr < 0.8
@@ -275,6 +279,37 @@ export default function Metricas() {
             <p className="text-[10px] font-black text-[#ff3217] uppercase">Receita organica registrada</p>
             <p className="text-3xl font-black text-[#071b44] mt-2">{formatCurrency(organicTotals.receita)}</p>
             <p className="text-xs text-[#61708a] mt-1">Use esse sinal para decidir se o post merece campanha assistida.</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 mt-5">
+          <div className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-4">
+            <p className="text-[10px] font-black text-[#ff3217] uppercase">Ranking organico</p>
+            <div className="space-y-2 mt-3">
+              {organicRanking.length ? organicRanking.map((item: any, index: number) => (
+                <div key={`${item.dia}-${index}`} className="rounded-xl border border-[#e6ebf3] bg-white p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-black text-[#071b44]">{index + 1}. {item.dia} - {item.canal}</p>
+                      <p className="text-[11px] text-[#22304b] font-semibold leading-snug mt-1">{item.gancho}</p>
+                    </div>
+                    <span className="rounded-full bg-[#071b44] text-white px-3 py-1 text-[10px] font-black">{Math.round(organicScore(item))}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-2 text-[10px] font-black text-[#61708a]">
+                    <span>salvos {item.resultado?.salvamentos ?? 0}</span>
+                    <span>cliques {item.resultado?.cliques ?? 0}</span>
+                    <span>leads {item.resultado?.leads ?? 0}</span>
+                    <span>vendas {item.resultado?.vendas ?? 0}</span>
+                  </div>
+                </div>
+              )) : (
+                <p className="text-sm text-[#61708a]">Sem posts medidos ainda.</p>
+              )}
+            </div>
+          </div>
+          <div className="rounded-2xl bg-[#071b44] text-white p-4">
+            <p className="text-[10px] font-black text-white/60 uppercase">Decisao do ciclo</p>
+            <p className="text-lg font-black mt-2">{organicDecision}</p>
+            <p className="text-xs text-white/70 mt-2">O melhor sinal organico deve orientar o proximo diagnostico, o Radar e a verba.</p>
           </div>
         </div>
       </section>
