@@ -178,7 +178,7 @@ function SparkleField() {
 export const DIAGNOSIS_STEPS_IG: AnalysisStep[] = [
   { icon: "🔍", label: "Lendo seu perfil no Instagram", detail: "Buscamos bio, seguidores, posts e engajamento via Apify.", durationMs: 35000 },
   { icon: "🖼️", label: "Baixando seus posts campeões", detail: "Trazemos as imagens para o nosso servidor (a CDN do IG bloqueia).", durationMs: 7000 },
-  { icon: "🎨", label: "Analisando o DNA visual da marca", detail: "Claude Sonnet 4.6 vê suas fotos e extrai paleta, tipografia e estilo.", durationMs: 25000 },
+  { icon: "🎨", label: "Analisando o DNA visual da marca", detail: "O Agente Visual le suas fotos e extrai paleta, tipografia e estilo.", durationMs: 25000 },
   { icon: "🧠", label: "Identificando seu nicho e padrões", detail: "Cruza o que você descreveu com o que vemos no perfil.", durationMs: 5000 },
   { icon: "🪜", label: "Construindo a estratégia de funil", detail: "Canal, oferta e ângulos do Teste A/Z.", durationMs: 35000 },
   { icon: "🏛️", label: "Detalhando pilares estratégicos", detail: "Cada pilar com ações concretas (consultoria nível agência).", durationMs: 12000 },
@@ -189,7 +189,7 @@ export const DIAGNOSIS_STEPS_IG: AnalysisStep[] = [
 // Etapas para quando só há SITE (sem Instagram)
 export const DIAGNOSIS_STEPS_SITE: AnalysisStep[] = [
   { icon: "🌐", label: "Lendo seu site oficial", detail: "Buscamos título, descrição, imagem de capa e o texto principal.", durationMs: 10000 },
-  { icon: "🎨", label: "Analisando a identidade visual da marca", detail: "Claude Sonnet 4.6 olha sua landing e extrai paleta, tom e estilo.", durationMs: 20000 },
+  { icon: "🎨", label: "Analisando a identidade visual da marca", detail: "O Agente Visual le sua landing e extrai paleta, tom e estilo.", durationMs: 20000 },
   { icon: "🧠", label: "Identificando seu nicho e proposta", detail: "Cruzamos o que você descreveu com o que vemos no site.", durationMs: 5000 },
   { icon: "🪜", label: "Construindo a estratégia de funil", detail: "Canal, oferta e ângulos do Teste A/Z.", durationMs: 35000 },
   { icon: "🏛️", label: "Detalhando pilares estratégicos", detail: "Cada pilar com ações concretas (nível agência).", durationMs: 12000 },
@@ -210,7 +210,7 @@ export const DIAGNOSIS_STEPS_LINKEDIN: AnalysisStep[] = [
 export const DIAGNOSIS_STEPS_TT: AnalysisStep[] = [
   { icon: "🎵", label: "Lendo seu perfil no TikTok", detail: "Buscamos bio, seguidores, vídeos e engajamento via Apify.", durationMs: 30000 },
   { icon: "🖼️", label: "Baixando thumbnails dos seus vídeos campeões", detail: "Trazemos as capas para o nosso servidor.", durationMs: 7000 },
-  { icon: "🎨", label: "Analisando a identidade visual dos vídeos", detail: "Claude Sonnet 4.6 vê suas capas e extrai estilo, paleta e padrão.", durationMs: 25000 },
+  { icon: "🎨", label: "Analisando a identidade visual dos vídeos", detail: "O Agente Visual le suas capas e extrai estilo, paleta e padrao.", durationMs: 25000 },
   { icon: "🧠", label: "Identificando seu nicho e padrões de conteúdo", detail: "Cruza o que você descreveu com o que vemos nos vídeos.", durationMs: 5000 },
   { icon: "🪜", label: "Construindo a estratégia de funil", detail: "Canal, oferta e ângulos do Teste A/Z.", durationMs: 35000 },
   { icon: "🏛️", label: "Detalhando pilares estratégicos", detail: "Cada pilar com ações concretas (consultoria nível agência).", durationMs: 12000 },
@@ -240,10 +240,10 @@ export function pickDiagnosisSteps(input: { instagram?: string; tiktok?: string;
 export const DIAGNOSIS_STEPS = DIAGNOSIS_STEPS_IG;
 
 export const RADAR_STEPS: AnalysisStep[] = [
-  { icon: "🧠", label: "Sugerindo perfis e hashtags do seu nicho", detail: "Claude lista os concorrentes e influencers relevantes.", durationMs: 12000 },
+  { icon: "🧠", label: "Sugerindo perfis e hashtags do seu nicho", detail: "O Agente Radar lista concorrentes e criadores relevantes.", durationMs: 12000 },
   { icon: "🔍", label: "Descobrindo perfis pelas hashtags", detail: "Buscamos posts ativos e seus autores.", durationMs: 25000 },
   { icon: "📥", label: "Lendo os perfis encontrados em lote", detail: "Raspagem em uma chamada (mais barata e estável).", durationMs: 30000 },
   { icon: "🏆", label: "Rankeando os hits por engajamento", detail: "Selecionamos os posts campeões com imagem.", durationMs: 6000 },
   { icon: "🖼️", label: "Baixando as imagens dos hits", detail: "Servindo do nosso domínio (CDN do IG bloqueia hotlink).", durationMs: 10000 },
-  { icon: "🎯", label: "Adaptando os conceitos para a sua identidade", detail: "Claude vê cada post e cria a versão na sua paleta.", durationMs: 45000 },
+  { icon: "🎯", label: "Adaptando os conceitos para a sua identidade", detail: "O Agente Visual le cada post e adapta a versao para a sua paleta.", durationMs: 45000 },
 ];
