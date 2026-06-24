@@ -310,7 +310,7 @@ export default function CriativoEditor() {
           )}
         </div>
 
-        {/* ═══════ PAINEL DIREITO — EDIÇÃO ═══════ */}
+        {/* Painel direito de edicao */}
         <div className="space-y-4">
           {/* Chips do brief */}
           <div className="flex items-center gap-2 flex-wrap">
@@ -423,7 +423,7 @@ export default function CriativoEditor() {
                       <input value={pilar} onChange={e => { setPilar(e.target.value); setDirty(true); }}
                         className="w-full border border-[#e6ebf3] rounded-lg px-3 py-2.5 text-sm bg-[#f6f8fc] focus:outline-none focus:border-[#ff3217]" />
                     </Field>
-                    <Field label="Ângulo">
+                    <Field label="Angulo">
                       <select value={angulo} onChange={e => { setAngulo(e.target.value); setDirty(true); }}
                         className="w-full border border-[#e6ebf3] rounded-lg px-3 py-2.5 text-sm bg-[#f6f8fc] focus:outline-none focus:border-[#ff3217]">
                         <option value="desejo">Desejo</option>
@@ -480,7 +480,7 @@ export default function CriativoEditor() {
                 </>
               )}
 
-              {/* ─── DIREÇÃO DE ARTE ─── */}
+              {/* Direcao de arte */}
               {tab === "art" && (
                 <>
                   <Field icon={<Palette className="w-3 h-3" />} label="Prompt de imagem (visualPrompt)" hint="Briefing de direção de arte em inglês. Cena, luz, lente, paleta da marca. Este prompt é usado pelo botão 'Regerar'.">
