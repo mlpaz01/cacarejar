@@ -10,12 +10,15 @@ import {
   Megaphone,
   Calendar,
   DollarSign,
+  ClipboardCheck,
+  Copy,
   MoreHorizontal,
   Play,
   Pause,
   Archive,
   Eye,
   ArrowRight,
+  WandSparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,6 +66,7 @@ function formatCurrency(n: number | string): string {
 export default function Campanhas() {
   const utils = trpc.useUtils();
   const { data: campaigns, isLoading } = trpc.campaigns.list.useQuery();
+  const { data: diagnosis } = trpc.diagnosis.get.useQuery();
   const createMutation = trpc.campaigns.create.useMutation({
     onSuccess: () => {
       utils.campaigns.list.invalidate();
@@ -101,6 +105,55 @@ export default function Campanhas() {
 
   function resetForm() {
     setForm({ name: "", objective: "", targetAudience: "", budgetTotal: "", channels: [], startDate: "", endDate: "" });
+  }
+
+  const assistedCampaign = (diagnosis as any)?.campanhaAssistida;
+  const assistedCopy = assistedCampaign ? [
+    `Campanha assistida: ${assistedCampaign.titulo}`,
+    `Canal: ${assistedCampaign.canal}`,
+    `Objetivo: ${assistedCampaign.objetivo}`,
+    `Base: ${assistedCampaign.base}`,
+    `Orcamento: ${assistedCampaign.orcamento}`,
+    "",
+    "Copy:",
+    assistedCampaign.copy,
+    "",
+    "Checklist:",
+    ...(assistedCampaign.checklist ?? []).map((item: string) => `- ${item}`),
+    "",
+    "KPIs:",
+    ...(assistedCampaign.kpis ?? []).map((item: string) => `- ${item}`),
+  ].join("\n") : "";
+
+  function assistedChannels(canal?: string) {
+    const value = String(canal || "").toLowerCase();
+    if (value.includes("google")) return ["google"];
+    if (value.includes("tiktok")) return ["tiktok"];
+    return ["instagram"];
+  }
+
+  function useAssistedCampaign() {
+    if (!assistedCampaign) return;
+    setForm({
+      name: assistedCampaign.titulo || `Campanha assistida - ${(diagnosis as any)?.produto || "perfil ativo"}`,
+      objective: assistedCampaign.objetivo || "Conversões",
+      targetAudience: [
+        `Base estrategica: ${assistedCampaign.base || "conteudo vencedor do plano"}`,
+        assistedCampaign.copy ? `Mensagem: ${assistedCampaign.copy}` : "",
+        ...(assistedCampaign.checklist ?? []).map((item: string) => `Checklist: ${item}`),
+      ].filter(Boolean).join("\n"),
+      budgetTotal: "150",
+      channels: assistedChannels(assistedCampaign.canal),
+      startDate: "",
+      endDate: "",
+    });
+    setOpen(true);
+  }
+
+  async function copyAssistedCampaign() {
+    if (!assistedCopy) return;
+    await navigator.clipboard?.writeText(assistedCopy);
+    toast.success("Campanha assistida copiada.");
   }
 
   function toggleChannel(ch: string) {
@@ -158,6 +211,46 @@ export default function Campanhas() {
       }
     >
       <JourneyGuide active="campanhas" />
+
+      {assistedCampaign && (
+        <section className="bg-white rounded-3xl border border-[#e6ebf3] p-6 shadow-sm mb-6">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <p className="text-xs font-black text-[#ff3217] uppercase tracking-wide flex items-center gap-2">
+                <WandSparkles className="w-4 h-4" /> Recomendacao do diagnostico
+              </p>
+              <h2 className="text-2xl font-black text-[#071b44] mt-1">{assistedCampaign.titulo}</h2>
+              <p className="text-sm font-bold text-[#22304b] leading-relaxed mt-2 max-w-4xl">{assistedCampaign.objetivo}</p>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <button onClick={copyAssistedCampaign} className="rounded-xl border border-[#e6ebf3] bg-white px-4 py-2 text-xs font-black text-[#071b44] hover:bg-[#f8fafc] flex items-center gap-2">
+                <Copy className="w-4 h-4" /> Copiar pacote
+              </button>
+              <button onClick={useAssistedCampaign} className="btn-action-primary px-4 py-2 text-xs flex items-center gap-2">
+                <ClipboardCheck className="w-4 h-4" /> Usar campanha
+              </button>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-5">
+            <div className="rounded-2xl bg-[#fbfcff] border border-[#e6ebf3] p-4">
+              <p className="text-[10px] font-black uppercase text-[#61708a]">Canal e base</p>
+              <p className="text-sm font-black text-[#071b44] mt-2">{assistedCampaign.canal}</p>
+              <p className="text-xs text-[#61708a] leading-relaxed mt-2">{assistedCampaign.base}</p>
+            </div>
+            <div className="rounded-2xl bg-[#fbfcff] border border-[#e6ebf3] p-4">
+              <p className="text-[10px] font-black uppercase text-[#61708a]">Verba inicial</p>
+              <p className="text-sm font-black text-[#071b44] mt-2">{assistedCampaign.orcamento}</p>
+              <p className="text-xs text-[#61708a] leading-relaxed mt-2">Comece pequeno, meca o vencedor e so depois aumente investimento.</p>
+            </div>
+            <div className="rounded-2xl bg-[#fbfcff] border border-[#e6ebf3] p-4">
+              <p className="text-[10px] font-black uppercase text-[#61708a]">Checklist de seguranca</p>
+              {(assistedCampaign.checklist ?? []).slice(0, 3).map((item: string) => (
+                <p key={item} className="text-xs font-bold text-[#22304b] leading-snug mt-2">- {item}</p>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="grid grid-cols-1 xl:grid-cols-[1.1fr_.9fr] gap-5 mb-6">
         <div className="rounded-3xl bg-[#071b44] text-white p-6 shadow-sm">

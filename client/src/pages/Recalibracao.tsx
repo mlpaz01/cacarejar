@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Circle,
   ClipboardCheck,
+  Copy,
   FileText,
   Loader2,
   Megaphone,
@@ -75,6 +76,40 @@ export default function Recalibracao() {
   const progress = planner?.progresso ?? 0;
   const contentDone = planner?.conteudos?.feitos ?? 0;
   const contentTotal = planner?.conteudos?.total ?? 0;
+  const planItems = ((plan?.plano7Dias ?? []) as any[]);
+  const measuredItems = planItems.filter((item: any) => item?.resultado);
+  const executedItems = planItems.filter((item: any) => ["publicado", "medir"].includes(item?.status) || item?.resultado);
+  const organicTotals = measuredItems.reduce(
+    (acc: any, item: any) => {
+      const r = item.resultado ?? {};
+      acc.salvamentos += Number(r.salvamentos ?? 0);
+      acc.cliques += Number(r.cliques ?? 0);
+      acc.leads += Number(r.leads ?? 0);
+      acc.vendas += Number(r.vendas ?? 0);
+      acc.receita += Number(r.receita ?? 0);
+      return acc;
+    },
+    { salvamentos: 0, cliques: 0, leads: 0, vendas: 0, receita: 0 }
+  );
+  const bestPlanItem = [...measuredItems].sort((a: any, b: any) => organicScore(b) - organicScore(a))[0];
+  const checkinText = [
+    `Check-in do perfil: ${plan?.profile?.handle || plan?.produto || plan?.nicho || "perfil ativo"}`,
+    `Plano executado: ${executedItems.length}/${planItems.length || 7} itens publicados ou medidos.`,
+    `Sinais organicos: ${organicTotals.salvamentos} salvamentos, ${organicTotals.cliques} cliques, ${organicTotals.leads} leads, ${organicTotals.vendas} vendas, receita estimada ${formatCurrency(organicTotals.receita)}.`,
+    bestPlanItem ? `Melhor sinal: Dia ${bestPlanItem.dia} - ${bestPlanItem.canal} (${bestPlanItem.gancho || bestPlanItem.ideia}).` : "Melhor sinal: ainda sem item medido.",
+    totals.conversions ? `Campanhas: ${totals.conversions} conversoes com CPL aproximado de ${formatCurrency(totals.cpl)}.` : "Campanhas: ainda sem conversoes registradas.",
+    "Decisao sugerida: manter o que gerou salvamento/comentario, transformar vencedor em nova pauta e evitar escalar verba antes de medir."
+  ].join("\n");
+
+  const fillCheckin = () => {
+    setFeedback(checkinText);
+    toast.success("Resumo aplicado ao check-in.");
+  };
+
+  const copyCheckin = async () => {
+    await navigator.clipboard?.writeText(checkinText);
+    toast.success("Resumo copiado.");
+  };
 
   const setItemStatus = (weekIndex: number, itemIndex: number, status: PlannerItem["status"]) => {
     setPlanner((prev: any) => {
@@ -145,6 +180,38 @@ export default function Recalibracao() {
       }
     >
       <JourneyGuide active="acompanhamento" />
+      <section className="bg-white rounded-3xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h2 className="text-xl font-black text-[#070b17] flex items-center gap-2"><ClipboardCheck className="w-5 h-5 text-[#ff3217]" /> Check-in da semana</h2>
+            <p className="text-sm text-[#61708a] mt-1">Resumo automatico para transformar execucao em aprendizado e alimentar a nova rota.</p>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            <button onClick={fillCheckin} className="rounded-xl border border-[#e6ebf3] bg-white px-4 py-2 text-xs font-black text-[#071b44] hover:bg-[#f8fafc] flex items-center gap-2">
+              <FileText className="w-4 h-4" /> Usar no check-in
+            </button>
+            <button onClick={copyCheckin} className="rounded-xl bg-[#071b44] px-4 py-2 text-xs font-black text-white hover:bg-[#10285d] flex items-center gap-2">
+              <Copy className="w-4 h-4" /> Copiar resumo
+            </button>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mt-5">
+          <Metric label="Plano executado" value={`${executedItems.length}/${planItems.length || 7}`} icon={CheckCircle2} />
+          <Metric label="Salvamentos" value={formatNumber(organicTotals.salvamentos)} icon={ClipboardCheck} />
+          <Metric label="Cliques organicos" value={formatNumber(organicTotals.cliques)} icon={Target} />
+          <Metric label="Leads" value={formatNumber(organicTotals.leads)} icon={TrendingUp} />
+          <Metric label="Receita" value={formatCurrency(organicTotals.receita)} icon={BarChart3} />
+        </div>
+        <div className="rounded-2xl bg-[#fbfcff] border border-[#e6ebf3] p-4 mt-4">
+          <p className="text-xs font-black text-[#61708a] uppercase">Melhor aprendizado ate aqui</p>
+          <p className="text-sm font-black text-[#071b44] mt-1">
+            {bestPlanItem ? `Dia ${bestPlanItem.dia} - ${bestPlanItem.canal}: ${bestPlanItem.gancho || bestPlanItem.ideia}` : "Ainda falta medir ao menos um post para eleger um vencedor."}
+          </p>
+          <p className="text-xs text-[#61708a] leading-relaxed mt-2">
+            {bestPlanItem ? "Use esse sinal como base para o proximo conteudo, uma campanha pequena ou uma nova variacao no Estudio." : "Quando houver resultado, o resumo passa a orientar o que repetir, ajustar ou abandonar."}
+          </p>
+        </div>
+      </section>
       <section className="grid grid-cols-1 xl:grid-cols-[.85fr_1.15fr] gap-5 mb-5">
         <div className="rounded-3xl bg-[#071b44] text-white p-6 shadow-sm">
           <p className="text-xs font-black text-white/60 uppercase tracking-widest">{planner?.ciclo || "Ciclo de execucao"}</p>
@@ -310,4 +377,13 @@ function formatNumber(n: number) {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return String(n || 0);
+}
+
+function formatCurrency(n: number) {
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(n || 0));
+}
+
+function organicScore(item: any) {
+  const r = item?.resultado ?? {};
+  return Number(r.salvamentos ?? 0) * 2 + Number(r.cliques ?? 0) * 3 + Number(r.leads ?? 0) * 8 + Number(r.vendas ?? 0) * 18 + Number(r.receita ?? 0) / 10;
 }

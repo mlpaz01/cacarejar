@@ -4,7 +4,7 @@ import { JourneyGuide } from "@/components/JourneyGuide";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
-import { Loader2, CheckCircle2, Inbox, ShieldCheck, Coins, TrendingUp, Check, Pencil, Layers3, Send } from "lucide-react";
+import { Loader2, CheckCircle2, Inbox, ShieldCheck, Coins, TrendingUp, Check, Pencil, Layers3, Send, Copy } from "lucide-react";
 
 const BUDGETS = [
   { cents: 2000, label: "Conservador", note: "R$ 20/dia" },
@@ -99,10 +99,29 @@ export default function Aprovacao() {
       ) : (
         pending.data.map((exp: any) => {
           const selectedIds = exp.variants.filter((v: any) => sel[v.id]).map((v: any) => v.id);
+          const selectedVariants = exp.variants.filter((v: any) => sel[v.id]);
           const budgetDailyCents = budgetByExp[exp.id] ?? 3000;
           const channels = Array.from(new Set(exp.variants.map((v: any) => channelLabel(v.creative?.channels, exp.channel))));
           const origins = Array.from(new Set(exp.variants.map((v: any) => originLabel(v.creative))));
           const perPostDailyCents = selectedIds.length ? Math.floor(budgetDailyCents / selectedIds.length) : 0;
+          const approvalPackageText = [
+            `Pacote de aprovacao: ${exp.name}`,
+            activeLabel ? `Perfil ativo: ${activeLabel}` : "",
+            `Verba diaria: ${brl(budgetDailyCents)}`,
+            `Posts selecionados: ${selectedVariants.length}/${exp.variants.length}`,
+            "",
+            ...selectedVariants.flatMap((v: any, index: number) => {
+              const c = v.creative ?? {};
+              const review = c.generationMeta?.humanReview;
+              return [
+                `Post ${index + 1} - ${channelLabel(c.channels, exp.channel)} (${originLabel(c)})`,
+                c.copy || "",
+                review?.note ? `Toque humano: ${review.note}` : "",
+                c.lente || c.pilar || c.formato ? `DNA: ${[c.lente, c.pilar, c.formato].filter(Boolean).join(" | ")}` : "",
+                "",
+              ];
+            })
+          ].filter(Boolean).join("\n");
           return (
             <div key={exp.id} className="bg-white rounded-xl border border-[#e6ebf3] p-5 shadow-sm mb-6">
               <div className="flex items-start justify-between gap-4 flex-wrap mb-4">
@@ -116,14 +135,26 @@ export default function Aprovacao() {
                     <span className="inline-flex items-center gap-1 rounded-full bg-[#fff1ef] border border-[#ffd0c8] px-3 py-1 text-[10px] font-black text-[#ff3217]"><Send className="w-3 h-3" /> {origins.join(" + ")}</span>
                   </div>
                 </div>
-                <button
-                  disabled={selectedIds.length === 0 || approve.isPending}
-                  onClick={() => approve.mutate({ experimentId: exp.id, variantIds: selectedIds, budgetDailyCents })}
-                  className="btn-action-primary text-sm px-5 py-2.5 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {approve.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                  Aprovar e publicar
-                </button>
+                <div className="flex gap-2 flex-wrap justify-end">
+                  <button
+                    disabled={selectedIds.length === 0}
+                    onClick={async () => {
+                      await navigator.clipboard?.writeText(approvalPackageText);
+                      toast.success("Pacote de aprovacao copiado.");
+                    }}
+                    className="rounded-xl border border-[#e6ebf3] bg-white px-4 py-2.5 text-sm font-black text-[#071b44] hover:bg-[#f8fafc] flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Copy className="w-4 h-4" /> Copiar pacote
+                  </button>
+                  <button
+                    disabled={selectedIds.length === 0 || approve.isPending}
+                    onClick={() => approve.mutate({ experimentId: exp.id, variantIds: selectedIds, budgetDailyCents })}
+                    className="btn-action-primary text-sm px-5 py-2.5 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {approve.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                    Aprovar e publicar
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-5">
@@ -174,6 +205,14 @@ export default function Aprovacao() {
                               {c.formato && <Tag>{c.formato}</Tag>}
                               {c.pilar && <Tag>{c.pilar}</Tag>}
                             </div>
+                            {c.generationMeta?.humanReview && (
+                              <div className="mt-3 rounded-lg border border-[#e6ebf3] bg-[#fbfcff] p-2">
+                                <p className="text-[10px] font-black text-[#61708a] uppercase">Revisao humana</p>
+                                <p className="text-xs font-bold text-[#071b44] mt-1">
+                                  {c.generationMeta.humanReview.score ? `${c.generationMeta.humanReview.score}/100` : "Sem nota"}{c.generationMeta.humanReview.note ? ` - ${c.generationMeta.humanReview.note}` : ""}
+                                </p>
+                              </div>
+                            )}
                             <div className="grid grid-cols-2 gap-2 mt-3">
                               <button type="button" onClick={() => setSel(s => ({ ...s, [v.id]: true }))}
                                 className="text-[11px] font-black rounded-lg border py-2 flex items-center justify-center gap-1.5"
