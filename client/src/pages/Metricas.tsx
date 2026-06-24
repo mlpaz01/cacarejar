@@ -20,7 +20,16 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { BarChart3, TrendingUp, MousePointerClick, Eye, ShoppingCart, DollarSign, RefreshCcw, ArrowRight } from "lucide-react";
+import {
+  BarChart3,
+  TrendingUp,
+  MousePointerClick,
+  Eye,
+  ShoppingCart,
+  DollarSign,
+  RefreshCcw,
+  ArrowRight,
+} from "lucide-react";
 import { MetricCard } from "@/components/ui/MetricCard";
 import { Link } from "wouter";
 
@@ -45,7 +54,11 @@ function formatNumber(n: number): string {
 }
 
 function formatCurrency(n: number): string {
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(n);
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    maximumFractionDigits: 0,
+  }).format(n);
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -56,20 +69,33 @@ const CustomTooltip = ({ active, payload, label }: any) => {
       {payload.map((p: any) => (
         <div key={p.name} className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
+            <span
+              className="w-2 h-2 rounded-full"
+              style={{ background: p.color }}
+            />
             <span className="text-muted-foreground">{p.name}</span>
           </div>
-          <span className="font-semibold text-foreground">{typeof p.value === "number" ? formatNumber(p.value) : p.value}</span>
+          <span className="font-semibold text-foreground">
+            {typeof p.value === "number" ? formatNumber(p.value) : p.value}
+          </span>
         </div>
       ))}
     </div>
   );
 };
 
-function MiniOrganic({ label, value }: { label: string; value: string | number }) {
+function MiniOrganic({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | number;
+}) {
   return (
     <div className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-3">
-      <p className="text-[10px] font-black text-[#61708a] uppercase tracking-wide">{label}</p>
+      <p className="text-[10px] font-black text-[#61708a] uppercase tracking-wide">
+        {label}
+      </p>
       <p className="text-xl font-black text-[#071b44] mt-1">{value}</p>
     </div>
   );
@@ -77,12 +103,17 @@ function MiniOrganic({ label, value }: { label: string; value: string | number }
 
 export default function Metricas() {
   const [period, setPeriod] = useState(30);
-  const [selectedCampaign, setSelectedCampaign] = useState<number | undefined>();
+  const [selectedCampaign, setSelectedCampaign] = useState<
+    number | undefined
+  >();
 
   const from = subDays(new Date(), period).toISOString();
   const to = new Date().toISOString();
 
-  const { data: allMetrics, isLoading } = trpc.metrics.all.useQuery({ from, to });
+  const { data: allMetrics, isLoading } = trpc.metrics.all.useQuery({
+    from,
+    to,
+  });
   const { data: campaigns } = trpc.campaigns.list.useQuery();
   const { data: diagnosis } = trpc.diagnosis.get.useQuery();
   const { data: campaignMetrics } = trpc.metrics.byCampaign.useQuery(
@@ -104,7 +135,10 @@ export default function Metricas() {
 
   // Chart data by day
   const dailyData = useMemo(() => {
-    const days: Record<string, { date: string; Impressões: number; Cliques: number; Conversões: number }> = {};
+    const days: Record<
+      string,
+      { date: string; Impressões: number; Cliques: number; Conversões: number }
+    > = {};
     for (let i = period - 1; i >= 0; i--) {
       const d = format(subDays(new Date(), i), "dd/MM", { locale: ptBR });
       days[d] = { date: d, Impressões: 0, Cliques: 0, Conversões: 0 };
@@ -122,10 +156,25 @@ export default function Metricas() {
 
   // By channel
   const channelData = useMemo(() => {
-    const map: Record<string, { channel: string; Impressões: number; Cliques: number; Conversões: number; Investimento: number }> = {};
+    const map: Record<
+      string,
+      {
+        channel: string;
+        Impressões: number;
+        Cliques: number;
+        Conversões: number;
+        Investimento: number;
+      }
+    > = {};
     for (const m of allMetrics ?? []) {
       if (!map[m.channel]) {
-        map[m.channel] = { channel: m.channel, Impressões: 0, Cliques: 0, Conversões: 0, Investimento: 0 };
+        map[m.channel] = {
+          channel: m.channel,
+          Impressões: 0,
+          Cliques: 0,
+          Conversões: 0,
+          Investimento: 0,
+        };
       }
       map[m.channel].Impressões += m.impressions ?? 0;
       map[m.channel].Cliques += m.clicks ?? 0;
@@ -136,43 +185,62 @@ export default function Metricas() {
   }, [allMetrics]);
 
   // Pie data
-  const pieData = channelData.map((d) => ({
+  const pieData = channelData.map(d => ({
     name: d.channel,
     value: d.Impressões,
   }));
 
-  const roi = totals.spend > 0 ? ((totals.revenue - totals.spend) / totals.spend) * 100 : 0;
-  const ctr = totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : 0;
+  const roi =
+    totals.spend > 0
+      ? ((totals.revenue - totals.spend) / totals.spend) * 100
+      : 0;
+  const ctr =
+    totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : 0;
   const cpl = totals.conversions > 0 ? totals.spend / totals.conversions : 0;
-  const organicItems = ((diagnosis as any)?.plano7Dias ?? []).filter((item: any) => item.resultado);
+  const organicItems = ((diagnosis as any)?.plano7Dias ?? []).filter(
+    (item: any) => item.resultado
+  );
   const organicScore = (x: any) => {
     const r = x.resultado ?? {};
-    return Number(r.salvamentos ?? 0) * 6 + Number(r.cliques ?? 0) * 3 + Number(r.leads ?? 0) * 12 + Number(r.vendas ?? 0) * 30 + Number(r.receita ?? 0) / 10;
+    return (
+      Number(r.salvamentos ?? 0) * 6 +
+      Number(r.cliques ?? 0) * 3 +
+      Number(r.leads ?? 0) * 12 +
+      Number(r.vendas ?? 0) * 30 +
+      Number(r.receita ?? 0) / 10
+    );
   };
-  const organicTotals = organicItems.reduce((acc: any, item: any) => {
-    const r = item.resultado ?? {};
-    acc.alcance += Number(r.alcance ?? 0);
-    acc.salvamentos += Number(r.salvamentos ?? 0);
-    acc.cliques += Number(r.cliques ?? 0);
-    acc.leads += Number(r.leads ?? 0);
-    acc.vendas += Number(r.vendas ?? 0);
-    acc.receita += Number(r.receita ?? 0);
-    return acc;
-  }, { alcance: 0, salvamentos: 0, cliques: 0, leads: 0, vendas: 0, receita: 0 });
-  const organicRanking = [...organicItems].sort((a: any, b: any) => organicScore(b) - organicScore(a)).slice(0, 5);
+  const organicTotals = organicItems.reduce(
+    (acc: any, item: any) => {
+      const r = item.resultado ?? {};
+      acc.alcance += Number(r.alcance ?? 0);
+      acc.salvamentos += Number(r.salvamentos ?? 0);
+      acc.cliques += Number(r.cliques ?? 0);
+      acc.leads += Number(r.leads ?? 0);
+      acc.vendas += Number(r.vendas ?? 0);
+      acc.receita += Number(r.receita ?? 0);
+      return acc;
+    },
+    { alcance: 0, salvamentos: 0, cliques: 0, leads: 0, vendas: 0, receita: 0 }
+  );
+  const organicRanking = [...organicItems]
+    .sort((a: any, b: any) => organicScore(b) - organicScore(a))
+    .slice(0, 5);
   const bestOrganic = organicRanking[0];
-  const organicDecision = bestOrganic?.resultado?.vendas || bestOrganic?.resultado?.leads
-    ? "Transformar o melhor post em campanha assistida."
-    : bestOrganic?.resultado?.salvamentos || bestOrganic?.resultado?.cliques
-      ? "Criar nova versao do melhor gancho antes de investir."
-      : "Publicar mais itens antes de escolher um vencedor.";
-  const leitura = totals.impressions === 0
-    ? "Ainda não há volume suficiente. Aprove posts, publique campanhas e volte para medir a primeira leitura."
-    : ctr < 0.8
-      ? "O alcance existe, mas o gancho ainda não está puxando clique. Priorize teste de promessa, primeira frase e imagem."
-      : totals.conversions === 0
-        ? "Os criativos chamam atenção, mas a conversão ainda não apareceu. Revise oferta, página e CTA."
-        : "Já existe sinal de conversão. A próxima decisão é proteger o vencedor e reduzir verba dos criativos fracos.";
+  const organicDecision =
+    bestOrganic?.resultado?.vendas || bestOrganic?.resultado?.leads
+      ? "Transformar o melhor post em campanha assistida."
+      : bestOrganic?.resultado?.salvamentos || bestOrganic?.resultado?.cliques
+        ? "Criar nova versao do melhor gancho antes de investir."
+        : "Publicar mais itens antes de escolher um vencedor.";
+  const leitura =
+    totals.impressions === 0
+      ? "Ainda não há volume suficiente. Aprove posts, publique campanhas e volte para medir a primeira leitura."
+      : ctr < 0.8
+        ? "O alcance existe, mas o gancho ainda não está puxando clique. Priorize teste de promessa, primeira frase e imagem."
+        : totals.conversions === 0
+          ? "Os criativos chamam atenção, mas a conversão ainda não apareceu. Revise oferta, página e CTA."
+          : "Já existe sinal de conversão. A próxima decisão é proteger o vencedor e reduzir verba dos criativos fracos.";
 
   return (
     <AppLayout
@@ -201,12 +269,18 @@ export default function Metricas() {
         <div className="ml-auto">
           <select
             value={selectedCampaign ?? ""}
-            onChange={(e) => setSelectedCampaign(e.target.value ? Number(e.target.value) : undefined)}
+            onChange={e =>
+              setSelectedCampaign(
+                e.target.value ? Number(e.target.value) : undefined
+              )
+            }
             className="h-8 px-3 rounded-lg bg-card border border-border text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           >
             <option value="">Todas as campanhas</option>
-            {(campaigns ?? []).map((c) => (
-              <option key={c.id} value={c.id}>{c.name}</option>
+            {(campaigns ?? []).map(c => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
             ))}
           </select>
         </div>
@@ -214,24 +288,76 @@ export default function Metricas() {
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <MetricCard label="Impressões" value={formatNumber(totals.impressions)} icon={Eye} loading={isLoading} />
-        <MetricCard label="Cliques" value={formatNumber(totals.clicks)} icon={MousePointerClick} loading={isLoading} />
-        <MetricCard label="Conversões" value={formatNumber(totals.conversions)} icon={ShoppingCart} loading={isLoading} />
-        <MetricCard label="ROI" value={`${roi.toFixed(1)}%`} icon={TrendingUp} iconColor="text-emerald-400" loading={isLoading} />
+        <MetricCard
+          label="Impressões"
+          value={formatNumber(totals.impressions)}
+          icon={Eye}
+          loading={isLoading}
+        />
+        <MetricCard
+          label="Cliques"
+          value={formatNumber(totals.clicks)}
+          icon={MousePointerClick}
+          loading={isLoading}
+        />
+        <MetricCard
+          label="Conversões"
+          value={formatNumber(totals.conversions)}
+          icon={ShoppingCart}
+          loading={isLoading}
+        />
+        <MetricCard
+          label="ROI"
+          value={`${roi.toFixed(1)}%`}
+          icon={TrendingUp}
+          iconColor="text-emerald-400"
+          loading={isLoading}
+        />
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <MetricCard label="Investimento" value={formatCurrency(totals.spend)} icon={DollarSign} loading={isLoading} />
-        <MetricCard label="Receita" value={formatCurrency(totals.revenue)} icon={TrendingUp} iconColor="text-emerald-400" loading={isLoading} />
-        <MetricCard label="CTR" value={`${ctr.toFixed(2)}%`} icon={MousePointerClick} loading={isLoading} />
-        <MetricCard label="CPC Médio" value={totals.clicks > 0 ? formatCurrency(totals.spend / totals.clicks) : "R$ 0"} icon={BarChart3} loading={isLoading} />
+        <MetricCard
+          label="Investimento"
+          value={formatCurrency(totals.spend)}
+          icon={DollarSign}
+          loading={isLoading}
+        />
+        <MetricCard
+          label="Receita"
+          value={formatCurrency(totals.revenue)}
+          icon={TrendingUp}
+          iconColor="text-emerald-400"
+          loading={isLoading}
+        />
+        <MetricCard
+          label="CTR"
+          value={`${ctr.toFixed(2)}%`}
+          icon={MousePointerClick}
+          loading={isLoading}
+        />
+        <MetricCard
+          label="CPC Médio"
+          value={
+            totals.clicks > 0
+              ? formatCurrency(totals.spend / totals.clicks)
+              : "R$ 0"
+          }
+          icon={BarChart3}
+          loading={isLoading}
+        />
       </div>
 
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
         <div className="lg:col-span-2 rounded-3xl bg-[#071b44] text-white p-6 shadow-sm">
-          <p className="text-xs font-black text-white/60 uppercase tracking-widest">Leitura do Agente</p>
-          <h2 className="text-2xl font-black mt-2">O que os números estão dizendo</h2>
-          <p className="text-sm text-white/80 mt-3 leading-relaxed">{leitura}</p>
+          <p className="text-xs font-black text-white/60 uppercase tracking-widest">
+            Leitura do Agente
+          </p>
+          <h2 className="text-2xl font-black mt-2">
+            O que os números estão dizendo
+          </h2>
+          <p className="text-sm text-white/80 mt-3 leading-relaxed">
+            {leitura}
+          </p>
           <div className="flex flex-wrap gap-2 mt-5">
             <Link href="/recalibracao">
               <a className="rounded-xl bg-white text-[#071b44] px-4 py-2 text-xs font-black inline-flex items-center gap-2">
@@ -242,10 +368,17 @@ export default function Metricas() {
         </div>
         <div className="rounded-3xl border border-[#e6ebf3] bg-white p-6 shadow-sm">
           <RefreshCcw className="w-5 h-5 text-[#ff3217] mb-3" />
-          <p className="text-xs font-black text-[#61708a] uppercase tracking-wide">Próxima decisão</p>
-          <p className="text-lg font-black text-[#071b44] mt-2">{cpl > 0 ? `CPL atual: ${formatCurrency(cpl)}` : "Aguardando conversão"}</p>
+          <p className="text-xs font-black text-[#61708a] uppercase tracking-wide">
+            Próxima decisão
+          </p>
+          <p className="text-lg font-black text-[#071b44] mt-2">
+            {cpl > 0
+              ? `CPL atual: ${formatCurrency(cpl)}`
+              : "Aguardando conversão"}
+          </p>
           <p className="text-sm text-[#61708a] mt-2">
-            Use esta leitura no check-in para recalcular o plano com dados reais, não só intenção.
+            Use esta leitura no check-in para recalcular o plano com dados
+            reais, não só intenção.
           </p>
         </div>
       </section>
@@ -253,63 +386,129 @@ export default function Metricas() {
       <section className="rounded-3xl border border-[#e6ebf3] bg-white p-6 shadow-sm mb-6">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <p className="text-xs font-black text-[#ff3217] uppercase tracking-wide">Resultados organicos manuais</p>
-            <h2 className="text-2xl font-black text-[#071b44] mt-1">O que o plano de 7 dias ja ensinou</h2>
-            <p className="text-sm text-[#61708a] mt-2">Esses numeros vêm dos resultados registrados manualmente no Diagnostico.</p>
+            <p className="text-xs font-black text-[#ff3217] uppercase tracking-wide">
+              Resultados organicos manuais
+            </p>
+            <h2 className="text-2xl font-black text-[#071b44] mt-1">
+              O que o plano de 7 dias ja ensinou
+            </h2>
+            <p className="text-sm text-[#61708a] mt-2">
+              Esses numeros vêm dos resultados registrados manualmente no
+              Diagnostico ou no Calendario.
+            </p>
           </div>
-          <Link href="/diagnostico">
-            <a className="rounded-xl border border-[#e6ebf3] px-4 py-2 text-xs font-black text-[#071b44] hover:bg-[#f8fafc]">Abrir plano</a>
-          </Link>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/calendario">
+              <a className="rounded-xl border border-[#e6ebf3] px-4 py-2 text-xs font-black text-[#071b44] hover:bg-[#f8fafc]">
+                Abrir calendario
+              </a>
+            </Link>
+            <Link href="/diagnostico">
+              <a className="rounded-xl bg-[#071b44] px-4 py-2 text-xs font-black text-white hover:bg-[#0d2a5e]">
+                Abrir plano
+              </a>
+            </Link>
+          </div>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mt-5">
           <MiniOrganic label="Posts medidos" value={organicItems.length} />
-          <MiniOrganic label="Alcance" value={formatNumber(organicTotals.alcance)} />
-          <MiniOrganic label="Salvos" value={formatNumber(organicTotals.salvamentos)} />
-          <MiniOrganic label="Cliques" value={formatNumber(organicTotals.cliques)} />
-          <MiniOrganic label="Leads" value={formatNumber(organicTotals.leads)} />
-          <MiniOrganic label="Vendas" value={formatNumber(organicTotals.vendas)} />
+          <MiniOrganic
+            label="Alcance"
+            value={formatNumber(organicTotals.alcance)}
+          />
+          <MiniOrganic
+            label="Salvos"
+            value={formatNumber(organicTotals.salvamentos)}
+          />
+          <MiniOrganic
+            label="Cliques"
+            value={formatNumber(organicTotals.cliques)}
+          />
+          <MiniOrganic
+            label="Leads"
+            value={formatNumber(organicTotals.leads)}
+          />
+          <MiniOrganic
+            label="Vendas"
+            value={formatNumber(organicTotals.vendas)}
+          />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-5">
           <div className="rounded-2xl bg-[#071b44] text-white p-4">
-            <p className="text-[10px] font-black text-white/60 uppercase">Melhor conteudo organico</p>
-            <p className="text-lg font-black mt-2">{bestOrganic ? `${bestOrganic.dia} - ${bestOrganic.canal}` : "Ainda sem post medido"}</p>
-            <p className="text-sm text-white/80 mt-1">{bestOrganic?.gancho ?? "Publique e registre resultados para o Agente encontrar o vencedor."}</p>
+            <p className="text-[10px] font-black text-white/60 uppercase">
+              Melhor conteudo organico
+            </p>
+            <p className="text-lg font-black mt-2">
+              {bestOrganic
+                ? `${bestOrganic.dia} - ${bestOrganic.canal}`
+                : "Ainda sem post medido"}
+            </p>
+            <p className="text-sm text-white/80 mt-1">
+              {bestOrganic?.gancho ??
+                "Publique e registre resultados para o Agente encontrar o vencedor."}
+            </p>
           </div>
           <div className="rounded-2xl bg-[#fff8f6] border border-[#ffd5ce] p-4">
-            <p className="text-[10px] font-black text-[#ff3217] uppercase">Receita organica registrada</p>
-            <p className="text-3xl font-black text-[#071b44] mt-2">{formatCurrency(organicTotals.receita)}</p>
-            <p className="text-xs text-[#61708a] mt-1">Use esse sinal para decidir se o post merece campanha assistida.</p>
+            <p className="text-[10px] font-black text-[#ff3217] uppercase">
+              Receita organica registrada
+            </p>
+            <p className="text-3xl font-black text-[#071b44] mt-2">
+              {formatCurrency(organicTotals.receita)}
+            </p>
+            <p className="text-xs text-[#61708a] mt-1">
+              Use esse sinal para decidir se o post merece campanha assistida.
+            </p>
           </div>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-4 mt-5">
           <div className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-4">
-            <p className="text-[10px] font-black text-[#ff3217] uppercase">Ranking organico</p>
+            <p className="text-[10px] font-black text-[#ff3217] uppercase">
+              Ranking organico
+            </p>
             <div className="space-y-2 mt-3">
-              {organicRanking.length ? organicRanking.map((item: any, index: number) => (
-                <div key={`${item.dia}-${index}`} className="rounded-xl border border-[#e6ebf3] bg-white p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-black text-[#071b44]">{index + 1}. {item.dia} - {item.canal}</p>
-                      <p className="text-[11px] text-[#22304b] font-semibold leading-snug mt-1">{item.gancho}</p>
+              {organicRanking.length ? (
+                organicRanking.map((item: any, index: number) => (
+                  <div
+                    key={`${item.dia}-${index}`}
+                    className="rounded-xl border border-[#e6ebf3] bg-white p-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-black text-[#071b44]">
+                          {index + 1}. {item.dia} - {item.canal}
+                        </p>
+                        <p className="text-[11px] text-[#22304b] font-semibold leading-snug mt-1">
+                          {item.gancho}
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-[#071b44] text-white px-3 py-1 text-[10px] font-black">
+                        {Math.round(organicScore(item))}
+                      </span>
                     </div>
-                    <span className="rounded-full bg-[#071b44] text-white px-3 py-1 text-[10px] font-black">{Math.round(organicScore(item))}</span>
+                    <div className="flex flex-wrap gap-2 mt-2 text-[10px] font-black text-[#61708a]">
+                      <span>salvos {item.resultado?.salvamentos ?? 0}</span>
+                      <span>cliques {item.resultado?.cliques ?? 0}</span>
+                      <span>leads {item.resultado?.leads ?? 0}</span>
+                      <span>vendas {item.resultado?.vendas ?? 0}</span>
+                    </div>
                   </div>
-                  <div className="flex flex-wrap gap-2 mt-2 text-[10px] font-black text-[#61708a]">
-                    <span>salvos {item.resultado?.salvamentos ?? 0}</span>
-                    <span>cliques {item.resultado?.cliques ?? 0}</span>
-                    <span>leads {item.resultado?.leads ?? 0}</span>
-                    <span>vendas {item.resultado?.vendas ?? 0}</span>
-                  </div>
-                </div>
-              )) : (
-                <p className="text-sm text-[#61708a]">Sem posts medidos ainda.</p>
+                ))
+              ) : (
+                <p className="text-sm text-[#61708a]">
+                  Sem posts medidos ainda.
+                </p>
               )}
             </div>
           </div>
           <div className="rounded-2xl bg-[#071b44] text-white p-4">
-            <p className="text-[10px] font-black text-white/60 uppercase">Decisao do ciclo</p>
+            <p className="text-[10px] font-black text-white/60 uppercase">
+              Decisao do ciclo
+            </p>
             <p className="text-lg font-black mt-2">{organicDecision}</p>
-            <p className="text-xs text-white/70 mt-2">O melhor sinal organico deve orientar o proximo diagnostico, o Radar e a verba.</p>
+            <p className="text-xs text-white/70 mt-2">
+              O melhor sinal organico deve orientar o proximo diagnostico, o
+              Radar e a verba.
+            </p>
           </div>
         </div>
       </section>
@@ -318,35 +517,89 @@ export default function Metricas() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         {/* Area chart */}
         <div className="lg:col-span-2 card-premium p-6">
-          <h3 className="text-sm font-semibold text-foreground mb-1">Evolução Diária</h3>
-          <p className="text-xs text-muted-foreground mb-5">Impressões, cliques e conversões por dia</p>
+          <h3 className="text-sm font-semibold text-foreground mb-1">
+            Evolução Diária
+          </h3>
+          <p className="text-xs text-muted-foreground mb-5">
+            Impressões, cliques e conversões por dia
+          </p>
           <ResponsiveContainer width="100%" height={240}>
-            <AreaChart data={dailyData} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
+            <AreaChart
+              data={dailyData}
+              margin={{ top: 5, right: 5, bottom: 0, left: 0 }}
+            >
               <defs>
                 <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="oklch(0.62 0.22 280)" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="oklch(0.62 0.22 280)" stopOpacity={0} />
+                  <stop
+                    offset="5%"
+                    stopColor="oklch(0.62 0.22 280)"
+                    stopOpacity={0.3}
+                  />
+                  <stop
+                    offset="95%"
+                    stopColor="oklch(0.62 0.22 280)"
+                    stopOpacity={0}
+                  />
                 </linearGradient>
                 <linearGradient id="g2" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="oklch(0.72 0.18 200)" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="oklch(0.72 0.18 200)" stopOpacity={0} />
+                  <stop
+                    offset="5%"
+                    stopColor="oklch(0.72 0.18 200)"
+                    stopOpacity={0.3}
+                  />
+                  <stop
+                    offset="95%"
+                    stopColor="oklch(0.72 0.18 200)"
+                    stopOpacity={0}
+                  />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.22 0.010 265)" vertical={false} />
-              <XAxis dataKey="date" tick={{ fontSize: 10, fill: "oklch(0.56 0.010 265)" }} axisLine={false} tickLine={false} interval="preserveStartEnd" />
-              <YAxis tick={{ fontSize: 10, fill: "oklch(0.56 0.010 265)" }} axisLine={false} tickLine={false} tickFormatter={formatNumber} />
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="oklch(0.22 0.010 265)"
+                vertical={false}
+              />
+              <XAxis
+                dataKey="date"
+                tick={{ fontSize: 10, fill: "oklch(0.56 0.010 265)" }}
+                axisLine={false}
+                tickLine={false}
+                interval="preserveStartEnd"
+              />
+              <YAxis
+                tick={{ fontSize: 10, fill: "oklch(0.56 0.010 265)" }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={formatNumber}
+              />
               <Tooltip content={<CustomTooltip />} />
               <Legend wrapperStyle={{ fontSize: 11, paddingTop: 12 }} />
-              <Area type="monotone" dataKey="Impressões" stroke="oklch(0.62 0.22 280)" strokeWidth={2} fill="url(#g1)" />
-              <Area type="monotone" dataKey="Cliques" stroke="oklch(0.72 0.18 200)" strokeWidth={2} fill="url(#g2)" />
+              <Area
+                type="monotone"
+                dataKey="Impressões"
+                stroke="oklch(0.62 0.22 280)"
+                strokeWidth={2}
+                fill="url(#g1)"
+              />
+              <Area
+                type="monotone"
+                dataKey="Cliques"
+                stroke="oklch(0.72 0.18 200)"
+                strokeWidth={2}
+                fill="url(#g2)"
+              />
             </AreaChart>
           </ResponsiveContainer>
         </div>
 
         {/* Pie chart */}
         <div className="card-premium p-6">
-          <h3 className="text-sm font-semibold text-foreground mb-1">Impressões por Canal</h3>
-          <p className="text-xs text-muted-foreground mb-4">Distribuição percentual</p>
+          <h3 className="text-sm font-semibold text-foreground mb-1">
+            Impressões por Canal
+          </h3>
+          <p className="text-xs text-muted-foreground mb-4">
+            Distribuição percentual
+          </p>
           {pieData.length === 0 ? (
             <div className="flex items-center justify-center h-48 text-muted-foreground/40">
               <BarChart3 className="w-10 h-10" />
@@ -365,20 +618,34 @@ export default function Metricas() {
                     dataKey="value"
                   >
                     {pieData.map((entry, index) => (
-                      <Cell key={entry.name} fill={CHANNEL_COLORS[entry.name] ?? `hsl(${index * 90}, 60%, 60%)`} />
+                      <Cell
+                        key={entry.name}
+                        fill={
+                          CHANNEL_COLORS[entry.name] ??
+                          `hsl(${index * 90}, 60%, 60%)`
+                        }
+                      />
                     ))}
                   </Pie>
                   <Tooltip formatter={(v: number) => formatNumber(v)} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="space-y-1.5 mt-2">
-                {pieData.map((d) => (
-                  <div key={d.name} className="flex items-center justify-between text-xs">
+                {pieData.map(d => (
+                  <div
+                    key={d.name}
+                    className="flex items-center justify-between text-xs"
+                  >
                     <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full" style={{ background: CHANNEL_COLORS[d.name] }} />
+                      <span
+                        className="w-2 h-2 rounded-full"
+                        style={{ background: CHANNEL_COLORS[d.name] }}
+                      />
                       <ChannelBadge channel={d.name} />
                     </div>
-                    <span className="text-muted-foreground">{formatNumber(d.value)}</span>
+                    <span className="text-muted-foreground">
+                      {formatNumber(d.value)}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -389,29 +656,55 @@ export default function Metricas() {
 
       {/* Bar chart by channel */}
       <div className="card-premium p-6">
-        <h3 className="text-sm font-semibold text-foreground mb-1">Performance por Canal</h3>
-        <p className="text-xs text-muted-foreground mb-5">Comparativo de cliques, conversões e investimento</p>
+        <h3 className="text-sm font-semibold text-foreground mb-1">
+          Performance por Canal
+        </h3>
+        <p className="text-xs text-muted-foreground mb-5">
+          Comparativo de cliques, conversões e investimento
+        </p>
         {channelData.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <BarChart3 className="w-10 h-10 text-muted-foreground/30 mb-3" />
-            <p className="text-sm text-muted-foreground">Nenhuma métrica registrada no período selecionado.</p>
+            <p className="text-sm text-muted-foreground">
+              Nenhuma métrica registrada no período selecionado.
+            </p>
           </div>
         ) : (
           <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={channelData} margin={{ top: 5, right: 5, bottom: 0, left: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.22 0.010 265)" vertical={false} />
+            <BarChart
+              data={channelData}
+              margin={{ top: 5, right: 5, bottom: 0, left: 0 }}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="oklch(0.22 0.010 265)"
+                vertical={false}
+              />
               <XAxis
                 dataKey="channel"
                 tick={{ fontSize: 11, fill: "oklch(0.56 0.010 265)" }}
                 axisLine={false}
                 tickLine={false}
-                tickFormatter={(v) => v.charAt(0).toUpperCase() + v.slice(1)}
+                tickFormatter={v => v.charAt(0).toUpperCase() + v.slice(1)}
               />
-              <YAxis tick={{ fontSize: 11, fill: "oklch(0.56 0.010 265)" }} axisLine={false} tickLine={false} tickFormatter={formatNumber} />
+              <YAxis
+                tick={{ fontSize: 11, fill: "oklch(0.56 0.010 265)" }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={formatNumber}
+              />
               <Tooltip content={<CustomTooltip />} />
               <Legend wrapperStyle={{ fontSize: 11, paddingTop: 12 }} />
-              <Bar dataKey="Cliques" fill="oklch(0.62 0.22 280)" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="Conversões" fill="oklch(0.68 0.20 150)" radius={[4, 4, 0, 0]} />
+              <Bar
+                dataKey="Cliques"
+                fill="oklch(0.62 0.22 280)"
+                radius={[4, 4, 0, 0]}
+              />
+              <Bar
+                dataKey="Conversões"
+                fill="oklch(0.68 0.20 150)"
+                radius={[4, 4, 0, 0]}
+              />
             </BarChart>
           </ResponsiveContainer>
         )}

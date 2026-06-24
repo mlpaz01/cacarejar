@@ -64,10 +64,19 @@ export default function Recalibracao() {
 
   const totals = useMemo(() => {
     const rows = metrics.data ?? [];
-    const impressions = rows.reduce((s: number, m: any) => s + (m.impressions ?? 0), 0);
+    const impressions = rows.reduce(
+      (s: number, m: any) => s + (m.impressions ?? 0),
+      0
+    );
     const clicks = rows.reduce((s: number, m: any) => s + (m.clicks ?? 0), 0);
-    const conversions = rows.reduce((s: number, m: any) => s + (m.conversions ?? 0), 0);
-    const spend = rows.reduce((s: number, m: any) => s + Number(m.spend ?? 0), 0);
+    const conversions = rows.reduce(
+      (s: number, m: any) => s + (m.conversions ?? 0),
+      0
+    );
+    const spend = rows.reduce(
+      (s: number, m: any) => s + Number(m.spend ?? 0),
+      0
+    );
     const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
     const cpl = conversions > 0 ? spend / conversions : 0;
     return { impressions, clicks, conversions, spend, ctr, cpl };
@@ -76,9 +85,12 @@ export default function Recalibracao() {
   const progress = planner?.progresso ?? 0;
   const contentDone = planner?.conteudos?.feitos ?? 0;
   const contentTotal = planner?.conteudos?.total ?? 0;
-  const planItems = ((plan?.plano7Dias ?? []) as any[]);
+  const planItems = (plan?.plano7Dias ?? []) as any[];
   const measuredItems = planItems.filter((item: any) => item?.resultado);
-  const executedItems = planItems.filter((item: any) => ["publicado", "medir"].includes(item?.status) || item?.resultado);
+  const executedItems = planItems.filter(
+    (item: any) =>
+      ["publicado", "medir"].includes(item?.status) || item?.resultado
+  );
   const organicTotals = measuredItems.reduce(
     (acc: any, item: any) => {
       const r = item.resultado ?? {};
@@ -91,14 +103,21 @@ export default function Recalibracao() {
     },
     { salvamentos: 0, cliques: 0, leads: 0, vendas: 0, receita: 0 }
   );
-  const bestPlanItem = [...measuredItems].sort((a: any, b: any) => organicScore(b) - organicScore(a))[0];
+  const bestPlanItem = [...measuredItems].sort(
+    (a: any, b: any) => organicScore(b) - organicScore(a)
+  )[0];
+  const organicDecisions = buildOrganicDecisions(measuredItems, bestPlanItem);
   const checkinText = [
     `Check-in do perfil: ${plan?.profile?.handle || plan?.produto || plan?.nicho || "perfil ativo"}`,
     `Plano executado: ${executedItems.length}/${planItems.length || 7} itens publicados ou medidos.`,
     `Sinais organicos: ${organicTotals.salvamentos} salvamentos, ${organicTotals.cliques} cliques, ${organicTotals.leads} leads, ${organicTotals.vendas} vendas, receita estimada ${formatCurrency(organicTotals.receita)}.`,
-    bestPlanItem ? `Melhor sinal: Dia ${bestPlanItem.dia} - ${bestPlanItem.canal} (${bestPlanItem.gancho || bestPlanItem.ideia}).` : "Melhor sinal: ainda sem item medido.",
-    totals.conversions ? `Campanhas: ${totals.conversions} conversoes com CPL aproximado de ${formatCurrency(totals.cpl)}.` : "Campanhas: ainda sem conversoes registradas.",
-    "Decisao sugerida: manter o que gerou salvamento/comentario, transformar vencedor em nova pauta e evitar escalar verba antes de medir."
+    bestPlanItem
+      ? `Melhor sinal: Dia ${bestPlanItem.dia} - ${bestPlanItem.canal} (${bestPlanItem.gancho || bestPlanItem.ideia}).`
+      : "Melhor sinal: ainda sem item medido.",
+    totals.conversions
+      ? `Campanhas: ${totals.conversions} conversoes com CPL aproximado de ${formatCurrency(totals.cpl)}.`
+      : "Campanhas: ainda sem conversoes registradas.",
+    "Decisao sugerida: manter o que gerou salvamento/comentario, transformar vencedor em nova pauta e evitar escalar verba antes de medir.",
   ].join("\n");
 
   const fillCheckin = () => {
@@ -111,18 +130,33 @@ export default function Recalibracao() {
     toast.success("Resumo copiado.");
   };
 
-  const setItemStatus = (weekIndex: number, itemIndex: number, status: PlannerItem["status"]) => {
+  const setItemStatus = (
+    weekIndex: number,
+    itemIndex: number,
+    status: PlannerItem["status"]
+  ) => {
     setPlanner((prev: any) => {
       const source = prev ?? plan?.acompanhamento;
       if (!source) return prev;
-      const semanas = (source.semanas ?? []).map((week: PlannerWeek, wi: number) => ({
-        ...week,
-        itens: (week.itens ?? []).map((item: PlannerItem, ii: number) => wi === weekIndex && ii === itemIndex ? { ...item, status } : item),
-      }));
+      const semanas = (source.semanas ?? []).map(
+        (week: PlannerWeek, wi: number) => ({
+          ...week,
+          itens: (week.itens ?? []).map((item: PlannerItem, ii: number) =>
+            wi === weekIndex && ii === itemIndex ? { ...item, status } : item
+          ),
+        })
+      );
       const items = semanas.flatMap((week: PlannerWeek) => week.itens ?? []);
-      const done = items.filter((item: PlannerItem) => item.status === "done").length;
+      const done = items.filter(
+        (item: PlannerItem) => item.status === "done"
+      ).length;
       const total = items.length || 1;
-      return { ...source, semanas, progresso: Math.round((done / total) * 100), conteudos: { total, feitos: done } };
+      return {
+        ...source,
+        semanas,
+        progresso: Math.round((done / total) * 100),
+        conteudos: { total, feitos: done },
+      };
     });
   };
 
@@ -135,25 +169,45 @@ export default function Recalibracao() {
   const recalibrateWithProgress = async () => {
     if (!planner) return;
     await updatePlanner.mutateAsync({ acompanhamento: planner, feedback });
-    await recalibrate.mutateAsync({ feedback: feedback || "Recalcular o parecer usando o acompanhamento, os itens executados e os resultados de campanha." });
+    await recalibrate.mutateAsync({
+      feedback:
+        feedback ||
+        "Recalcular o parecer usando o acompanhamento, os itens executados e os resultados de campanha.",
+    });
   };
 
   if (diagnosis.isLoading) {
     return (
-      <AppLayout title="Acompanhamento" subtitle="Carregando o plano de execucao">
-        <div className="bg-white border border-[#e6ebf3] rounded-2xl p-10 text-center text-sm font-bold text-[#61708a]">Carregando...</div>
+      <AppLayout
+        title="Acompanhamento"
+        subtitle="Carregando o plano de execucao"
+      >
+        <div className="bg-white border border-[#e6ebf3] rounded-2xl p-10 text-center text-sm font-bold text-[#61708a]">
+          Carregando...
+        </div>
       </AppLayout>
     );
   }
 
   if (!plan) {
     return (
-      <AppLayout title="Acompanhamento" subtitle="Primeiro gere um diagnostico para abrir o planner.">
+      <AppLayout
+        title="Acompanhamento"
+        subtitle="Primeiro gere um diagnostico para abrir o planner."
+      >
         <div className="bg-white border border-[#e6ebf3] rounded-2xl p-10 text-center shadow-sm">
           <ClipboardCheck className="w-11 h-11 text-[#c7d1e0] mx-auto mb-3" />
-          <p className="text-base font-black text-[#071b44]">Nenhum diagnostico ativo</p>
-          <p className="text-sm text-[#61708a] mt-1">O acompanhamento nasce do parecer estrategico e do cronograma multicanal.</p>
-          <button onClick={() => navigate("/diagnostico")} className="btn-action-primary mt-5 px-5 py-3 text-sm inline-flex items-center gap-2">
+          <p className="text-base font-black text-[#071b44]">
+            Nenhum diagnostico ativo
+          </p>
+          <p className="text-sm text-[#61708a] mt-1">
+            O acompanhamento nasce do parecer estrategico e do cronograma
+            multicanal.
+          </p>
+          <button
+            onClick={() => navigate("/diagnostico")}
+            className="btn-action-primary mt-5 px-5 py-3 text-sm inline-flex items-center gap-2"
+          >
             <Sparkles className="w-4 h-4" /> Criar diagnostico
           </button>
         </div>
@@ -167,14 +221,37 @@ export default function Recalibracao() {
       subtitle="Transforme o diagnostico em execucao, registre a evolucao e recalcule a rota."
       actions={
         <div className="flex gap-2 flex-wrap justify-end">
-          <button onClick={() => navigate("/diagnostico")} className="btn-quiet">
+          <button
+            onClick={() => navigate("/diagnostico")}
+            className="btn-quiet"
+          >
             <FileText className="w-4 h-4" /> Ver diagnostico
           </button>
-          <button onClick={savePlanner} disabled={!planner || updatePlanner.isPending} className="rounded-xl border border-[#e6ebf3] bg-white px-4 py-2.5 text-sm font-black text-[#071b44] hover:bg-[#f8fafc] flex items-center gap-2 disabled:opacity-50">
-            {updatePlanner.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />} Salvar check-in
+          <button
+            onClick={savePlanner}
+            disabled={!planner || updatePlanner.isPending}
+            className="rounded-xl border border-[#e6ebf3] bg-white px-4 py-2.5 text-sm font-black text-[#071b44] hover:bg-[#f8fafc] flex items-center gap-2 disabled:opacity-50"
+          >
+            {updatePlanner.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <CheckCircle2 className="w-4 h-4" />
+            )}{" "}
+            Salvar check-in
           </button>
-          <button onClick={recalibrateWithProgress} disabled={!planner || updatePlanner.isPending || recalibrate.isPending} className="btn-action-primary px-5 py-2.5 text-sm flex items-center gap-2 disabled:opacity-50">
-            {recalibrate.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCcw className="w-4 h-4" />} Recalcular com evolucao
+          <button
+            onClick={recalibrateWithProgress}
+            disabled={
+              !planner || updatePlanner.isPending || recalibrate.isPending
+            }
+            className="btn-action-primary px-5 py-2.5 text-sm flex items-center gap-2 disabled:opacity-50"
+          >
+            {recalibrate.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <RefreshCcw className="w-4 h-4" />
+            )}{" "}
+            Recalcular com evolucao
           </button>
         </div>
       }
@@ -183,71 +260,168 @@ export default function Recalibracao() {
       <section className="bg-white rounded-3xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h2 className="text-xl font-black text-[#070b17] flex items-center gap-2"><ClipboardCheck className="w-5 h-5 text-[#ff3217]" /> Check-in da semana</h2>
-            <p className="text-sm text-[#61708a] mt-1">Resumo automatico para transformar execucao em aprendizado e alimentar a nova rota.</p>
+            <h2 className="text-xl font-black text-[#070b17] flex items-center gap-2">
+              <ClipboardCheck className="w-5 h-5 text-[#ff3217]" /> Check-in da
+              semana
+            </h2>
+            <p className="text-sm text-[#61708a] mt-1">
+              Resumo automatico para transformar execucao em aprendizado e
+              alimentar a nova rota.
+            </p>
           </div>
           <div className="flex gap-2 flex-wrap">
-            <button onClick={fillCheckin} className="rounded-xl border border-[#e6ebf3] bg-white px-4 py-2 text-xs font-black text-[#071b44] hover:bg-[#f8fafc] flex items-center gap-2">
+            <button
+              onClick={fillCheckin}
+              className="rounded-xl border border-[#e6ebf3] bg-white px-4 py-2 text-xs font-black text-[#071b44] hover:bg-[#f8fafc] flex items-center gap-2"
+            >
               <FileText className="w-4 h-4" /> Usar no check-in
             </button>
-            <button onClick={copyCheckin} className="rounded-xl bg-[#071b44] px-4 py-2 text-xs font-black text-white hover:bg-[#10285d] flex items-center gap-2">
+            <button
+              onClick={copyCheckin}
+              className="rounded-xl bg-[#071b44] px-4 py-2 text-xs font-black text-white hover:bg-[#10285d] flex items-center gap-2"
+            >
               <Copy className="w-4 h-4" /> Copiar resumo
             </button>
           </div>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mt-5">
-          <Metric label="Plano executado" value={`${executedItems.length}/${planItems.length || 7}`} icon={CheckCircle2} />
-          <Metric label="Salvamentos" value={formatNumber(organicTotals.salvamentos)} icon={ClipboardCheck} />
-          <Metric label="Cliques organicos" value={formatNumber(organicTotals.cliques)} icon={Target} />
-          <Metric label="Leads" value={formatNumber(organicTotals.leads)} icon={TrendingUp} />
-          <Metric label="Receita" value={formatCurrency(organicTotals.receita)} icon={BarChart3} />
+          <Metric
+            label="Plano executado"
+            value={`${executedItems.length}/${planItems.length || 7}`}
+            icon={CheckCircle2}
+          />
+          <Metric
+            label="Salvamentos"
+            value={formatNumber(organicTotals.salvamentos)}
+            icon={ClipboardCheck}
+          />
+          <Metric
+            label="Cliques organicos"
+            value={formatNumber(organicTotals.cliques)}
+            icon={Target}
+          />
+          <Metric
+            label="Leads"
+            value={formatNumber(organicTotals.leads)}
+            icon={TrendingUp}
+          />
+          <Metric
+            label="Receita"
+            value={formatCurrency(organicTotals.receita)}
+            icon={BarChart3}
+          />
         </div>
         <div className="rounded-2xl bg-[#fbfcff] border border-[#e6ebf3] p-4 mt-4">
-          <p className="text-xs font-black text-[#61708a] uppercase">Melhor aprendizado ate aqui</p>
+          <p className="text-xs font-black text-[#61708a] uppercase">
+            Melhor aprendizado ate aqui
+          </p>
           <p className="text-sm font-black text-[#071b44] mt-1">
-            {bestPlanItem ? `Dia ${bestPlanItem.dia} - ${bestPlanItem.canal}: ${bestPlanItem.gancho || bestPlanItem.ideia}` : "Ainda falta medir ao menos um post para eleger um vencedor."}
+            {bestPlanItem
+              ? `Dia ${bestPlanItem.dia} - ${bestPlanItem.canal}: ${bestPlanItem.gancho || bestPlanItem.ideia}`
+              : "Ainda falta medir ao menos um post para eleger um vencedor."}
           </p>
           <p className="text-xs text-[#61708a] leading-relaxed mt-2">
-            {bestPlanItem ? "Use esse sinal como base para o proximo conteudo, uma campanha pequena ou uma nova variacao no Estudio." : "Quando houver resultado, o resumo passa a orientar o que repetir, ajustar ou abandonar."}
+            {bestPlanItem
+              ? "Use esse sinal como base para o proximo conteudo, uma campanha pequena ou uma nova variacao no Estudio."
+              : "Quando houver resultado, o resumo passa a orientar o que repetir, ajustar ou abandonar."}
           </p>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mt-4">
+            <DecisionCard
+              label="Repetir"
+              value={organicDecisions.repetir}
+              tone="dark"
+            />
+            <DecisionCard
+              label="Ajustar"
+              value={organicDecisions.ajustar}
+              tone="light"
+            />
+            <DecisionCard
+              label="Evitar agora"
+              value={organicDecisions.evitar}
+              tone="warn"
+            />
+          </div>
         </div>
       </section>
       <section className="grid grid-cols-1 xl:grid-cols-[.85fr_1.15fr] gap-5 mb-5">
         <div className="rounded-3xl bg-[#071b44] text-white p-6 shadow-sm">
-          <p className="text-xs font-black text-white/60 uppercase tracking-widest">{planner?.ciclo || "Ciclo de execucao"}</p>
+          <p className="text-xs font-black text-white/60 uppercase tracking-widest">
+            {planner?.ciclo || "Ciclo de execucao"}
+          </p>
           <div className="mt-5 flex items-end justify-between">
             <div>
-              <p className="text-sm font-bold text-white/70">Progresso do cronograma</p>
+              <p className="text-sm font-bold text-white/70">
+                Progresso do cronograma
+              </p>
               <p className="text-5xl font-black mt-1">{progress}%</p>
             </div>
             <div className="text-right">
-              <p className="text-sm font-bold text-white/70">Conteudos feitos</p>
-              <p className="text-2xl font-black">{contentDone}/{contentTotal || "-"}</p>
+              <p className="text-sm font-bold text-white/70">
+                Conteudos feitos
+              </p>
+              <p className="text-2xl font-black">
+                {contentDone}/{contentTotal || "-"}
+              </p>
             </div>
           </div>
           <div className="h-3 rounded-full bg-white/15 mt-5 overflow-hidden">
-            <div className="h-full bg-[#ff3217]" style={{ width: `${Math.min(100, progress)}%` }} />
+            <div
+              className="h-full bg-[#ff3217]"
+              style={{ width: `${Math.min(100, progress)}%` }}
+            />
           </div>
           <div className="rounded-2xl border border-white/10 bg-white/8 p-4 mt-5">
-            <p className="text-xs font-black text-white/60 uppercase">Proximo foco</p>
-            <p className="text-base font-black mt-1">{planner?.proximoFoco || "Executar a primeira semana"}</p>
-            <p className="text-sm text-white/72 mt-2">{planner?.novaPrescricao || "Registre o que foi feito para o Agente ajustar a proxima rota."}</p>
+            <p className="text-xs font-black text-white/60 uppercase">
+              Proximo foco
+            </p>
+            <p className="text-base font-black mt-1">
+              {planner?.proximoFoco || "Executar a primeira semana"}
+            </p>
+            <p className="text-sm text-white/72 mt-2">
+              {planner?.novaPrescricao ||
+                "Registre o que foi feito para o Agente ajustar a proxima rota."}
+            </p>
           </div>
         </div>
 
         <div className="bg-white rounded-3xl border border-[#e6ebf3] p-6 shadow-sm">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div>
-              <h2 className="text-xl font-black text-[#070b17] flex items-center gap-2"><BarChart3 className="w-5 h-5 text-[#ff3217]" /> Sinais de resultado</h2>
-              <p className="text-sm text-[#61708a] mt-1">Leitura inicial para comparar com a Semana 2 e as campanhas aprovadas.</p>
+              <h2 className="text-xl font-black text-[#070b17] flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-[#ff3217]" /> Sinais de
+                resultado
+              </h2>
+              <p className="text-sm text-[#61708a] mt-1">
+                Leitura inicial para comparar com a Semana 2 e as campanhas
+                aprovadas.
+              </p>
             </div>
-            <span className="rounded-full bg-[#f8fafc] border border-[#e6ebf3] px-3 py-1 text-xs font-black text-[#071b44]">{campaigns.data?.length ?? 0} campanha(s)</span>
+            <span className="rounded-full bg-[#f8fafc] border border-[#e6ebf3] px-3 py-1 text-xs font-black text-[#071b44]">
+              {campaigns.data?.length ?? 0} campanha(s)
+            </span>
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-5">
-            <Metric label="Impressoes" value={formatNumber(totals.impressions)} icon={Megaphone} />
-            <Metric label="Cliques" value={formatNumber(totals.clicks)} icon={Target} />
-            <Metric label="Conversoes" value={formatNumber(totals.conversions)} icon={TrendingUp} />
-            <Metric label="CTR" value={`${totals.ctr.toFixed(2)}%`} icon={BarChart3} />
+            <Metric
+              label="Impressoes"
+              value={formatNumber(totals.impressions)}
+              icon={Megaphone}
+            />
+            <Metric
+              label="Cliques"
+              value={formatNumber(totals.clicks)}
+              icon={Target}
+            />
+            <Metric
+              label="Conversoes"
+              value={formatNumber(totals.conversions)}
+              icon={TrendingUp}
+            />
+            <Metric
+              label="CTR"
+              value={`${totals.ctr.toFixed(2)}%`}
+              icon={BarChart3}
+            />
           </div>
           <textarea
             value={feedback}
@@ -261,8 +435,14 @@ export default function Recalibracao() {
       <section className="bg-white rounded-3xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
-            <h2 className="text-xl font-black text-[#070b17] flex items-center gap-2"><CalendarDays className="w-5 h-5 text-[#ff3217]" /> Planner do diagnostico</h2>
-            <p className="text-sm text-[#61708a] mt-1">Marque o que foi executado. Isso vira contexto para o Agente recalcular a prescricao.</p>
+            <h2 className="text-xl font-black text-[#070b17] flex items-center gap-2">
+              <CalendarDays className="w-5 h-5 text-[#ff3217]" /> Planner do
+              diagnostico
+            </h2>
+            <p className="text-sm text-[#61708a] mt-1">
+              Marque o que foi executado. Isso vira contexto para o Agente
+              recalcular a prescricao.
+            </p>
           </div>
           <div className="flex gap-2">
             <StatusPill label="Feito" status="done" />
@@ -273,21 +453,45 @@ export default function Recalibracao() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-5">
           {(planner?.semanas ?? []).map((week: PlannerWeek, wi: number) => (
-            <article key={`${week.semana}-${wi}`} className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-5">
-              <span className="rounded-full bg-[#071b44] text-white text-xs font-black px-3 py-1">{week.semana}</span>
+            <article
+              key={`${week.semana}-${wi}`}
+              className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-5"
+            >
+              <span className="rounded-full bg-[#071b44] text-white text-xs font-black px-3 py-1">
+                {week.semana}
+              </span>
               <div className="space-y-2 mt-4">
                 {(week.itens ?? []).map((item, ii) => (
-                  <div key={`${item.texto}-${ii}`} className={`rounded-xl border p-3 ${statusStyle[item.status ?? "todo"]}`}>
+                  <div
+                    key={`${item.texto}-${ii}`}
+                    className={`rounded-xl border p-3 ${statusStyle[item.status ?? "todo"]}`}
+                  >
                     <div className="flex items-start gap-3">
                       <button
                         type="button"
-                        onClick={() => setItemStatus(wi, ii, item.status === "done" ? "todo" : "done")}
+                        onClick={() =>
+                          setItemStatus(
+                            wi,
+                            ii,
+                            item.status === "done" ? "todo" : "done"
+                          )
+                        }
                         className="mt-0.5"
-                        title={item.status === "done" ? "Marcar como a fazer" : "Marcar como feito"}
+                        title={
+                          item.status === "done"
+                            ? "Marcar como a fazer"
+                            : "Marcar como feito"
+                        }
                       >
-                        {item.status === "done" ? <CheckCircle2 className="w-5 h-5" /> : <Circle className="w-5 h-5" />}
+                        {item.status === "done" ? (
+                          <CheckCircle2 className="w-5 h-5" />
+                        ) : (
+                          <Circle className="w-5 h-5" />
+                        )}
                       </button>
-                      <p className="text-sm font-bold leading-relaxed flex-1">{item.texto}</p>
+                      <p className="text-sm font-bold leading-relaxed flex-1">
+                        {item.texto}
+                      </p>
                     </div>
                     <div className="grid grid-cols-3 gap-2 mt-3">
                       {(["done", "todo", "late"] as const).map(status => (
@@ -296,7 +500,11 @@ export default function Recalibracao() {
                           onClick={() => setItemStatus(wi, ii, status)}
                           className={`rounded-lg border px-2 py-1.5 text-[10px] font-black ${item.status === status ? statusStyle[status] : "bg-white text-[#61708a] border-[#e6ebf3]"}`}
                         >
-                          {status === "done" ? "feito" : status === "late" ? "atrasado" : "a fazer"}
+                          {status === "done"
+                            ? "feito"
+                            : status === "late"
+                              ? "atrasado"
+                              : "a fazer"}
                         </button>
                       ))}
                     </div>
@@ -309,33 +517,68 @@ export default function Recalibracao() {
       </section>
 
       <section className="bg-white rounded-3xl border border-[#e6ebf3] p-6 shadow-sm">
-        <h2 className="text-xl font-black text-[#070b17] flex items-center gap-2"><Sparkles className="w-5 h-5 text-[#ff3217]" /> Evolucao registrada</h2>
-        <p className="text-sm text-[#61708a] mt-1">Compare a foto inicial com os check-ins para saber se a prescricao esta melhorando a execucao.</p>
+        <h2 className="text-xl font-black text-[#070b17] flex items-center gap-2">
+          <Sparkles className="w-5 h-5 text-[#ff3217]" /> Evolucao registrada
+        </h2>
+        <p className="text-sm text-[#61708a] mt-1">
+          Compare a foto inicial com os check-ins para saber se a prescricao
+          esta melhorando a execucao.
+        </p>
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-5 mt-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {(planner?.snapshots ?? []).map((snap: any) => (
-              <div key={snap.label} className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-5">
-                <h3 className="text-base font-black text-[#071b44]">{snap.label}</h3>
-                <p className="text-sm text-[#61708a] mt-2 line-clamp-5">{snap.resumo}</p>
+              <div
+                key={snap.label}
+                className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-5"
+              >
+                <h3 className="text-base font-black text-[#071b44]">
+                  {snap.label}
+                </h3>
+                <p className="text-sm text-[#61708a] mt-2 line-clamp-5">
+                  {snap.resumo}
+                </p>
                 <div className="space-y-3 mt-4">
                   {(snap.scores ?? []).map((score: any) => (
-                    <Score key={score.nome} label={score.nome} value={score.valor} />
+                    <Score
+                      key={score.nome}
+                      label={score.nome}
+                      value={score.valor}
+                    />
                   ))}
                 </div>
               </div>
             ))}
           </div>
           <aside className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-5 h-fit">
-            <h3 className="text-sm font-black text-[#071b44]">Historico de check-ins</h3>
-            <p className="text-xs text-[#61708a] mt-1">Cada registro vira contexto para o Agente recalcular a rota.</p>
+            <h3 className="text-sm font-black text-[#071b44]">
+              Historico de check-ins
+            </h3>
+            <p className="text-xs text-[#61708a] mt-1">
+              Cada registro vira contexto para o Agente recalcular a rota.
+            </p>
             <div className="space-y-3 mt-4">
-              {((planner?.feedbacks ?? []) as any[]).length ? (planner.feedbacks ?? []).slice().reverse().map((f: any) => (
-                <div key={`${f.at}-${f.texto}`} className="rounded-xl border border-[#e6ebf3] bg-white p-3">
-                  <p className="text-[10px] font-black text-[#ff3217]">{new Date(f.at).toLocaleString("pt-BR")}</p>
-                  <p className="text-xs font-bold text-[#22304b] leading-relaxed mt-1">{f.texto}</p>
-                </div>
-              )) : (
-                <p className="text-xs text-[#61708a] rounded-xl border border-dashed border-[#d8e0ec] bg-white p-4">Ainda nao ha check-ins. Escreva o que foi executado e salve para criar a primeira foto de evolucao.</p>
+              {((planner?.feedbacks ?? []) as any[]).length ? (
+                (planner.feedbacks ?? [])
+                  .slice()
+                  .reverse()
+                  .map((f: any) => (
+                    <div
+                      key={`${f.at}-${f.texto}`}
+                      className="rounded-xl border border-[#e6ebf3] bg-white p-3"
+                    >
+                      <p className="text-[10px] font-black text-[#ff3217]">
+                        {new Date(f.at).toLocaleString("pt-BR")}
+                      </p>
+                      <p className="text-xs font-bold text-[#22304b] leading-relaxed mt-1">
+                        {f.texto}
+                      </p>
+                    </div>
+                  ))
+              ) : (
+                <p className="text-xs text-[#61708a] rounded-xl border border-dashed border-[#d8e0ec] bg-white p-4">
+                  Ainda nao ha check-ins. Escreva o que foi executado e salve
+                  para criar a primeira foto de evolucao.
+                </p>
               )}
             </div>
           </aside>
@@ -345,18 +588,73 @@ export default function Recalibracao() {
   );
 }
 
-function Metric({ label, value, icon: Icon }: { label: string; value: string; icon: any }) {
+function Metric({
+  label,
+  value,
+  icon: Icon,
+}: {
+  label: string;
+  value: string;
+  icon: any;
+}) {
   return (
     <div className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-4">
       <Icon className="w-4 h-4 text-[#ff3217] mb-2" />
-      <p className="text-[10px] font-black text-[#61708a] uppercase tracking-wide">{label}</p>
+      <p className="text-[10px] font-black text-[#61708a] uppercase tracking-wide">
+        {label}
+      </p>
       <p className="text-xl font-black text-[#071b44] mt-1">{value}</p>
     </div>
   );
 }
 
-function StatusPill({ label, status }: { label: string; status: PlannerItem["status"] }) {
-  return <span className={`rounded-full border px-3 py-1 text-[10px] font-black ${statusStyle[status]}`}>{label}</span>;
+function DecisionCard({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: "dark" | "light" | "warn";
+}) {
+  const style =
+    tone === "dark"
+      ? "bg-[#071b44] text-white border-[#071b44]"
+      : tone === "warn"
+        ? "bg-[#fff8f6] text-[#071b44] border-[#ffd5ce]"
+        : "bg-white text-[#071b44] border-[#e6ebf3]";
+  const labelStyle =
+    tone === "dark"
+      ? "text-white/60"
+      : tone === "warn"
+        ? "text-[#ff3217]"
+        : "text-[#61708a]";
+  return (
+    <div className={`rounded-2xl border p-4 ${style}`}>
+      <p
+        className={`text-[10px] font-black uppercase tracking-wide ${labelStyle}`}
+      >
+        {label}
+      </p>
+      <p className="text-sm font-black leading-snug mt-2">{value}</p>
+    </div>
+  );
+}
+
+function StatusPill({
+  label,
+  status,
+}: {
+  label: string;
+  status: PlannerItem["status"];
+}) {
+  return (
+    <span
+      className={`rounded-full border px-3 py-1 text-[10px] font-black ${statusStyle[status]}`}
+    >
+      {label}
+    </span>
+  );
 }
 
 function Score({ label, value }: { label: string; value: number }) {
@@ -367,7 +665,10 @@ function Score({ label, value }: { label: string; value: number }) {
         <span className="text-[#071b44]">{value}/100</span>
       </div>
       <div className="h-2 rounded-full bg-[#edf1f7] mt-1 overflow-hidden">
-        <div className="h-full bg-[#ff3217]" style={{ width: `${Math.min(100, value)}%` }} />
+        <div
+          className="h-full bg-[#ff3217]"
+          style={{ width: `${Math.min(100, value)}%` }}
+        />
       </div>
     </div>
   );
@@ -380,10 +681,57 @@ function formatNumber(n: number) {
 }
 
 function formatCurrency(n: number) {
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(n || 0));
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(Number(n || 0));
 }
 
 function organicScore(item: any) {
   const r = item?.resultado ?? {};
-  return Number(r.salvamentos ?? 0) * 2 + Number(r.cliques ?? 0) * 3 + Number(r.leads ?? 0) * 8 + Number(r.vendas ?? 0) * 18 + Number(r.receita ?? 0) / 10;
+  return (
+    Number(r.salvamentos ?? 0) * 2 +
+    Number(r.cliques ?? 0) * 3 +
+    Number(r.leads ?? 0) * 8 +
+    Number(r.vendas ?? 0) * 18 +
+    Number(r.receita ?? 0) / 10
+  );
+}
+
+function buildOrganicDecisions(measuredItems: any[], bestPlanItem: any) {
+  if (!measuredItems.length) {
+    return {
+      repetir: "Medir ao menos um post publicado.",
+      ajustar:
+        "Publicar o proximo item com uma pergunta clara para puxar resposta.",
+      evitar: "Trocar toda a estrategia antes de ter sinal real.",
+    };
+  }
+
+  const ranked = [...measuredItems].sort(
+    (a, b) => organicScore(b) - organicScore(a)
+  );
+  const best = bestPlanItem ?? ranked[0];
+  const weakest = ranked[ranked.length - 1];
+  const bestResult = best?.resultado ?? {};
+  const hasConversion =
+    Number(bestResult.leads ?? 0) > 0 || Number(bestResult.vendas ?? 0) > 0;
+  const hasInterest =
+    Number(bestResult.salvamentos ?? 0) > 0 ||
+    Number(bestResult.cliques ?? 0) > 0;
+
+  return {
+    repetir: best
+      ? `${best.canal}: ${best.gancho || best.ideia || "gancho vencedor"}.`
+      : "Repetir o item com melhor resposta manual.",
+    ajustar: hasConversion
+      ? "Transformar o vencedor em oferta direta ou campanha pequena."
+      : hasInterest
+        ? "Criar uma nova versao com CTA mais forte e prova real."
+        : "Testar uma promessa mais especifica antes de aumentar volume.",
+    evitar:
+      weakest && organicScore(weakest) < organicScore(best) / 3
+        ? `${weakest.canal}: nao escalar esse angulo sem mudar gancho.`
+        : "Aumentar verba ou frequencia sem registrar novos resultados.",
+  };
 }
