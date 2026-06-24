@@ -11,6 +11,8 @@ import {
   ChevronDown,
   ChevronUp,
   Clock,
+  ClipboardList,
+  Copy,
   Send,
   RefreshCw,
   Eye,
@@ -22,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Link } from "wouter";
 
 type Channel = "tiktok" | "instagram" | "google";
 
@@ -208,10 +211,20 @@ function IntegrationCard({ channel, integration, onSave }: {
   );
 }
 
+function ControlMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-[#e6ebf3] bg-white p-4 shadow-sm">
+      <p className="text-[10px] font-black uppercase tracking-wide text-[#61708a]">{label}</p>
+      <p className="text-xl font-black text-[#071b44] mt-1">{value}</p>
+    </div>
+  );
+}
+
 export default function Integracoes() {
   const utils = trpc.useUtils();
   const { data: integrations, isLoading } = trpc.integrations.list.useQuery();
   const { data: dispatchLogs, isLoading: loadingLogs } = trpc.dispatch.logs.useQuery({});
+  const { data: campaigns } = trpc.campaigns.list.useQuery();
 
   const saveMutation = trpc.integrations.save.useMutation({
     onSuccess: () => {
@@ -228,12 +241,65 @@ export default function Integracoes() {
   }
 
   const connectedCount = integrations?.filter((i) => i.status === "conectado").length ?? 0;
+  const activeCampaigns = (campaigns ?? []).filter((campaign: any) => !["arquivada", "concluida"].includes(campaign.status));
+  const manualPackage = [
+    "Rotina de publicacao assistida - Cacarejar",
+    "",
+    `Canais com conexao real: ${connectedCount}/${channels.length}`,
+    `Campanhas em acompanhamento: ${activeCampaigns.length}`,
+    "",
+    "Passo 1 - Abra Aprovacao e escolha os posts finais.",
+    "Passo 2 - Copie o pacote de aprovacao.",
+    "Passo 3 - Publique ou programe no canal escolhido.",
+    "Passo 4 - Registre os numeros em Diagnostico/Metricas.",
+    "Passo 5 - Rode o check-in em Acompanhamento para recalcular a rota.",
+    "",
+    "Campanhas atuais:",
+    ...activeCampaigns.slice(0, 8).map((campaign: any) => `- ${campaign.name} (${campaign.status}) - ${(campaign.channels ?? []).join(", ")}`),
+  ].join("\n");
+
+  async function copyManualPackage() {
+    await navigator.clipboard?.writeText(manualPackage);
+    toast.success("Rotina assistida copiada.");
+  }
 
   return (
     <AppLayout
       title="Integrações"
       subtitle="Configure as conexões com as plataformas de anúncios"
     >
+      <section className="grid grid-cols-1 xl:grid-cols-[1.1fr_.9fr] gap-5 mb-6">
+        <div className="rounded-3xl bg-[#071b44] text-white p-6 shadow-sm">
+          <p className="text-xs font-black text-white/60 uppercase tracking-widest">Modo interno assistido</p>
+          <h2 className="text-2xl font-black mt-2">Publicacao com controle humano</h2>
+          <p className="text-sm text-white/78 leading-relaxed mt-3 max-w-3xl">
+            Enquanto as APIs de canais nao estiverem conectadas, o Cacarejar prepara pacote, copy, criativos, verba e checklist.
+            A publicacao final fica manual, com registro de resultado para os Agentes aprenderem no proximo ciclo.
+          </p>
+          <div className="flex flex-wrap gap-2 mt-5">
+            <button onClick={copyManualPackage} className="rounded-xl bg-white text-[#071b44] px-4 py-2 text-xs font-black inline-flex items-center gap-2">
+              <Copy className="w-3.5 h-3.5" /> Copiar rotina
+            </button>
+            <Link href="/aprovacao">
+              <a className="rounded-xl border border-white/20 text-white px-4 py-2 text-xs font-black inline-flex items-center gap-2">
+                <ClipboardList className="w-3.5 h-3.5" /> Abrir aprovacao
+              </a>
+            </Link>
+            <Link href="/recalibracao">
+              <a className="rounded-xl border border-white/20 text-white px-4 py-2 text-xs font-black inline-flex items-center gap-2">
+                <RefreshCw className="w-3.5 h-3.5" /> Check-in
+              </a>
+            </Link>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <ControlMetric label="Canais conectados" value={`${connectedCount}/${channels.length}`} />
+          <ControlMetric label="Campanhas ativas" value={String(activeCampaigns.length)} />
+          <ControlMetric label="Disparos registrados" value={String(dispatchLogs?.length ?? 0)} />
+          <ControlMetric label="Modo atual" value={connectedCount ? "hibrido" : "assistido"} />
+        </div>
+      </section>
+
       {/* Status overview */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {channels.map((ch) => {
