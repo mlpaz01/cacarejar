@@ -92,6 +92,44 @@ export default function Calendario() {
     URL.revokeObjectURL(url);
   }
 
+  function downloadIcs() {
+    const stamp = icsDate(new Date());
+    const events = items.map((item, index) => {
+      const start = new Date(item.date);
+      start.setHours(9 + Math.min(index, 6), 0, 0, 0);
+      const end = new Date(start);
+      end.setHours(start.getHours() + 1);
+      const description = [
+        `Status: ${STATUS_LABEL[item.status] ?? item.status}`,
+        `Canal: ${item.canal}`,
+        `Formato: ${item.formato || "-"}`,
+        `Objetivo: ${item.objetivo || "-"}`,
+        `Gancho: ${item.gancho || "-"}`,
+        `Legenda: ${item.legenda || "-"}`,
+        `CTA: ${item.cta || "-"}`,
+        item.hashtags?.length ? `Hashtags: ${item.hashtags.join(" ")}` : "",
+      ].filter(Boolean).join("\\n");
+      return [
+        "BEGIN:VEVENT",
+        `UID:cacarejar-${format(new Date(), "yyyyMMdd")}-${index}@cacarejar`,
+        `DTSTAMP:${stamp}`,
+        `DTSTART:${icsDate(start)}`,
+        `DTEND:${icsDate(end)}`,
+        `SUMMARY:${icsEscape(`${item.dia} - ${item.canal}: ${item.gancho || "post"}`)}`,
+        `DESCRIPTION:${icsEscape(description)}`,
+        "END:VEVENT",
+      ].join("\r\n");
+    });
+    const content = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Cacarejar//Calendario Editorial//PT-BR", ...events, "END:VCALENDAR"].join("\r\n");
+    const blob = new Blob([content], { type: "text/calendar;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `cacarejar-calendario-${format(new Date(), "yyyy-MM-dd")}.ics`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   function setStatus(index: number, status: "ideia" | "em_edicao" | "aprovado" | "publicado" | "medir") {
     updateItem.mutate({ index, patch: { status } });
   }
@@ -132,6 +170,9 @@ export default function Calendario() {
           </button>
           <button onClick={downloadCsv} className="btn-action-primary px-4 py-2.5 text-sm flex items-center gap-2">
             <Download className="w-4 h-4" /> Baixar CSV
+          </button>
+          <button onClick={downloadIcs} className="rounded-xl bg-[#071b44] px-4 py-2.5 text-sm font-black text-white hover:bg-[#0d2a5e] flex items-center gap-2">
+            <CalendarDays className="w-4 h-4" /> Baixar agenda
           </button>
         </div>
       }
@@ -252,4 +293,16 @@ function nextAction(items: any[]) {
 
 function csvCell(value: any) {
   return `"${String(value ?? "").replace(/"/g, '""')}"`;
+}
+
+function icsDate(date: Date) {
+  return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+}
+
+function icsEscape(value: string) {
+  return String(value ?? "")
+    .replace(/\\/g, "\\\\")
+    .replace(/\n/g, "\\n")
+    .replace(/,/g, "\\,")
+    .replace(/;/g, "\\;");
 }
