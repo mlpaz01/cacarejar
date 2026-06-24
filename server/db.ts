@@ -398,6 +398,13 @@ export async function getCalibrationLogsByCampaign(campaignId: number) {
     .orderBy(desc(calibrationLogs.createdAt));
 }
 
+export async function getCalibrationLogById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(calibrationLogs).where(eq(calibrationLogs.id, id)).limit(1);
+  return result[0];
+}
+
 export async function createCalibrationLog(data: InsertCalibrationLog) {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");

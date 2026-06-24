@@ -23,12 +23,12 @@ import {
   getDashboardSummary,
   getIntegrations,
   upsertIntegration,
-  getDispatchLogs,
   getDispatchLogsByOrg,
   createDispatchLog,
   updateDispatchLog,
   getCalibrationLogs,
   getCalibrationLogsByCampaign,
+  getCalibrationLogById,
   createCalibrationLog,
   updateCalibrationLog,
   getDb,
@@ -63,6 +63,12 @@ async function requireOrgCreative(orgId: number, creativeId: number) {
   const creative = await getCreativeById(creativeId);
   if (!creative || creative.organizationId !== orgId) throw new Error("Criativo nao encontrado");
   return creative;
+}
+
+async function requireOrgCalibration(orgId: number, calibrationId: number) {
+  const calibration = await getCalibrationLogById(calibrationId);
+  if (!calibration || calibration.organizationId !== orgId) throw new Error("Leitura nao encontrada");
+  return calibration;
 }
 
 // ─── Campaigns Router ─────────────────────────────────────────────────────────
@@ -248,6 +254,7 @@ const creativesRouter = router({
       const imageUrl = `/uploads/${fileName}`;
 
       if (input.campaignId !== undefined) await requireOrgCampaign(orgId, input.campaignId);
+
       const insertResult = await createCreative({
         organizationId: orgId,
         userId: ctx.user.id,
@@ -275,6 +282,8 @@ const creativesRouter = router({
     .mutation(async ({ ctx, input }) => {
       const orgId = ctx.user.organizationId;
       if (!orgId) throw new Error("Organização não encontrada");
+
+      if (input.campaignId !== undefined) await requireOrgCampaign(orgId, input.campaignId);
 
       const insertResult = await createCreative({
         organizationId: orgId,
@@ -542,14 +551,20 @@ const calibrationRouter = router({
 
   markApplied: protectedProcedure
     .input(z.object({ id: z.number() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      const orgId = ctx.user.organizationId;
+      if (!orgId) throw new Error("Organizacao nao encontrada");
+      await requireOrgCalibration(orgId, input.id);
       await updateCalibrationLog(input.id, { status: "aplicado", appliedAt: new Date() });
       return { success: true };
     }),
 
   ignore: protectedProcedure
     .input(z.object({ id: z.number() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      const orgId = ctx.user.organizationId;
+      if (!orgId) throw new Error("Organizacao nao encontrada");
+      await requireOrgCalibration(orgId, input.id);
       await updateCalibrationLog(input.id, { status: "ignorado" });
       return { success: true };
     }),
