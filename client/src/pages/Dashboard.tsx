@@ -4,17 +4,20 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ChannelBadge } from "@/components/ui/ChannelBadge";
 import { trpc } from "@/lib/trpc";
 import {
-  Eye,
-  MousePointerClick,
-  ShoppingCart,
-  TrendingUp,
-  Megaphone,
-  Zap,
-  AlertTriangle,
   ArrowRight,
+  BarChart3,
   CalendarDays,
+  CheckCircle2,
   CheckSquare,
+  ClipboardCheck,
+  Eye,
+  Megaphone,
+  MousePointerClick,
   Plus,
+  RefreshCw,
+  ShoppingCart,
+  Sparkles,
+  TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
@@ -34,11 +37,11 @@ import { useMemo } from "react";
 function formatNumber(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
-  return n.toString();
+  return String(n || 0);
 }
 
 function formatCurrency(n: number): string {
-  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(n);
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(Number(n || 0));
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -61,6 +64,7 @@ export default function Dashboard() {
   const { data: campaigns, isLoading: loadingCampaigns } = trpc.campaigns.list.useQuery();
   const { data: calibrations } = trpc.calibration.list.useQuery();
   const { data: diagnosis } = trpc.diagnosis.get.useQuery();
+  const { data: integrations } = trpc.integrations.list.useQuery();
   const { data: allMetrics } = trpc.metrics.all.useQuery({
     from: subDays(new Date(), 30).toISOString(),
     to: new Date().toISOString(),
@@ -68,8 +72,10 @@ export default function Dashboard() {
 
   const activeCampaigns = campaigns?.filter((c) => c.status === "ativa") ?? [];
   const pendingCalibrations = calibrations?.filter((c) => c.status === "pendente") ?? [];
+  const connectedChannels = integrations?.filter((i) => i.status === "conectado").length ?? 0;
   const planItems = ((diagnosis as any)?.plano7Dias ?? []) as any[];
   const doneItems = planItems.filter((item) => ["publicado", "medir"].includes(item.status) || item.resultado).length;
+  const approvedItems = planItems.filter((item) => item.status === "aprovado").length;
   const nextItem = planItems.find((item) => !["publicado", "medir"].includes(item.status) && !item.resultado) ?? planItems[0];
   const planProgress = planItems.length ? Math.round((doneItems / planItems.length) * 100) : 0;
 
@@ -78,60 +84,136 @@ export default function Dashboard() {
       const date = subDays(new Date(), 13 - i);
       return {
         date: format(date, "dd/MM", { locale: ptBR }),
-        Impressões: 0,
+        Impressoes: 0,
         Cliques: 0,
-        Conversões: 0,
+        Conversoes: 0,
       };
     });
 
-    if (allMetrics) {
-      for (const m of allMetrics) {
-        const key = format(new Date(m.date), "dd/MM", { locale: ptBR });
-        const day = days.find((d) => d.date === key);
-        if (day) {
-          day.Impressões += m.impressions ?? 0;
-          day.Cliques += m.clicks ?? 0;
-          day.Conversões += m.conversions ?? 0;
-        }
+    for (const m of allMetrics ?? []) {
+      const key = format(new Date(m.date), "dd/MM", { locale: ptBR });
+      const day = days.find((d) => d.date === key);
+      if (day) {
+        day.Impressoes += m.impressions ?? 0;
+        day.Cliques += m.clicks ?? 0;
+        day.Conversoes += m.conversions ?? 0;
       }
     }
     return days;
   }, [allMetrics]);
 
+  const setupSteps = [
+    {
+      label: "Diagnostico ativo",
+      done: !!diagnosis,
+      text: diagnosis ? "Perfil estrategico carregado." : "Crie ou restaure um perfil para guiar todas as abas.",
+      href: "/diagnostico",
+    },
+    {
+      label: "Plano de 7 dias",
+      done: planItems.length > 0,
+      text: planItems.length ? `${planItems.length} ideias prontas para executar.` : "Gere um plano semanal antes de criar campanha.",
+      href: "/diagnostico",
+    },
+    {
+      label: "Posts revisados",
+      done: approvedItems > 0 || doneItems > 0,
+      text: approvedItems || doneItems ? `${approvedItems + doneItems} post(s) ja passaram de fase.` : "Edite no Estudio e aprove os primeiros posts.",
+      href: "/aprovacao",
+    },
+    {
+      label: "Publicacao assistida",
+      done: activeCampaigns.length > 0 || connectedChannels > 0,
+      text: connectedChannels ? `${connectedChannels} canal(is) com credencial.` : "Use Integracoes para copiar a rotina e publicar manualmente.",
+      href: "/integracoes",
+    },
+    {
+      label: "Medicao",
+      done: doneItems > 0 || (summary?.totalClicks ?? 0) > 0,
+      text: doneItems ? `${doneItems} item(ns) medidos/publicados.` : "Registre resultados para os Agentes recalcularem a rota.",
+      href: "/recalibracao",
+    },
+  ];
+  const setupDone = setupSteps.filter((step) => step.done).length;
+
   return (
     <AppLayout
       title="Dashboard"
-      subtitle="Visão geral de todas as suas campanhas"
+      subtitle="Central de acao para diagnosticar, criar, aprovar, publicar e medir."
       actions={
-        <Link href="/campanhas/nova">
+        <Link href="/diagnostico">
           <Button size="sm" className="gap-2">
             <Plus className="w-4 h-4" />
-            Nova Campanha
+            Novo diagnostico
           </Button>
         </Link>
       }
     >
-      {/* Alertas de recalibração */}
+      <section className="grid grid-cols-1 xl:grid-cols-[1.05fr_.95fr] gap-5 mb-6">
+        <div className="rounded-3xl bg-[#071b44] text-white p-6 shadow-sm">
+          <p className="text-xs font-black text-white/60 uppercase tracking-widest">Primeiro uso</p>
+          <h2 className="text-2xl font-black mt-2">Do diagnostico ao aprendizado real</h2>
+          <p className="text-sm text-white/78 leading-relaxed mt-3 max-w-3xl">
+            O Cacarejar funciona melhor em ciclo semanal: diagnostico, plano, Estudio, aprovacao, publicacao assistida e check-in.
+            Complete os passos abaixo para sentir a plataforma trabalhando de ponta a ponta.
+          </p>
+          <div className="flex flex-wrap gap-2 mt-5">
+            <Link href="/diagnostico">
+              <a className="rounded-xl bg-white text-[#071b44] px-4 py-2 text-xs font-black inline-flex items-center gap-2">
+                <Sparkles className="w-3.5 h-3.5" /> Abrir diagnostico
+              </a>
+            </Link>
+            <Link href="/integracoes">
+              <a className="rounded-xl border border-white/20 text-white px-4 py-2 text-xs font-black inline-flex items-center gap-2">
+                <ClipboardCheck className="w-3.5 h-3.5" /> Rotina assistida
+              </a>
+            </Link>
+          </div>
+        </div>
+        <div className="rounded-3xl border border-[#e6ebf3] bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-black text-[#ff3217] uppercase">Checklist operacional</p>
+              <h3 className="text-xl font-black text-[#071b44] mt-1">{setupDone}/{setupSteps.length} concluido(s)</h3>
+            </div>
+            <div className="h-14 w-14 rounded-2xl bg-[#071b44] text-white grid place-items-center text-lg font-black">{Math.round((setupDone / setupSteps.length) * 100)}%</div>
+          </div>
+          <div className="space-y-2 mt-5">
+            {setupSteps.map((step) => (
+              <Link key={step.label} href={step.href}>
+                <a className="flex items-start gap-3 rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-3 hover:bg-white transition-colors">
+                  <CheckCircle2 className={`w-5 h-5 mt-0.5 ${step.done ? "text-[#18b85c]" : "text-[#c7d1e0]"}`} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-black text-[#071b44]">{step.label}</span>
+                    <span className="block text-xs text-[#61708a] leading-snug mt-0.5">{step.text}</span>
+                  </span>
+                  <ArrowRight className="w-4 h-4 text-[#9aa7ba] mt-1" />
+                </a>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {pendingCalibrations.length > 0 && (
-        <div className="mb-6 p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+        <div className="mb-6 p-4 rounded-2xl border border-amber-500/30 bg-amber-500/5 flex items-start gap-3">
+          <RefreshCw className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
           <div className="flex-1">
-            <p className="text-sm font-medium text-amber-400">
-              {pendingCalibrations.length} sugestão{pendingCalibrations.length > 1 ? "ões" : ""} de recalibração pendente{pendingCalibrations.length > 1 ? "s" : ""}
+            <p className="text-sm font-black text-amber-700">
+              {pendingCalibrations.length} sugestao(s) de recalibracao pendente(s)
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              O motor de Agentes identificou oportunidades de otimização nas suas campanhas.
+              Os Agentes encontraram oportunidades de ajuste nas campanhas.
             </p>
           </div>
           <Link href="/recalibracao">
-            <Button variant="outline" size="sm" className="gap-1.5 border-amber-500/30 text-amber-400 hover:bg-amber-500/10">
-              Ver sugestões <ArrowRight className="w-3.5 h-3.5" />
+            <Button variant="outline" size="sm" className="gap-1.5 border-amber-500/30 text-amber-700 hover:bg-amber-500/10">
+              Ver ajustes <ArrowRight className="w-3.5 h-3.5" />
             </Button>
           </Link>
         </div>
       )}
 
-      {/* Métricas principais */}
       <section className="mb-6">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
@@ -175,40 +257,18 @@ export default function Dashboard() {
       </section>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <MetricCard
-          label="Impressões Totais"
-          value={formatNumber(summary?.totalImpressions ?? 0)}
-          icon={Eye}
-          loading={loadingSummary}
-        />
-        <MetricCard
-          label="Cliques Totais"
-          value={formatNumber(summary?.totalClicks ?? 0)}
-          icon={MousePointerClick}
-          loading={loadingSummary}
-        />
-        <MetricCard
-          label="Conversões"
-          value={formatNumber(summary?.totalConversions ?? 0)}
-          icon={ShoppingCart}
-          loading={loadingSummary}
-        />
-        <MetricCard
-          label="ROI Médio"
-          value={`${((summary?.avgRoi ?? 0) * 100).toFixed(1)}%`}
-          icon={TrendingUp}
-          iconColor="text-emerald-400"
-          loading={loadingSummary}
-        />
+        <MetricCard label="Impressoes totais" value={formatNumber(summary?.totalImpressions ?? 0)} icon={Eye} loading={loadingSummary} />
+        <MetricCard label="Cliques totais" value={formatNumber(summary?.totalClicks ?? 0)} icon={MousePointerClick} loading={loadingSummary} />
+        <MetricCard label="Conversoes" value={formatNumber(summary?.totalConversions ?? 0)} icon={ShoppingCart} loading={loadingSummary} />
+        <MetricCard label="ROI medio" value={`${((summary?.avgRoi ?? 0) * 100).toFixed(1)}%`} icon={TrendingUp} iconColor="text-emerald-400" loading={loadingSummary} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Gráfico de performance */}
         <div className="lg:col-span-2 card-premium p-6">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h2 className="text-sm font-semibold text-foreground">Performance — Últimos 14 dias</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Impressões, cliques e conversões</p>
+              <h2 className="text-sm font-semibold text-foreground">Performance - ultimos 14 dias</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Impressoes, cliques e conversoes</p>
             </div>
           </div>
           <ResponsiveContainer width="100%" height={220}>
@@ -227,18 +287,17 @@ export default function Dashboard() {
               <XAxis dataKey="date" tick={{ fontSize: 11, fill: "oklch(0.56 0.010 265)" }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fontSize: 11, fill: "oklch(0.56 0.010 265)" }} axisLine={false} tickLine={false} tickFormatter={formatNumber} />
               <Tooltip content={<CustomTooltip />} />
-              <Area type="monotone" dataKey="Impressões" stroke="oklch(0.62 0.22 280)" strokeWidth={2} fill="url(#gradImpr)" />
+              <Area type="monotone" dataKey="Impressoes" stroke="oklch(0.62 0.22 280)" strokeWidth={2} fill="url(#gradImpr)" />
               <Area type="monotone" dataKey="Cliques" stroke="oklch(0.72 0.18 200)" strokeWidth={2} fill="url(#gradClicks)" />
             </AreaChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Campanhas ativas */}
         <div className="card-premium p-6 flex flex-col">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h2 className="text-sm font-semibold text-foreground">Campanhas Ativas</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">{activeCampaigns.length} em execução</p>
+              <h2 className="text-sm font-semibold text-foreground">Campanhas ativas</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">{activeCampaigns.length} em execucao</p>
             </div>
             <Link href="/campanhas">
               <a className="text-xs text-primary hover:text-primary/80 transition-colors flex items-center gap-1">
@@ -257,7 +316,7 @@ export default function Dashboard() {
             <div className="flex-1 flex flex-col items-center justify-center text-center py-8">
               <Megaphone className="w-8 h-8 text-muted-foreground/40 mb-3" />
               <p className="text-sm text-muted-foreground">Nenhuma campanha ativa</p>
-              <Link href="/campanhas/nova">
+              <Link href="/campanhas">
                 <Button variant="outline" size="sm" className="mt-3 gap-1.5">
                   <Plus className="w-3.5 h-3.5" /> Criar campanha
                 </Button>
@@ -274,9 +333,7 @@ export default function Dashboard() {
                   <Link key={campaign.id} href={`/campanhas/${campaign.id}`}>
                     <a className="block p-3 rounded-lg hover:bg-muted/50 transition-colors group">
                       <div className="flex items-start justify-between gap-2 mb-2">
-                        <p className="text-xs font-medium text-foreground leading-snug line-clamp-1 flex-1">
-                          {campaign.name}
-                        </p>
+                        <p className="text-xs font-medium text-foreground leading-snug line-clamp-1 flex-1">{campaign.name}</p>
                         <StatusBadge status="ativa" />
                       </div>
                       <div className="flex items-center gap-1.5 mb-2 flex-wrap">
@@ -286,14 +343,11 @@ export default function Dashboard() {
                       </div>
                       <div className="space-y-1">
                         <div className="flex justify-between text-[10px] text-muted-foreground">
-                          <span>Orçamento</span>
+                          <span>Orcamento</span>
                           <span>{progress.toFixed(0)}%</span>
                         </div>
                         <div className="h-1 bg-muted rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-primary rounded-full transition-all"
-                            style={{ width: `${Math.min(progress, 100)}%` }}
-                          />
+                          <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${Math.min(progress, 100)}%` }} />
                         </div>
                       </div>
                     </a>
@@ -305,44 +359,11 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Stats row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
-        <div className="card-premium p-4 flex items-center gap-3">
-          <div className="p-2.5 rounded-lg bg-primary/10">
-            <Megaphone className="w-4 h-4 text-primary" />
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Campanhas ativas</p>
-            <p className="text-xl font-semibold text-foreground">{summary?.activeCampaigns ?? 0}</p>
-          </div>
-        </div>
-        <div className="card-premium p-4 flex items-center gap-3">
-          <div className="p-2.5 rounded-lg bg-emerald-500/10">
-            <TrendingUp className="w-4 h-4 text-emerald-400" />
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Receita total</p>
-            <p className="text-xl font-semibold text-foreground">{formatCurrency(summary?.totalRevenue ?? 0)}</p>
-          </div>
-        </div>
-        <div className="card-premium p-4 flex items-center gap-3">
-          <div className="p-2.5 rounded-lg bg-blue-500/10">
-            <ShoppingCart className="w-4 h-4 text-blue-400" />
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Investimento</p>
-            <p className="text-xl font-semibold text-foreground">{formatCurrency(summary?.totalSpend ?? 0)}</p>
-          </div>
-        </div>
-        <div className="card-premium p-4 flex items-center gap-3">
-          <div className="p-2.5 rounded-lg bg-amber-500/10">
-            <Zap className="w-4 h-4 text-amber-400" />
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Recalibrações pendentes</p>
-            <p className="text-xl font-semibold text-foreground">{pendingCalibrations.length}</p>
-          </div>
-        </div>
+        <SmallStat icon={Megaphone} label="Campanhas ativas" value={String(summary?.activeCampaigns ?? 0)} />
+        <SmallStat icon={TrendingUp} label="Receita total" value={formatCurrency(summary?.totalRevenue ?? 0)} />
+        <SmallStat icon={BarChart3} label="Investimento" value={formatCurrency(summary?.totalSpend ?? 0)} />
+        <SmallStat icon={RefreshCw} label="Recalibracoes" value={String(pendingCalibrations.length)} />
       </div>
     </AppLayout>
   );
@@ -353,6 +374,20 @@ function JourneyMetric({ label, value }: { label: string; value: string }) {
     <div className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-4">
       <p className="text-[10px] font-black text-[#61708a] uppercase tracking-wide">{label}</p>
       <p className="text-lg font-black text-[#071b44] mt-1">{value}</p>
+    </div>
+  );
+}
+
+function SmallStat({ icon: Icon, label, value }: { icon: any; label: string; value: string }) {
+  return (
+    <div className="card-premium p-4 flex items-center gap-3">
+      <div className="p-2.5 rounded-lg bg-primary/10">
+        <Icon className="w-4 h-4 text-primary" />
+      </div>
+      <div>
+        <p className="text-xs text-muted-foreground">{label}</p>
+        <p className="text-xl font-semibold text-foreground">{value}</p>
+      </div>
     </div>
   );
 }

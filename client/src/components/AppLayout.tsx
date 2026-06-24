@@ -16,7 +16,6 @@ import {
   ChevronRight,
   ChevronLeft,
   Coins,
-  Wand2,
   CheckSquare,
   Bell,
   Egg,
@@ -31,23 +30,23 @@ import { trpc } from "@/lib/trpc";
 
 const navGroups = [
   {
-    title: "Estratégia",
+    title: "Estrategia",
     items: [
       { href: "/", icon: LayoutDashboard, label: "Dashboard" },
-      { href: "/diagnostico", icon: MessageSquareHeart, label: "Diagnóstico" },
+      { href: "/diagnostico", icon: MessageSquareHeart, label: "Diagnostico" },
       { href: "/radar", icon: Telescope, label: "Radar de Mercado" },
     ],
   },
   {
-    title: "Criação",
+    title: "Criacao",
     items: [
       { href: "/criativos", icon: ImageIcon, label: "Criativos" },
     ],
   },
   {
-    title: "Veiculação",
+    title: "Veiculacao",
     items: [
-      { href: "/aprovacao", icon: CheckSquare, label: "Aprovação" },
+      { href: "/aprovacao", icon: CheckSquare, label: "Aprovacao" },
       { href: "/campanhas", icon: Megaphone, label: "Campanhas" },
       { href: "/ovos", icon: Egg, label: "Ovos de Ouro" },
     ],
@@ -55,7 +54,7 @@ const navGroups = [
   {
     title: "Resultados",
     items: [
-      { href: "/metricas", icon: BarChart3, label: "Métricas" },
+      { href: "/metricas", icon: BarChart3, label: "Metricas" },
       { href: "/recalibracao", icon: Zap, label: "Acompanhamento" },
     ],
   },
@@ -63,10 +62,10 @@ const navGroups = [
     title: "Conta",
     items: [
       { href: "/biblioteca", icon: Library, label: "Biblioteca" },
-      { href: "/creditos", icon: Coins, label: "Créditos" },
-      { href: "/notificacoes", icon: Bell, label: "Notificações" },
-      { href: "/integracoes", icon: Settings2, label: "Integrações" },
-      { href: "/configuracoes", icon: UserCog, label: "Configurações" },
+      { href: "/creditos", icon: Coins, label: "Creditos" },
+      { href: "/notificacoes", icon: Bell, label: "Notificacoes" },
+      { href: "/integracoes", icon: Settings2, label: "Integracoes" },
+      { href: "/configuracoes", icon: UserCog, label: "Configuracoes" },
     ],
   },
 ];
@@ -88,13 +87,17 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
     refetchInterval: 60000,
   });
 
-  // Sidebar retrátil — estado persistido no localStorage
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem(SIDEBAR_KEY) === "1";
   });
+
   useEffect(() => {
-    try { window.localStorage.setItem(SIDEBAR_KEY, collapsed ? "1" : "0"); } catch { /* noop */ }
+    try {
+      window.localStorage.setItem(SIDEBAR_KEY, collapsed ? "1" : "0");
+    } catch {
+      // localStorage can be unavailable in private contexts.
+    }
   }, [collapsed]);
 
   useEffect(() => {
@@ -124,14 +127,12 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
 
   return (
     <div className="min-h-screen bg-[#f7f9fc] flex">
-      {/* Sidebar navy — w-60 expandido, w-[72px] colapsado */}
       <aside
         className={cn(
           "bg-sidebar flex flex-col fixed inset-y-0 left-0 z-40 shadow-xl transition-[width] duration-200 ease-out",
           collapsed ? "w-[72px]" : "w-60"
         )}
       >
-        {/* Logo header: full quando expandido, só mascote quando colapsado */}
         <div
           className={cn(
             "h-24 flex items-center border-b border-sidebar-border relative",
@@ -144,9 +145,8 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
             <BrandLogo size="sidebar" theme="dark" />
           )}
 
-          {/* Botão de colapsar/expandir — meia-bola na borda direita */}
           <button
-            onClick={() => setCollapsed(v => !v)}
+            onClick={() => setCollapsed((v) => !v)}
             aria-label={collapsed ? "Expandir menu" : "Colapsar menu"}
             className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-sidebar border border-sidebar-border text-white/70 hover:text-white hover:bg-primary hover:border-primary flex items-center justify-center shadow-md transition-colors z-10"
           >
@@ -154,12 +154,10 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
           </button>
         </div>
 
-        {/* Navigation */}
         <nav className={cn("flex-1 py-4 overflow-y-auto overflow-x-hidden", collapsed ? "px-2 space-y-3" : "px-3 space-y-4")}>
           {navGroups.map((group) => (
             <div key={group.title} className="space-y-0.5">
               {collapsed ? (
-                // separador discreto entre grupos quando colapsado
                 <div className="border-t border-white/5 mx-2 mb-2" />
               ) : (
                 <p className="text-[9px] font-black text-white/30 uppercase tracking-widest px-3 mb-2">
@@ -200,7 +198,6 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
                           )}
                         </>
                       )}
-                      {/* Badge no modo colapsado: dot vermelho no canto superior direito */}
                       {collapsed && hasBadge && (
                         <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary border border-sidebar" />
                       )}
@@ -216,7 +213,7 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
                     </TooltipTrigger>
                     <TooltipContent side="right" className="font-bold">
                       {label}
-                      {hasBadge && <span className="ml-1.5 text-primary">· {unread.data}</span>}
+                      {hasBadge && <span className="ml-1.5 text-primary">- {unread.data}</span>}
                     </TooltipContent>
                   </Tooltip>
                 );
@@ -225,7 +222,6 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
           ))}
         </nav>
 
-        {/* User footer */}
         <div className={cn("border-t border-sidebar-border", collapsed ? "p-2" : "p-3")}>
           {collapsed ? (
             <div className="flex flex-col items-center gap-2">
@@ -236,7 +232,7 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
                   </Avatar>
                 </TooltipTrigger>
                 <TooltipContent side="right" className="font-bold">
-                  {user?.name ?? "Usuário"}
+                  {user?.name ?? "Usuario"}
                   {user?.email && <div className="text-[10px] font-normal opacity-70">{user.email}</div>}
                 </TooltipContent>
               </Tooltip>
@@ -259,7 +255,7 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
                 <AvatarFallback className="bg-primary text-white text-xs font-black">{initials}</AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-white truncate">{user?.name ?? "Usuário"}</p>
+                <p className="text-xs font-bold text-white truncate">{user?.name ?? "Usuario"}</p>
                 <p className="text-[10px] text-white/40 truncate">{user?.email ?? ""}</p>
               </div>
               <Tooltip>
@@ -279,14 +275,12 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
         </div>
       </aside>
 
-      {/* Main content */}
       <div
         className={cn(
           "flex-1 flex flex-col min-h-screen transition-[margin] duration-200 ease-out",
           collapsed ? "ml-[72px]" : "ml-60"
         )}
       >
-        {/* Header */}
         {(title || actions) && (
           <header className="min-h-[72px] border-b border-border bg-white sticky top-0 z-30 px-5 lg:px-8 py-3 shadow-sm">
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
@@ -303,7 +297,6 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
           </header>
         )}
 
-        {/* Page content */}
         <main className="flex-1 p-5 lg:p-6 xl:p-8">{children}</main>
       </div>
     </div>
