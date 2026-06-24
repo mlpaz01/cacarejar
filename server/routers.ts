@@ -24,6 +24,7 @@ import {
   getIntegrations,
   upsertIntegration,
   getDispatchLogs,
+  getDispatchLogsByOrg,
   createDispatchLog,
   updateDispatchLog,
   getCalibrationLogs,
@@ -52,6 +53,18 @@ import * as googleIntelService from "./services/googleIntel";
 import * as radarService from "./services/radar";
 import { creativeMatchesContext, getActiveOrgContext, mergeContextMeta } from "./services/context";
 
+async function requireOrgCampaign(orgId: number, campaignId: number) {
+  const campaign = await getCampaignById(campaignId);
+  if (!campaign || campaign.organizationId !== orgId) throw new Error("Campanha nao encontrada");
+  return campaign;
+}
+
+async function requireOrgCreative(orgId: number, creativeId: number) {
+  const creative = await getCreativeById(creativeId);
+  if (!creative || creative.organizationId !== orgId) throw new Error("Criativo nao encontrado");
+  return creative;
+}
+
 // ─── Campaigns Router ─────────────────────────────────────────────────────────
 
 const campaignsRouter = router({
@@ -63,7 +76,11 @@ const campaignsRouter = router({
 
   byId: protectedProcedure
     .input(z.object({ id: z.number() }))
-    .query(({ input }) => getCampaignById(input.id)),
+    .query(({ ctx, input }) => {
+      const orgId = ctx.user.organizationId;
+      if (!orgId) throw new Error("Organizacao nao encontrada");
+      return requireOrgCampaign(orgId, input.id);
+    }),
 
   create: protectedProcedure
     .input(
@@ -109,7 +126,10 @@ const campaignsRouter = router({
         endDate: z.string().optional(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      const orgId = ctx.user.organizationId;
+      if (!orgId) throw new Error("Organizacao nao encontrada");
+      await requireOrgCampaign(orgId, input.id);
       const { id, startDate, endDate, ...rest } = input;
       await updateCampaign(id, {
         ...rest,
@@ -121,7 +141,10 @@ const campaignsRouter = router({
 
   remove: protectedProcedure
     .input(z.object({ id: z.number() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      const orgId = ctx.user.organizationId;
+      if (!orgId) throw new Error("Organizacao nao encontrada");
+      await requireOrgCampaign(orgId, input.id);
       await deleteCampaign(input.id);
       return { success: true };
     }),
@@ -133,8 +156,10 @@ const campaignsRouter = router({
         cron: z.string(),
       })
     )
-    .mutation(async ({ input }) => {
-      const campaign = await getCampaignById(input.campaignId);
+    .mutation(async ({ ctx, input }) => {
+      const orgId = ctx.user.organizationId;
+      if (!orgId) throw new Error("Organizacao nao encontrada");
+      const campaign = await requireOrgCampaign(orgId, input.campaignId);
       if (!campaign) throw new Error("Campanha não encontrada");
 
       const { runScheduledDispatch } = await import("./_core/index");
@@ -164,8 +189,10 @@ const campaignsRouter = router({
 
   pauseDispatch: protectedProcedure
     .input(z.object({ campaignId: z.number() }))
-    .mutation(async ({ input }) => {
-      const campaign = await getCampaignById(input.campaignId);
+    .mutation(async ({ ctx, input }) => {
+      const orgId = ctx.user.organizationId;
+      if (!orgId) throw new Error("Organizacao nao encontrada");
+      const campaign = await requireOrgCampaign(orgId, input.campaignId);
       if (!campaign?.scheduleCronTaskUid) throw new Error("Nenhum agendamento ativo");
       await updateHeartbeatJob(campaign.scheduleCronTaskUid, { enable: false });
       return { success: true };
@@ -180,6 +207,7 @@ const creativesRouter = router({
     .query(async ({ ctx, input }) => {
       const orgId = ctx.user.organizationId;
       if (!orgId) return [];
+      if (input.campaignId !== undefined) await requireOrgCampaign(orgId, input.campaignId);
       const activeContext = await getActiveOrgContext(orgId);
       if (!activeContext) return [];
       const rows = await getCreatives(orgId, input.campaignId);
@@ -188,7 +216,11 @@ const creativesRouter = router({
 
   byId: protectedProcedure
     .input(z.object({ id: z.number() }))
-    .query(({ input }) => getCreativeById(input.id)),
+    .query(({ ctx, input }) => {
+      const orgId = ctx.user.organizationId;
+      if (!orgId) throw new Error("Organizacao nao encontrada");
+      return requireOrgCreative(orgId, input.id);
+    }),
 
   upload: protectedProcedure
     .input(
@@ -215,6 +247,7 @@ const creativesRouter = router({
 
       const imageUrl = `/uploads/${fileName}`;
 
+      if (input.campaignId !== undefined) await requireOrgCampaign(orgId, input.campaignId);
       const insertResult = await createCreative({
         organizationId: orgId,
         userId: ctx.user.id,
@@ -265,14 +298,21 @@ const creativesRouter = router({
         status: z.enum(["aprovado", "rejeitado", "em_uso"]),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      const orgId = ctx.user.organizationId;
+      if (!orgId) throw new Error("Organizacao nao encontrada");
+      await requireOrgCreative(orgId, input.id);
       await updateCreative(input.id, { status: input.status });
       return { success: true };
     }),
 
   linkToCampaign: protectedProcedure
     .input(z.object({ id: z.number(), campaignId: z.number() }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      const orgId = ctx.user.organizationId;
+      if (!orgId) throw new Error("Organizacao nao encontrada");
+      await requireOrgCreative(orgId, input.id);
+      await requireOrgCampaign(orgId, input.campaignId);
       await updateCreative(input.id, { campaignId: input.campaignId, status: "em_uso" });
       return { success: true };
     }),
@@ -289,13 +329,16 @@ const metricsRouter = router({
         to: z.string().optional(),
       })
     )
-    .query(({ input }) =>
-      getMetrics(
+    .query(async ({ ctx, input }) => {
+      const orgId = ctx.user.organizationId;
+      if (!orgId) throw new Error("Organizacao nao encontrada");
+      await requireOrgCampaign(orgId, input.campaignId);
+      return getMetrics(
         input.campaignId,
         input.from ? new Date(input.from) : undefined,
         input.to ? new Date(input.to) : undefined
-      )
-    ),
+      );
+    }),
 
   all: protectedProcedure
     .input(z.object({ from: z.string().optional(), to: z.string().optional() }))
@@ -327,7 +370,10 @@ const metricsRouter = router({
         revenue: z.string(),
       })
     )
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      const orgId = ctx.user.organizationId;
+      if (!orgId) throw new Error("Organizacao nao encontrada");
+      await requireOrgCampaign(orgId, input.campaignId);
       const spend = parseFloat(input.spend);
       const revenue = parseFloat(input.revenue);
       const roi = spend > 0 ? (revenue - spend) / spend : 0;
@@ -390,7 +436,12 @@ const integrationsRouter = router({
 const dispatchRouter = router({
   logs: protectedProcedure
     .input(z.object({ campaignId: z.number().optional(), channel: z.string().optional() }))
-    .query(({ input }) => getDispatchLogs(input.campaignId, input.channel)),
+    .query(async ({ ctx, input }) => {
+      const orgId = ctx.user.organizationId;
+      if (!orgId) return [];
+      if (input.campaignId !== undefined) await requireOrgCampaign(orgId, input.campaignId);
+      return getDispatchLogsByOrg(orgId, input.campaignId, input.channel);
+    }),
 
   schedule: protectedProcedure
     .input(
@@ -404,6 +455,8 @@ const dispatchRouter = router({
     .mutation(async ({ ctx, input }) => {
       const orgId = ctx.user.organizationId;
       if (!orgId) throw new Error("Organização não encontrada");
+      await requireOrgCampaign(orgId, input.campaignId);
+      if (input.creativeId !== undefined) await requireOrgCreative(orgId, input.creativeId);
       await createDispatchLog({
         organizationId: orgId,
         campaignId: input.campaignId,
@@ -427,7 +480,12 @@ const calibrationRouter = router({
 
   byCampaign: protectedProcedure
     .input(z.object({ campaignId: z.number() }))
-    .query(({ input }) => getCalibrationLogsByCampaign(input.campaignId)),
+    .query(async ({ ctx, input }) => {
+      const orgId = ctx.user.organizationId;
+      if (!orgId) return [];
+      await requireOrgCampaign(orgId, input.campaignId);
+      return getCalibrationLogsByCampaign(input.campaignId);
+    }),
 
   analyze: protectedProcedure
     .input(z.object({ campaignId: z.number() }))
@@ -435,7 +493,7 @@ const calibrationRouter = router({
       const orgId = ctx.user.organizationId;
       if (!orgId) throw new Error("Organização não encontrada");
 
-      const campaign = await getCampaignById(input.campaignId);
+      const campaign = await requireOrgCampaign(orgId, input.campaignId);
       if (!campaign) throw new Error("Campanha não encontrada");
 
       const metricsData = await getMetrics(input.campaignId);

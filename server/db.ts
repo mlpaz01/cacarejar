@@ -350,6 +350,20 @@ export async function getDispatchLogs(campaignId?: number, channel?: string) {
     .limit(100);
 }
 
+export async function getDispatchLogsByOrg(orgId: number, campaignId?: number, channel?: string) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [eq(dispatchLogs.organizationId, orgId)];
+  if (campaignId !== undefined) conditions.push(eq(dispatchLogs.campaignId, campaignId));
+  if (channel) conditions.push(eq(dispatchLogs.channel, channel));
+  return db
+    .select()
+    .from(dispatchLogs)
+    .where(and(...conditions))
+    .orderBy(desc(dispatchLogs.createdAt))
+    .limit(100);
+}
+
 export async function createDispatchLog(data: InsertDispatchLog) {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
