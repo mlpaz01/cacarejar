@@ -13,6 +13,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import Dashboard from "./pages/Dashboard";
 import Campanhas from "./pages/Campanhas";
 import CampanhaDetalhe from "./pages/CampanhaDetalhe";
+import Calendario from "./pages/Calendario";
 import Criativos from "./pages/Criativos";
 import CriativoEditor from "./pages/CriativoEditor";
 import Metricas from "./pages/Metricas";
@@ -49,6 +50,7 @@ function AppRouter() {
       <Route path="/" component={Dashboard} />
       <Route path="/campanhas" component={Campanhas} />
       <Route path="/campanhas/:id" component={CampanhaDetalhe} />
+      <Route path="/calendario" component={Calendario} />
       <Route path="/criativos/:id" component={CriativoEditor} />
       <Route path="/criativos" component={Criativos} />
       <Route path="/metricas" component={Metricas} />

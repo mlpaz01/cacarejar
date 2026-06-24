@@ -19,6 +19,7 @@ import {
   CheckSquare,
   Bell,
   Egg,
+  CalendarDays,
   MessageSquareHeart,
   Telescope,
   UserCog,
@@ -47,6 +48,7 @@ const navGroups = [
     title: "Veiculacao",
     items: [
       { href: "/aprovacao", icon: CheckSquare, label: "Aprovacao" },
+      { href: "/calendario", icon: CalendarDays, label: "Calendario" },
       { href: "/campanhas", icon: Megaphone, label: "Campanhas" },
       { href: "/ovos", icon: Egg, label: "Ovos de Ouro" },
     ],

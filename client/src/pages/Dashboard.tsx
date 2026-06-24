@@ -168,6 +168,11 @@ export default function Dashboard() {
                 <ClipboardCheck className="w-3.5 h-3.5" /> Rotina assistida
               </a>
             </Link>
+            <Link href="/calendario">
+              <a className="rounded-xl border border-white/20 text-white px-4 py-2 text-xs font-black inline-flex items-center gap-2">
+                <CalendarDays className="w-3.5 h-3.5" /> Calendario
+              </a>
+            </Link>
           </div>
         </div>
         <div className="rounded-3xl border border-[#e6ebf3] bg-white p-6 shadow-sm">
@@ -229,6 +234,11 @@ export default function Dashboard() {
             <Link href="/diagnostico">
               <a className="rounded-xl bg-[#071b44] text-white px-4 py-2 text-xs font-black inline-flex items-center gap-2">
                 <CalendarDays className="w-3.5 h-3.5" /> Abrir plano
+              </a>
+            </Link>
+            <Link href="/calendario">
+              <a className="rounded-xl border border-[#e6ebf3] text-[#071b44] px-4 py-2 text-xs font-black inline-flex items-center gap-2 hover:bg-[#f8fafc]">
+                <CalendarDays className="w-3.5 h-3.5" /> Ver calendario
               </a>
             </Link>
             <Link href="/aprovacao">
