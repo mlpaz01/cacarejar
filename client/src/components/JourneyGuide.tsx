@@ -4,11 +4,11 @@ import { BarChart3, CheckCircle2, ClipboardCheck, FileText, Megaphone, Radar, Tr
 type StepId = "diagnostico" | "radar" | "aprovacao" | "campanhas" | "metricas" | "acompanhamento";
 
 const steps: Array<{ id: StepId; label: string; href: string; icon: any; detail: string }> = [
-  { id: "diagnostico", label: "Diagnóstico", href: "/diagnostico", icon: FileText, detail: "Parecer e prescrição" },
+  { id: "diagnostico", label: "Diagnostico", href: "/diagnostico", icon: FileText, detail: "Parecer e prescricao" },
   { id: "radar", label: "Radar", href: "/radar", icon: Radar, detail: "Mercado e feedbacks" },
-  { id: "aprovacao", label: "Aprovação", href: "/aprovacao", icon: ClipboardCheck, detail: "Posts e verba" },
-  { id: "campanhas", label: "Campanhas", href: "/campanhas", icon: Megaphone, detail: "Execução" },
-  { id: "metricas", label: "Métricas", href: "/metricas", icon: BarChart3, detail: "Resultado" },
+  { id: "aprovacao", label: "Aprovacao", href: "/aprovacao", icon: ClipboardCheck, detail: "Posts e verba" },
+  { id: "campanhas", label: "Campanhas", href: "/campanhas", icon: Megaphone, detail: "Execucao" },
+  { id: "metricas", label: "Metricas", href: "/metricas", icon: BarChart3, detail: "Resultado" },
   { id: "acompanhamento", label: "Acompanhamento", href: "/recalibracao", icon: TrendingUp, detail: "Check-ins" },
 ];
 
@@ -20,7 +20,7 @@ export function JourneyGuide({ active, compact = false }: { active: StepId; comp
       <div className="flex items-start justify-between gap-3 flex-wrap mb-4">
         <div>
           <p className="text-xs font-black text-[#ff3217] uppercase tracking-wide">Jornada guiada</p>
-          <h2 className="text-lg font-black text-[#071b44]">Da estratégia ao aprendizado</h2>
+          <h2 className="text-lg font-black text-[#071b44]">Da estrategia ao aprendizado</h2>
         </div>
         <span className="rounded-full bg-[#f8fafc] border border-[#e6ebf3] px-3 py-1 text-xs font-black text-[#071b44]">
           Etapa {Math.max(1, activeIndex + 1)} de {steps.length}
