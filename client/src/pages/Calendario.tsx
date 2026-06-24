@@ -62,6 +62,10 @@ export default function Calendario() {
   ).length;
   const approved = items.filter(item => item.status === "aprovado").length;
   const editing = items.filter(item => item.status === "em_edicao").length;
+  const focusItem =
+    items.find(
+      item => !["publicado", "medir"].includes(item.status) && !item.resultado
+    ) ?? items[0];
 
   const weekText = items
     .map(item =>
@@ -326,6 +330,76 @@ export default function Calendario() {
         </div>
       </section>
 
+      {focusItem && (
+        <section className="rounded-3xl border border-[#ffd6ce] bg-[#fff8f6] p-5 shadow-sm mb-6">
+          <div className="flex flex-col xl:flex-row xl:items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-[#ff3217] text-white grid place-items-center flex-shrink-0">
+              <CalendarDays className="w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-black text-[#ff3217] uppercase tracking-wide">
+                Modo execucao da semana
+              </p>
+              <h2 className="text-xl font-black text-[#071b44] mt-1">
+                {focusItem.dia} - {focusItem.canal}
+              </h2>
+              <p className="text-sm text-[#22304b] font-bold leading-relaxed mt-1">
+                {focusItem.gancho ||
+                  "Abra no Estudio, refine e publique quando estiver pronto."}
+              </p>
+              <p className="text-xs text-[#61708a] mt-2">
+                Status atual:{" "}
+                {STATUS_LABEL[focusItem.status] ?? focusItem.status}. Proximo
+                passo: {executionHint(focusItem)}.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 md:flex gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  openStudio(focusItem.index, focusItem.creativeId)
+                }
+                disabled={ensureOriginCreative.isPending}
+                className="rounded-xl bg-[#071b44] text-white px-4 py-2.5 text-xs font-black inline-flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {ensureOriginCreative.isPending &&
+                (ensureOriginCreative.variables as any)?.index ===
+                  focusItem.index ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Edit3 className="w-3.5 h-3.5" />
+                )}
+                Editar
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatus(focusItem.index, "aprovado")}
+                disabled={updateItem.isPending}
+                className="rounded-xl border border-[#e6ebf3] bg-white text-[#071b44] px-4 py-2.5 text-xs font-black hover:bg-[#f8fafc] disabled:opacity-50"
+              >
+                Aprovar
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatus(focusItem.index, "publicado")}
+                disabled={updateItem.isPending}
+                className="rounded-xl border border-[#e6ebf3] bg-white text-[#071b44] px-4 py-2.5 text-xs font-black hover:bg-[#f8fafc] disabled:opacity-50"
+              >
+                Publicado
+              </button>
+              <button
+                type="button"
+                onClick={() => saveResult(focusItem.index)}
+                disabled={updateItem.isPending}
+                className="rounded-xl border border-[#18b85c] bg-[#eafff1] text-[#087a32] px-4 py-2.5 text-xs font-black hover:bg-[#dffbea] disabled:opacity-50"
+              >
+                Medir
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
+
       <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
         {items.map(item => {
           const creatingCreative =
@@ -531,6 +605,16 @@ function nextAction(items: any[]) {
   if (items.some(item => item.status === "publicado"))
     return "Registre resultados e marque como medir.";
   return "Rode o check-in para transformar os resultados em aprendizado.";
+}
+
+function executionHint(item: any) {
+  if (item.resultado || item.status === "medir")
+    return "rodar o check-in e transformar resultado em aprendizado";
+  if (item.status === "publicado")
+    return "registrar link, numeros e observacoes do post";
+  if (item.status === "aprovado") return "publicar manualmente e colar o link";
+  if (item.status === "em_edicao") return "finalizar o toque humano no Estudio";
+  return "abrir no Estudio e deixar pronto para aprovacao";
 }
 
 function csvCell(value: any) {
