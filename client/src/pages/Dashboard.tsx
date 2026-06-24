@@ -135,6 +135,54 @@ export default function Dashboard() {
     },
   ];
   const setupDone = setupSteps.filter((step) => step.done).length;
+  const recommendedStep = !diagnosis
+    ? {
+        title: "Criar ou restaurar um diagnostico",
+        text: "Sem um perfil ativo, Radar, Estudio, aprovacao e metricas perdem foco. Comece escolhendo o negocio da semana.",
+        href: "/diagnostico",
+        action: "Abrir diagnostico",
+        icon: Sparkles,
+      }
+    : !planItems.length
+      ? {
+          title: "Gerar o Plano de 7 dias",
+          text: "O plano transforma o parecer em posts, calendario e itens editaveis no Estudio.",
+          href: "/diagnostico",
+          action: "Gerar plano",
+          icon: CalendarDays,
+        }
+      : approvedItems + doneItems === 0
+        ? {
+            title: "Revisar os primeiros posts",
+            text: "Abra as sugestoes no Estudio, ajuste o toque humano e mande para aprovacao antes de publicar.",
+            href: "/aprovacao",
+            action: "Ir para aprovacao",
+            icon: CheckSquare,
+          }
+        : connectedChannels === 0 && activeCampaigns.length === 0
+          ? {
+              title: "Preparar publicacao assistida",
+              text: "Use a rotina de Integracoes para copiar posts, publicar manualmente e manter tudo rastreavel.",
+              href: "/integracoes",
+              action: "Ver rotina",
+              icon: ClipboardCheck,
+            }
+          : doneItems === 0 && (summary?.totalClicks ?? 0) === 0
+            ? {
+                title: "Registrar os primeiros resultados",
+                text: "Depois de publicar, registre alcance, cliques, conversas e aprendizados para os Agentes recalcularem a rota.",
+                href: "/recalibracao",
+                action: "Registrar check-in",
+                icon: TrendingUp,
+              }
+            : {
+                title: "Rodar o proximo ciclo",
+                text: "Use os aprendizados medidos para atualizar o diagnostico, refinando Radar, posts e calendario da semana.",
+                href: "/recalibracao",
+                action: "Abrir acompanhamento",
+                icon: RefreshCw,
+              };
+  const RecommendedIcon = recommendedStep.icon;
 
   return (
     <AppLayout
@@ -149,6 +197,22 @@ export default function Dashboard() {
         </Link>
       }
     >
+      <section className="mb-6 rounded-3xl border border-[#ffd6ce] bg-[#fff7f5] p-5 shadow-sm flex flex-col lg:flex-row lg:items-center gap-4">
+        <div className="w-12 h-12 rounded-2xl bg-[#ff3217] text-white grid place-items-center flex-shrink-0">
+          <RecommendedIcon className="w-5 h-5" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-black text-[#ff3217] uppercase tracking-wide">Proximo passo recomendado</p>
+          <h2 className="text-xl font-black text-[#071b44] mt-1">{recommendedStep.title}</h2>
+          <p className="text-sm text-[#61708a] mt-1 leading-relaxed">{recommendedStep.text}</p>
+        </div>
+        <Link href={recommendedStep.href}>
+          <a className="rounded-xl bg-[#071b44] text-white px-4 py-2 text-xs font-black inline-flex items-center justify-center gap-2 hover:bg-[#0b255c] transition-colors">
+            {recommendedStep.action} <ArrowRight className="w-3.5 h-3.5" />
+          </a>
+        </Link>
+      </section>
+
       <section className="grid grid-cols-1 xl:grid-cols-[1.05fr_.95fr] gap-5 mb-6">
         <div className="rounded-3xl bg-[#071b44] text-white p-6 shadow-sm">
           <p className="text-xs font-black text-white/60 uppercase tracking-widest">Primeiro uso</p>
