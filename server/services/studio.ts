@@ -560,6 +560,41 @@ export async function updateCreative(orgId: number, id: number, patch: {
 }
 
 /** Versiona a imagem do criativo. Mantém histórico em generationMeta.versions[]. */
+export async function duplicateCreative(orgId: number, userId: number, id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB indisponivel");
+  const c = await getCreative(orgId, id);
+  if (!c) throw new Error("Criativo nao encontrado");
+
+  const meta = { ...((c.generationMeta as any) ?? {}) };
+  delete meta.originType;
+  delete meta.originIndex;
+  meta.duplicatedFrom = c.id;
+  meta.duplicatedAt = Date.now();
+  meta.textVersions = Array.isArray(meta.textVersions) ? meta.textVersions : [];
+
+  const inserted = await db.insert(creatives).values({
+    organizationId: orgId,
+    userId,
+    campaignId: null,
+    experimentId: null,
+    briefing: `${c.briefing} - variacao`,
+    copy: c.copy,
+    imageUrl: c.imageUrl,
+    imageKey: c.imageKey,
+    ratio: c.ratio,
+    lente: c.lente,
+    formato: c.formato,
+    factorValues: (c.factorValues as any) ?? {},
+    generationMeta: meta,
+    status: "rascunho",
+    channels: (c.channels as any) ?? [],
+    usageCount: 0,
+  });
+
+  return { id: credits.insertIdOf(inserted), duplicatedFrom: c.id };
+}
+
 async function pushVersion(orgId: number, id: number, newImageUrl: string, kind: "regen" | "upload" | "revert", extra: any = {}) {
   const db = await getDb();
   if (!db) return;

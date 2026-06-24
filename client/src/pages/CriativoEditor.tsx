@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import {
   ArrowLeft, Sparkles, Upload, History, Save, Send, Download, Loader2,
   Pencil, Palette, FileText, Film, Image as ImageIcon, RefreshCw,
-  Tag, Hash, Megaphone, Target, Layers, Eye, Trash2, AlertTriangle,
+  Tag, Hash, Megaphone, Target, Layers, Eye, Trash2, AlertTriangle, Copy,
 } from "lucide-react";
 
 type Tab = "brief" | "art" | "image";
@@ -153,6 +153,14 @@ export default function CriativoEditor() {
     onSuccess: () => { utils.creatives.list.invalidate(); toast.success("Criativo excluído"); navigate(returnTo || "/criativos"); },
     onError: e => toast.error(e.message || "Erro ao excluir"),
   });
+  const duplicateCreative = trpc.studio.duplicateCreative.useMutation({
+    onSuccess: async (data: any) => {
+      await utils.creatives.list.invalidate();
+      toast.success("Variacao duplicada.");
+      navigate(`/criativos/${data.id}`);
+    },
+    onError: e => toast.error(e.message || "Erro ao duplicar"),
+  });
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   function saveAll() {
@@ -225,6 +233,11 @@ export default function CriativoEditor() {
             className="text-xs font-black text-[#070b17] border border-[#e6ebf3] hover:border-[#071b44] hover:bg-[#f6f8fc] flex items-center gap-1.5 px-3 py-2 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
             {save.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
             Salvar
+          </button>
+          <button onClick={() => duplicateCreative.mutate({ id: c.id })} disabled={duplicateCreative.isPending}
+            className="text-xs font-black text-[#071b44] border border-[#e6ebf3] hover:border-[#071b44] hover:bg-[#f6f8fc] flex items-center gap-1.5 px-3 py-2 rounded-lg disabled:opacity-50 transition-colors">
+            {duplicateCreative.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />}
+            Duplicar
           </button>
           <button onClick={() => setConfirmDelete(true)} className="text-xs font-bold text-[#c20f00] hover:text-white hover:bg-[#c20f00] border border-[#ffd0c8] hover:border-[#c20f00] flex items-center gap-1.5 px-3 py-2 rounded-lg transition-colors" title="Excluir criativo">
             <Trash2 className="w-3.5 h-3.5" />

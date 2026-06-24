@@ -902,6 +902,14 @@ const studioRouter = router({
     }),
 
   // Regera a imagem do criativo (debita créditos)
+  duplicateCreative: protectedProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(({ ctx, input }) => {
+      const orgId = ctx.user.organizationId;
+      if (!orgId) throw new Error("Organizacao nao encontrada");
+      return studioService.duplicateCreative(orgId, ctx.user.id, input.id);
+    }),
+
   regenerateImage: protectedProcedure
     .input(z.object({ id: z.number(), promptOverride: z.string().optional(), keepStyle: z.boolean().optional() }))
     .mutation(({ ctx, input }) => {
