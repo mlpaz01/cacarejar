@@ -911,7 +911,7 @@ const studioRouter = router({
     }))
     .mutation(({ ctx, input }) => {
       const orgId = ctx.user.organizationId;
-      if (!orgId) throw new Error("OrganizaÃ§Ã£o nÃ£o encontrada");
+      if (!orgId) throw new Error("Organizacao nao encontrada");
       return studioService.ensureCreativeForOrigin(orgId, ctx.user.id, input.originType, input.index);
     }),
 

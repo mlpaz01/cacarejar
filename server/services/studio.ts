@@ -153,7 +153,7 @@ async function generateCopy(produto: string, fv: Record<string, string>): Promis
       const content = await openRouterChat(
         [
           { role: "system", content: "Você é um copywriter de anúncios brasileiro. Escreva UMA copy curta (até 2 frases) para anúncio, em PT-BR, sem hashtags, sem emojis em excesso (no máximo 1). Retorne só a copy." },
-          { role: "user", content: `Produto: ${produto}\nTom: ${tom}\nFormato: ${formato}\nÂngulo: ${angulo}\nCTA desejado: ${cta}\nEscreva a copy.` },
+          { role: "user", content: `Produto: ${produto}\nTom: ${tom}\nFormato: ${formato}\nAngulo: ${angulo}\nCTA desejado: ${cta}\nEscreva a copy.` },
         ],
         { model: "anthropic/claude-3.5-haiku", temperature: 0.9, maxTokens: 150 }
       );

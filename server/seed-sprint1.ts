@@ -85,7 +85,7 @@ const FACTORS: { key: string; dimensao: "imagem"|"copy"|"oferta"|"publico"; labe
     v("compre_agora","Compre agora"), v("saiba_mais","Saiba mais"), v("garanta_vaga","Garanta sua vaga"),
     v("fale_conosco","Fale conosco"), v("baixe_gratis","Baixe grátis"), v("comece_agora","Comece agora") ] },
 
-  { key: "of_angulo", dimensao: "oferta", label: "Ângulo de venda", sortOrder: 30, values: [
+  { key: "of_angulo", dimensao: "oferta", label: "Angulo de venda", sortOrder: 30, values: [
     v("dor","Dor"), v("desejo","Desejo"), v("transformacao","Transformação"), v("curiosidade","Curiosidade"), v("status","Status") ] },
   { key: "of_prova_social", dimensao: "oferta", label: "Prova social", sortOrder: 31, values: [
     v("nenhuma","Nenhuma"), v("depoimento","Depoimento"), v("numeros","Números"), v("selo_autoridade","Selo de autoridade"), v("midia","Mídia") ] },
