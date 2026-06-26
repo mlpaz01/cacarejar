@@ -23,9 +23,15 @@ import {
   MessageSquareHeart,
   Telescope,
   UserCog,
+  BookOpen,
+  BadgeDollarSign,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { BrandLogo } from "@/components/BrandLogo";
 import { trpc } from "@/lib/trpc";
 
@@ -40,9 +46,7 @@ const navGroups = [
   },
   {
     title: "Criacao",
-    items: [
-      { href: "/criativos", icon: ImageIcon, label: "Criativos" },
-    ],
+    items: [{ href: "/criativos", icon: ImageIcon, label: "Criativos" }],
   },
   {
     title: "Veiculacao",
@@ -64,6 +68,8 @@ const navGroups = [
     title: "Conta",
     items: [
       { href: "/biblioteca", icon: Library, label: "Biblioteca" },
+      { href: "/guia", icon: BookOpen, label: "Guia" },
+      { href: "/produto", icon: BadgeDollarSign, label: "Produto" },
       { href: "/creditos", icon: Coins, label: "Creditos" },
       { href: "/notificacoes", icon: Bell, label: "Notificacoes" },
       { href: "/integracoes", icon: Settings2, label: "Integracoes" },
@@ -81,7 +87,12 @@ interface AppLayoutProps {
   actions?: React.ReactNode;
 }
 
-export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps) {
+export function AppLayout({
+  children,
+  title,
+  subtitle,
+  actions,
+}: AppLayoutProps) {
   const { user, loading, isAuthenticated, logout } = useAuth();
   const [location] = useLocation();
   const unread = trpc.notifications.unreadCount.useQuery(undefined, {
@@ -124,7 +135,12 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
   }
 
   const initials = user?.name
-    ? user.name.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase()
+    ? user.name
+        .split(" ")
+        .map(n => n[0])
+        .slice(0, 2)
+        .join("")
+        .toUpperCase()
     : "U";
 
   return (
@@ -148,16 +164,25 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
           )}
 
           <button
-            onClick={() => setCollapsed((v) => !v)}
+            onClick={() => setCollapsed(v => !v)}
             aria-label={collapsed ? "Expandir menu" : "Colapsar menu"}
             className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-sidebar border border-sidebar-border text-white/70 hover:text-white hover:bg-primary hover:border-primary flex items-center justify-center shadow-md transition-colors z-10"
           >
-            {collapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
+            {collapsed ? (
+              <ChevronRight className="w-3.5 h-3.5" />
+            ) : (
+              <ChevronLeft className="w-3.5 h-3.5" />
+            )}
           </button>
         </div>
 
-        <nav className={cn("flex-1 py-4 overflow-y-auto overflow-x-hidden", collapsed ? "px-2 space-y-3" : "px-3 space-y-4")}>
-          {navGroups.map((group) => (
+        <nav
+          className={cn(
+            "flex-1 py-4 overflow-y-auto overflow-x-hidden",
+            collapsed ? "px-2 space-y-3" : "px-3 space-y-4"
+          )}
+        >
+          {navGroups.map(group => (
             <div key={group.title} className="space-y-0.5">
               {collapsed ? (
                 <div className="border-t border-white/5 mx-2 mb-2" />
@@ -168,14 +193,19 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
               )}
 
               {group.items.map(({ href, icon: Icon, label }) => {
-                const isActive = location === href || (href !== "/" && location.startsWith(href));
-                const hasBadge = href === "/notificacoes" && (unread.data ?? 0) > 0;
+                const isActive =
+                  location === href ||
+                  (href !== "/" && location.startsWith(href));
+                const hasBadge =
+                  href === "/notificacoes" && (unread.data ?? 0) > 0;
                 const item = (
                   <Link key={href} href={href}>
                     <a
                       className={cn(
                         "flex items-center rounded-lg text-sm font-semibold transition-all duration-150 group relative",
-                        collapsed ? "justify-center h-10 w-full" : "gap-3 px-3 py-2.5",
+                        collapsed
+                          ? "justify-center h-10 w-full"
+                          : "gap-3 px-3 py-2.5",
                         isActive
                           ? "bg-primary text-white shadow-sm"
                           : "text-white/60 hover:text-white hover:bg-white/10"
@@ -184,7 +214,9 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
                       <Icon
                         className={cn(
                           "w-4 h-4 flex-shrink-0",
-                          isActive ? "text-white" : "text-white/50 group-hover:text-white"
+                          isActive
+                            ? "text-white"
+                            : "text-white/50 group-hover:text-white"
                         )}
                       />
                       {!collapsed && (
@@ -215,7 +247,11 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
                     </TooltipTrigger>
                     <TooltipContent side="right" className="font-bold">
                       {label}
-                      {hasBadge && <span className="ml-1.5 text-primary">- {unread.data}</span>}
+                      {hasBadge && (
+                        <span className="ml-1.5 text-primary">
+                          - {unread.data}
+                        </span>
+                      )}
                     </TooltipContent>
                   </Tooltip>
                 );
@@ -224,18 +260,29 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
           ))}
         </nav>
 
-        <div className={cn("border-t border-sidebar-border", collapsed ? "p-2" : "p-3")}>
+        <div
+          className={cn(
+            "border-t border-sidebar-border",
+            collapsed ? "p-2" : "p-3"
+          )}
+        >
           {collapsed ? (
             <div className="flex flex-col items-center gap-2">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Avatar className="w-8 h-8 flex-shrink-0 cursor-default">
-                    <AvatarFallback className="bg-primary text-white text-xs font-black">{initials}</AvatarFallback>
+                    <AvatarFallback className="bg-primary text-white text-xs font-black">
+                      {initials}
+                    </AvatarFallback>
                   </Avatar>
                 </TooltipTrigger>
                 <TooltipContent side="right" className="font-bold">
                   {user?.name ?? "Usuario"}
-                  {user?.email && <div className="text-[10px] font-normal opacity-70">{user.email}</div>}
+                  {user?.email && (
+                    <div className="text-[10px] font-normal opacity-70">
+                      {user.email}
+                    </div>
+                  )}
                 </TooltipContent>
               </Tooltip>
               <Tooltip>
@@ -254,11 +301,17 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
           ) : (
             <div className="flex items-center gap-3 px-2 py-2">
               <Avatar className="w-8 h-8 flex-shrink-0">
-                <AvatarFallback className="bg-primary text-white text-xs font-black">{initials}</AvatarFallback>
+                <AvatarFallback className="bg-primary text-white text-xs font-black">
+                  {initials}
+                </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-white truncate">{user?.name ?? "Usuario"}</p>
-                <p className="text-[10px] text-white/40 truncate">{user?.email ?? ""}</p>
+                <p className="text-xs font-bold text-white truncate">
+                  {user?.name ?? "Usuario"}
+                </p>
+                <p className="text-[10px] text-white/40 truncate">
+                  {user?.email ?? ""}
+                </p>
               </div>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -289,12 +342,22 @@ export function AppLayout({ children, title, subtitle, actions }: AppLayoutProps
               <div className="min-w-0 flex-1">
                 {title && (
                   <div className="max-w-3xl">
-                    <h1 className="text-base font-black leading-tight text-foreground">{title}</h1>
-                    {subtitle && <p className="text-xs leading-snug text-muted-foreground mt-1">{subtitle}</p>}
+                    <h1 className="text-base font-black leading-tight text-foreground">
+                      {title}
+                    </h1>
+                    {subtitle && (
+                      <p className="text-xs leading-snug text-muted-foreground mt-1">
+                        {subtitle}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>
-              {actions && <div className="flex shrink-0 items-center justify-start xl:justify-end gap-2 flex-wrap">{actions}</div>}
+              {actions && (
+                <div className="flex shrink-0 items-center justify-start xl:justify-end gap-2 flex-wrap">
+                  {actions}
+                </div>
+              )}
             </div>
           </header>
         )}

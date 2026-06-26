@@ -32,6 +32,10 @@ import {
   Trash2,
   AlertTriangle,
   Copy,
+  CheckCircle2,
+  ShieldCheck,
+  GitCompareArrows,
+  UserRoundCheck,
 } from "lucide-react";
 
 type Tab = "brief" | "art" | "image";
@@ -80,6 +84,8 @@ export default function CriativoEditor() {
   };
   const [humanChecks, setHumanChecks] = useState(emptyHumanChecks);
   const [humanNote, setHumanNote] = useState("");
+  const [finalVersion, setFinalVersion] = useState(false);
+  const [humanTemplate, setHumanTemplate] = useState("");
   const [dirty, setDirty] = useState(false);
   const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(null);
 
@@ -108,7 +114,9 @@ export default function CriativoEditor() {
       roteiroTxt !== loadedRoteiroTxt ||
       JSON.stringify(humanChecks) !==
         JSON.stringify(meta.humanReview?.checks ?? emptyHumanChecks) ||
-      humanNote !== (meta.humanReview?.note ?? "")
+      humanNote !== (meta.humanReview?.note ?? "") ||
+      finalVersion !== !!meta.humanReview?.finalVersion ||
+      humanTemplate !== (meta.humanReview?.template ?? "")
     );
   }, [
     pendingImageUrl,
@@ -135,6 +143,8 @@ export default function CriativoEditor() {
     roteiroTxt,
     humanChecks,
     humanNote,
+    finalVersion,
+    humanTemplate,
   ]);
 
   // Sincroniza estado local quando criativo carrega ou refetch.
@@ -152,6 +162,8 @@ export default function CriativoEditor() {
     setRoteiroTxt(meta.roteiro ? JSON.stringify(meta.roteiro, null, 2) : "");
     setHumanChecks(meta.humanReview?.checks ?? emptyHumanChecks);
     setHumanNote(meta.humanReview?.note ?? "");
+    setFinalVersion(!!meta.humanReview?.finalVersion);
+    setHumanTemplate(meta.humanReview?.template ?? "");
     setPromptOverride("");
     setDirty(false);
   }, [c?.id, c?.imageUrl]);
@@ -278,6 +290,8 @@ export default function CriativoEditor() {
       humanReview: {
         checks: humanChecks,
         note: humanNote.trim() || null,
+        finalVersion,
+        template: humanTemplate || null,
         score: Object.values(humanChecks).filter(Boolean).length,
         reviewedAt: Date.now(),
       },
@@ -319,8 +333,58 @@ export default function CriativoEditor() {
     if (v.humanReview?.checks) setHumanChecks(v.humanReview.checks);
     if (v.humanReview?.note !== undefined)
       setHumanNote(v.humanReview.note ?? "");
+    setFinalVersion(!!v.humanReview?.finalVersion);
+    setHumanTemplate(v.humanReview?.template ?? "");
     setDirty(true);
     toast.success("Versao carregada. Revise e salve para aplicar.");
+  }
+
+  function applyHumanTemplate(kind: "bastidor" | "prova" | "opiniao") {
+    const base = copy.trim();
+    const lead =
+      kind === "bastidor"
+        ? "Bastidor real:"
+        : kind === "prova"
+          ? "O sinal que importa:"
+          : "Minha leitura:";
+    const insert =
+      kind === "bastidor"
+        ? "troque este trecho por uma cena real, uma conversa, uma objecao ou um detalhe que so esta marca teria."
+        : kind === "prova"
+          ? "adicione numero, caso, depoimento, antes/depois ou uma evidencia concreta antes do CTA."
+          : "coloque um ponto de vista claro, mesmo que simples, para o post nao parecer neutro demais.";
+    setCopy(`${lead} ${insert}\n\n${base}`.trim());
+    setHumanTemplate(kind);
+    setHumanChecks(prev => ({
+      ...prev,
+      detalheReal: kind !== "opiniao" ? true : prev.detalheReal,
+      pontoDeVista: kind === "opiniao" ? true : prev.pontoDeVista,
+      naoGenerico: true,
+    }));
+    setDirty(true);
+    toast.success(
+      "Molde humano aplicado. Ajuste o trecho com informacao real."
+    );
+  }
+
+  function applyCopyVariant(kind: "direta" | "historia" | "autoridade") {
+    const base = copy.trim() || gancho.trim();
+    const next =
+      kind === "direta"
+        ? `${gancho || "O ponto principal"}\n\n${base}\n\n${cta || "Me chama para dar o proximo passo."}`
+        : kind === "historia"
+          ? `Antes de falar da oferta, olha a situacao real:\n\n${base}\n\nFoi isso que mostrou o caminho para ${cta || "conversar com quem precisa resolver isso agora"}.`
+          : `Existe um erro comum aqui: tratar isso como detalhe.\n\n${base}\n\nA diferenca esta em criterio, consistencia e execucao. ${cta || ""}`.trim();
+    setCopy(next);
+    setHumanTemplate(kind);
+    setHumanChecks(prev => ({
+      ...prev,
+      pontoDeVista: kind !== "direta" ? true : prev.pontoDeVista,
+      ctaClaro: true,
+      naoGenerico: true,
+    }));
+    setDirty(true);
+    toast.success("Variacao de copy aplicada.");
   }
 
   if (!id)
@@ -674,6 +738,83 @@ export default function CriativoEditor() {
                       />
                     </Field>
                   </div>
+                  <div className="rounded-xl border border-[#e6ebf3] bg-white p-4">
+                    <div className="flex items-start justify-between gap-3 flex-wrap">
+                      <div>
+                        <h4 className="text-xs font-black text-[#071b44] uppercase tracking-wide flex items-center gap-1.5">
+                          <UserRoundCheck className="w-3.5 h-3.5 text-[#ff3217]" />{" "}
+                          Oficina de humanizacao
+                        </h4>
+                        <p className="text-[11px] text-[#61708a] mt-1">
+                          Use um molde para tirar o texto da neutralidade e
+                          depois substitua o trecho por informacao real.
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-[#fbfcff] border border-[#e6ebf3] px-3 py-1 text-[10px] font-black text-[#071b44]">
+                        {humanTemplate || "sem molde"}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-3">
+                      <button
+                        type="button"
+                        onClick={() => applyHumanTemplate("bastidor")}
+                        className="rounded-lg border border-[#e6ebf3] bg-[#fbfcff] hover:border-[#071b44] px-3 py-2 text-left"
+                      >
+                        <span className="block text-[11px] font-black text-[#071b44]">
+                          Bastidor real
+                        </span>
+                        <span className="block text-[10px] text-[#61708a] mt-0.5">
+                          cena, detalhe ou conversa que so a marca teria
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => applyHumanTemplate("prova")}
+                        className="rounded-lg border border-[#e6ebf3] bg-[#fbfcff] hover:border-[#071b44] px-3 py-2 text-left"
+                      >
+                        <span className="block text-[11px] font-black text-[#071b44]">
+                          Prova concreta
+                        </span>
+                        <span className="block text-[10px] text-[#61708a] mt-0.5">
+                          numero, depoimento, caso ou antes/depois
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => applyHumanTemplate("opiniao")}
+                        className="rounded-lg border border-[#e6ebf3] bg-[#fbfcff] hover:border-[#071b44] px-3 py-2 text-left"
+                      >
+                        <span className="block text-[11px] font-black text-[#071b44]">
+                          Ponto de vista
+                        </span>
+                        <span className="block text-[10px] text-[#61708a] mt-0.5">
+                          opiniao clara para nao parecer generico
+                        </span>
+                      </button>
+                    </div>
+                    <div className="mt-3 rounded-lg border border-[#e6ebf3] bg-[#fbfcff] p-3">
+                      <p className="text-[10px] font-black text-[#61708a] uppercase tracking-wide flex items-center gap-1.5">
+                        <GitCompareArrows className="w-3.5 h-3.5" /> Testes de
+                        copy
+                      </p>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {[
+                          ["direta", "Direta"],
+                          ["historia", "Historia"],
+                          ["autoridade", "Autoridade"],
+                        ].map(([key, label]) => (
+                          <button
+                            key={key}
+                            type="button"
+                            onClick={() => applyCopyVariant(key as any)}
+                            className="rounded-full border border-[#dbe3ef] bg-white px-3 py-1.5 text-[10px] font-black text-[#071b44] hover:border-[#ff3217]"
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                   <div className="rounded-xl border border-[#e6ebf3] bg-[#fbfcff] p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -726,6 +867,28 @@ export default function CriativoEditor() {
                       placeholder="Ex.: adicionei um bastidor real da loja, troquei promessa generica por uma opiniao nossa, usei uma imagem que parece feita por humano."
                       className="mt-3 w-full min-h-[72px] resize-none rounded-lg border border-[#e6ebf3] bg-white px-3 py-2 text-xs font-semibold text-[#071b44] outline-none focus:border-[#ff3217]"
                     />
+                    <label className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-[#e6ebf3] bg-white px-3 py-2 cursor-pointer">
+                      <span className="flex items-start gap-2">
+                        <ShieldCheck className="w-4 h-4 text-[#18b85c] mt-0.5" />
+                        <span>
+                          <span className="block text-xs font-black text-[#071b44]">
+                            Versao humana final
+                          </span>
+                          <span className="block text-[10px] text-[#61708a] mt-0.5">
+                            Marque quando texto e visual estao prontos para sair
+                            da plataforma.
+                          </span>
+                        </span>
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={finalVersion}
+                        onChange={e => {
+                          setFinalVersion(e.target.checked);
+                          setDirty(true);
+                        }}
+                      />
+                    </label>
                     {Object.values(humanChecks).filter(Boolean).length < 4 ? (
                       <p className="text-[11px] text-[#8f2014] bg-[#fff8f6] border border-[#ffd5ce] rounded-lg px-3 py-2 mt-3">
                         Antes de aprovar, refine copy ou imagem para sair da
@@ -733,6 +896,7 @@ export default function CriativoEditor() {
                       </p>
                     ) : (
                       <p className="text-[11px] text-[#087a32] bg-[#eafff1] border border-[#bfeccb] rounded-lg px-3 py-2 mt-3">
+                        <CheckCircle2 className="inline w-3 h-3 mr-1" />
                         Criativo com toque humano suficiente para teste.
                       </p>
                     )}

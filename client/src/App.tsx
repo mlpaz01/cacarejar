@@ -21,6 +21,8 @@ import Recalibracao from "./pages/Recalibracao";
 import Biblioteca from "./pages/Biblioteca";
 import Integracoes from "./pages/Integracoes";
 import Creditos from "./pages/Creditos";
+import Guia from "./pages/Guia";
+import Produto from "./pages/Produto";
 import Estudio from "./pages/Estudio";
 import Aprovacao from "./pages/Aprovacao";
 import Notificacoes from "./pages/Notificacoes";
@@ -45,8 +47,18 @@ function PublicRouter() {
 function AppRouter() {
   return (
     <Switch>
-      <Route path="/login">{() => { window.location.href = "/login"; return null; }}</Route>
-      <Route path="/register">{() => { window.location.href = "/register"; return null; }}</Route>
+      <Route path="/login">
+        {() => {
+          window.location.href = "/login";
+          return null;
+        }}
+      </Route>
+      <Route path="/register">
+        {() => {
+          window.location.href = "/register";
+          return null;
+        }}
+      </Route>
       <Route path="/" component={Dashboard} />
       <Route path="/campanhas" component={Campanhas} />
       <Route path="/campanhas/:id" component={CampanhaDetalhe} />
@@ -66,6 +78,8 @@ function AppRouter() {
       <Route path="/notificacoes" component={Notificacoes} />
       <Route path="/configuracoes" component={Configuracoes} />
       <Route path="/creditos" component={Creditos} />
+      <Route path="/guia" component={Guia} />
+      <Route path="/produto" component={Produto} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -90,9 +104,12 @@ function App() {
   useEffect(() => {
     const cleanPath = window.location.pathname;
     if (cleanPath === "/login") document.title = "Entrar | Cacarejar";
-    else if (cleanPath === "/register") document.title = "Criar conta | Cacarejar";
-    else if (cleanPath.startsWith("/admin")) document.title = "Admin | Cacarejar";
-    else if (!cleanPath.startsWith("/app")) document.title = "Cacarejar | Marketing com Agentes Exclusivos";
+    else if (cleanPath === "/register")
+      document.title = "Criar conta | Cacarejar";
+    else if (cleanPath.startsWith("/admin"))
+      document.title = "Admin | Cacarejar";
+    else if (!cleanPath.startsWith("/app"))
+      document.title = "Cacarejar | Marketing com Agentes Exclusivos";
   }, [path]);
 
   return (
