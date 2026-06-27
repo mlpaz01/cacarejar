@@ -16,7 +16,6 @@ import {
   ChevronLeft,
   Coins,
   CheckSquare,
-  CalendarDays,
   MessageSquareHeart,
   Telescope,
   UserCog,
@@ -49,7 +48,6 @@ const navGroups = [
   {
     title: "Execucao",
     items: [
-      { href: "/calendario", icon: CalendarDays, label: "Calendario" },
       { href: "/aprovacao", icon: CheckSquare, label: "Aprovacao" },
       { href: "/integracoes", icon: Settings2, label: "Publicacao" },
       { href: "/campanhas", icon: Megaphone, label: "Campanhas" },

@@ -19,6 +19,9 @@ import {
   RefreshCw,
   Eye,
   EyeOff,
+  CalendarDays,
+  Settings,
+  BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -277,6 +280,77 @@ function ControlMetric({ label, value }: { label: string; value: string }) {
   );
 }
 
+function PublicationSubnav() {
+  const items = [
+    {
+      label: "Checklist",
+      description: "Copiar rotina e preparar pacote final.",
+      icon: ClipboardList,
+      href: "#checklist",
+    },
+    {
+      label: "Calendario",
+      description: "Ver a semana e organizar quando postar.",
+      icon: CalendarDays,
+      href: "/calendario",
+    },
+    {
+      label: "Canais",
+      description: "Conectar ou operar manualmente cada canal.",
+      icon: Settings,
+      href: "#canais",
+    },
+    {
+      label: "Resultados",
+      description: "Registrar link, alcance, cliques e leads.",
+      icon: BarChart3,
+      href: "#registro",
+    },
+  ];
+
+  return (
+    <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mb-6">
+      {items.map(({ label, description, icon: Icon, href }) => {
+        const content = (
+          <>
+            <span className="w-10 h-10 rounded-xl bg-[#fff1ef] text-[#ff3217] border border-[#ffd0c8] grid place-items-center flex-shrink-0">
+              <Icon className="w-4 h-4" />
+            </span>
+            <span className="min-w-0">
+              <span className="block text-sm font-black text-[#071b44]">
+                {label}
+              </span>
+              <span className="block text-xs font-semibold text-[#61708a] leading-snug mt-0.5">
+                {description}
+              </span>
+            </span>
+          </>
+        );
+
+        if (href.startsWith("/")) {
+          return (
+            <Link key={label} href={href}>
+              <a className="rounded-xl border border-[#e6ebf3] bg-white p-4 shadow-sm hover:border-[#ff3217]/40 hover:bg-[#fff8f6] transition-colors flex items-start gap-3">
+                {content}
+              </a>
+            </Link>
+          );
+        }
+
+        return (
+          <a
+            key={label}
+            href={href}
+            className="rounded-xl border border-[#e6ebf3] bg-white p-4 shadow-sm hover:border-[#ff3217]/40 hover:bg-[#fff8f6] transition-colors flex items-start gap-3"
+          >
+            {content}
+          </a>
+        );
+      })}
+    </section>
+  );
+}
+
 function numberOrUndefined(value: any) {
   const n = Number(value);
   return Number.isFinite(n) && n >= 0 ? n : undefined;
@@ -393,10 +467,15 @@ export default function Integracoes() {
   return (
     <AppLayout
       journeyActive="publicacao"
-      title="Integrações"
-      subtitle="Configure as conexões com as plataformas de anúncios"
+      title="Publicacao assistida"
+      subtitle="Checklist, calendario, canais e registro de resultado em uma unica etapa."
     >
-      <section className="grid grid-cols-1 xl:grid-cols-[1.1fr_.9fr] gap-5 mb-6">
+      <PublicationSubnav />
+
+      <section
+        id="checklist"
+        className="grid grid-cols-1 xl:grid-cols-[1.1fr_.9fr] gap-5 mb-6 scroll-mt-32"
+      >
         <div className="rounded-3xl bg-[#071b44] text-white p-6 shadow-sm">
           <p className="text-xs font-black text-white/60 uppercase tracking-widest">
             Modo interno assistido
@@ -449,7 +528,10 @@ export default function Integracoes() {
         </div>
       </section>
 
-      <section className="bg-white rounded-3xl border border-[#e6ebf3] p-6 shadow-sm mb-6">
+      <section
+        id="registro"
+        className="bg-white rounded-3xl border border-[#e6ebf3] p-6 shadow-sm mb-6 scroll-mt-32"
+      >
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <p className="text-xs font-black text-[#ff3217] uppercase tracking-wide">
@@ -661,7 +743,10 @@ export default function Integracoes() {
       </section>
 
       {/* Status overview */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div
+        id="canais"
+        className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 scroll-mt-32"
+      >
         {channels.map(ch => {
           const integration = getIntegration(ch);
           const config = CHANNEL_CONFIG[ch];
