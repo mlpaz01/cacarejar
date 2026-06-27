@@ -1,5 +1,4 @@
 import { AppLayout } from "@/components/AppLayout";
-import { JourneyGuide } from "@/components/JourneyGuide";
 import { useLocation } from "wouter";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ChannelBadge } from "@/components/ui/ChannelBadge";
@@ -205,6 +204,7 @@ export default function Criativos() {
     <AppLayout
       title="Criativos"
       subtitle="Biblioteca + criação de novos posts no estilo da sua marca"
+      journeyActive="estudio"
       actions={
         <div className="flex gap-2">
           <button
@@ -217,8 +217,6 @@ export default function Criativos() {
         </div>
       }
     >
-      <JourneyGuide active="estudio" />
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Upload panel */}
         <div className="lg:col-span-1">

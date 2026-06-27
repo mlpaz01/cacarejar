@@ -37,7 +37,6 @@ import {
   pickDiagnosisSteps,
   RADAR_STEPS,
 } from "@/components/AnalysisProgress";
-import { JourneyGuide } from "@/components/JourneyGuide";
 import { trpc } from "@/lib/trpc";
 
 const OBJETIVOS = [
@@ -359,6 +358,7 @@ export default function Diagnostico() {
       <AppLayout
         title="Vamos estudar seu negocio"
         subtitle="O Agente Estrategista esta cruzando canais, Radar e prescricoes."
+        journeyActive="diagnostico"
       >
         <div className="max-w-3xl mx-auto pt-16">
           <AnalysisProgress
@@ -386,6 +386,7 @@ export default function Diagnostico() {
       <AppLayout
         title="Historico de diagnosticos"
         subtitle="Restaure estudos quando precisar comparar um perfil antigo."
+        journeyActive="diagnostico"
         actions={
           <div className="flex gap-2">
             <button onClick={() => setShowHistory(false)} className="btn-quiet">
@@ -481,6 +482,7 @@ export default function Diagnostico() {
       <AppLayout
         title="Vamos estudar seu negocio"
         subtitle="Informe os canais disponiveis. O parecer vai cruzar origem, Radar, canais e prescricao."
+        journeyActive="diagnostico"
         actions={
           <button onClick={() => setShowHistory(true)} className="btn-quiet">
             <History className="w-4 h-4" /> Ver Historico
@@ -765,6 +767,7 @@ export default function Diagnostico() {
     <AppLayout
       title="Parecer estrategico"
       subtitle="Diagnostico multicanal com prescricao, Radar e acompanhamento."
+      journeyActive="diagnostico"
       actions={
         <div className="flex gap-2 flex-wrap justify-end">
           <span className="hidden md:flex text-xs font-black text-[#087a32] bg-[#eafff1] border border-[#bfeccb] rounded-xl items-center gap-1.5 px-3 py-2">
@@ -801,8 +804,6 @@ export default function Diagnostico() {
         </div>
       }
     >
-      <JourneyGuide active="diagnostico" />
-
       <section className="rounded-2xl border border-[#ffd6ce] bg-[#fff8f6] p-5 shadow-sm mb-5 flex flex-col lg:flex-row lg:items-center gap-4">
         <div className="w-12 h-12 rounded-2xl bg-[#ff3217] text-white grid place-items-center flex-shrink-0">
           <ArrowRight className="w-5 h-5" />

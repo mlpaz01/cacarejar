@@ -224,6 +224,7 @@ export default function Calendario() {
       <AppLayout
         title="Calendario Editorial"
         subtitle="Carregando plano semanal"
+        journeyActive="publicacao"
       >
         <div className="rounded-2xl border border-[#e6ebf3] bg-white p-10 text-center text-sm font-black text-[#61708a]">
           Carregando...
@@ -237,6 +238,7 @@ export default function Calendario() {
       <AppLayout
         title="Calendario Editorial"
         subtitle="Crie um diagnostico para gerar o calendario."
+        journeyActive="publicacao"
       >
         <div className="rounded-3xl border border-[#e6ebf3] bg-white p-10 text-center shadow-sm">
           <CalendarDays className="w-11 h-11 text-[#c7d1e0] mx-auto mb-3" />
@@ -260,6 +262,7 @@ export default function Calendario() {
     <AppLayout
       title="Calendario Editorial"
       subtitle="Uma semana visivel para publicar, acompanhar e medir sem se perder."
+      journeyActive="publicacao"
       actions={
         <div className="flex gap-2 flex-wrap justify-end">
           <button

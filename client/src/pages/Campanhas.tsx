@@ -1,5 +1,4 @@
 import { AppLayout } from "@/components/AppLayout";
-import { JourneyGuide } from "@/components/JourneyGuide";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ChannelBadge } from "@/components/ui/ChannelBadge";
 import { trpc } from "@/lib/trpc";
@@ -286,6 +285,7 @@ export default function Campanhas() {
     <AppLayout
       title="Campanhas"
       subtitle="Gerencie todas as suas campanhas de marketing"
+      journeyActive="campanhas"
       actions={
         <Button size="sm" className="gap-2" onClick={() => setOpen(true)}>
           <Plus className="w-4 h-4" />
@@ -293,8 +293,6 @@ export default function Campanhas() {
         </Button>
       }
     >
-      <JourneyGuide active="campanhas" />
-
       {assistedCampaign && (
         <section className="bg-white rounded-3xl border border-[#e6ebf3] p-6 shadow-sm mb-6">
           <div className="flex items-start justify-between gap-4 flex-wrap">

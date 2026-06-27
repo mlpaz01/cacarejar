@@ -1,5 +1,4 @@
 import { AppLayout } from "@/components/AppLayout";
-import { JourneyGuide } from "@/components/JourneyGuide";
 import { ChannelBadge } from "@/components/ui/ChannelBadge";
 import { trpc } from "@/lib/trpc";
 import { useState, useMemo } from "react";
@@ -258,10 +257,9 @@ export default function Metricas() {
   return (
     <AppLayout
       title="Métricas & Resultados"
+      journeyActive="metricas"
       subtitle="Análise de performance por canal, campanha e período"
     >
-      <JourneyGuide active="metricas" />
-
       {/* Period selector */}
       <div className="flex items-center gap-3 mb-6">
         <div className="flex items-center gap-1.5">

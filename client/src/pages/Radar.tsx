@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { AppLayout } from "@/components/AppLayout";
-import { JourneyGuide } from "@/components/JourneyGuide";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import {
@@ -583,6 +582,7 @@ export default function Radar() {
     <AppLayout
       title="Radar de Mercado"
       subtitle="O Agente Radar pesquisa os hits do seu setor e adapta para a sua marca"
+      journeyActive="radar"
       actions={
         <button
           onClick={exportPdf}
@@ -593,7 +593,6 @@ export default function Radar() {
       }
     >
       {SearchBar}
-      <JourneyGuide active="radar" compact />
 
       {scan.isPending && (
         <div className="max-w-2xl mx-auto mb-5">

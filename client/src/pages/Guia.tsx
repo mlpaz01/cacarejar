@@ -1,5 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
-import { JourneyGuide, journeySteps } from "@/components/JourneyGuide";
+import { journeySteps } from "@/components/JourneyGuide";
 import type { JourneyStepId } from "@/components/JourneyGuide";
 import { trpc } from "@/lib/trpc";
 import { Link } from "wouter";
@@ -131,9 +131,8 @@ export default function Guia() {
     <AppLayout
       title="Guia de uso"
       subtitle="A jornada guiada do Cacarejar, do perfil ativo ao aprendizado real."
+      journeyActive={next.id}
     >
-      <JourneyGuide active={next.id} />
-
       <section className="rounded-3xl bg-[#071b44] text-white p-6 shadow-sm mb-6">
         <div className="flex items-start justify-between gap-5 flex-wrap">
           <div className="max-w-4xl">

@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { AppLayout } from "@/components/AppLayout";
-import { JourneyGuide } from "@/components/JourneyGuide";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import {
@@ -147,6 +146,7 @@ export default function Estudio() {
     <AppLayout
       title="Criar novos criativos"
       subtitle="Descreva seu produto, escolha o jeitão e gere os posts"
+      journeyActive="estudio"
       actions={
         <>
           <button
@@ -163,8 +163,6 @@ export default function Estudio() {
       }
     >
       {/* Decida por mim / Diagnóstico */}
-      <JourneyGuide active="estudio" />
-
       {plan.data ? (
         <div
           className="rounded-xl p-5 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-3"

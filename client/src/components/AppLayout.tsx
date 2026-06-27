@@ -29,6 +29,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { BrandLogo } from "@/components/BrandLogo";
+import { JourneyGuide } from "@/components/JourneyGuide";
+import type { JourneyStepId } from "@/components/JourneyGuide";
 import { trpc } from "@/lib/trpc";
 
 const navGroups = [
@@ -77,6 +79,7 @@ interface AppLayoutProps {
   title?: string;
   subtitle?: string;
   actions?: React.ReactNode;
+  journeyActive?: JourneyStepId;
 }
 
 export function AppLayout({
@@ -84,6 +87,7 @@ export function AppLayout({
   title,
   subtitle,
   actions,
+  journeyActive,
 }: AppLayoutProps) {
   const { user, loading, isAuthenticated, logout } = useAuth();
   const [location] = useLocation();
@@ -328,6 +332,12 @@ export function AppLayout({
           collapsed ? "ml-[72px]" : "ml-60"
         )}
       >
+        {journeyActive && (
+          <div className="px-5 lg:px-6 xl:px-8 pt-5 lg:pt-6 xl:pt-8 pb-0">
+            <JourneyGuide active={journeyActive} />
+          </div>
+        )}
+
         {(title || actions) && (
           <header className="min-h-[72px] border-b border-border bg-white sticky top-0 z-30 px-5 lg:px-8 py-3 shadow-sm">
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">

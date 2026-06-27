@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { AppLayout } from "@/components/AppLayout";
-import { JourneyGuide } from "@/components/JourneyGuide";
 import { trpc } from "@/lib/trpc";
 
 type PlannerItem = { texto: string; status: "done" | "todo" | "late" };
@@ -228,6 +227,7 @@ export default function Recalibracao() {
     <AppLayout
       title="Acompanhamento"
       subtitle="Transforme o diagnostico em execucao, registre a evolucao e recalcule a rota."
+      journeyActive="acompanhamento"
       actions={
         <div className="flex gap-2 flex-wrap justify-end">
           <button
@@ -265,7 +265,6 @@ export default function Recalibracao() {
         </div>
       }
     >
-      <JourneyGuide active="acompanhamento" />
       <section className="bg-white rounded-3xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
