@@ -59,7 +59,8 @@ function AppRouter() {
           return null;
         }}
       </Route>
-      <Route path="/" component={Dashboard} />
+      <Route path="/" component={Guia} />
+      <Route path="/dashboard" component={Dashboard} />
       <Route path="/campanhas" component={Campanhas} />
       <Route path="/campanhas/:id" component={CampanhaDetalhe} />
       <Route path="/calendario" component={Calendario} />

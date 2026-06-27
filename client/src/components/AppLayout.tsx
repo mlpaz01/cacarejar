@@ -4,7 +4,6 @@ import { getLoginUrl } from "@/const";
 import { Link, useLocation } from "wouter";
 import { useEffect, useState } from "react";
 import {
-  LayoutDashboard,
   Megaphone,
   ImageIcon,
   BarChart3,
@@ -17,14 +16,11 @@ import {
   ChevronLeft,
   Coins,
   CheckSquare,
-  Bell,
-  Egg,
   CalendarDays,
   MessageSquareHeart,
   Telescope,
   UserCog,
   BookOpen,
-  BadgeDollarSign,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -39,7 +35,7 @@ const navGroups = [
   {
     title: "Estrategia",
     items: [
-      { href: "/", icon: LayoutDashboard, label: "Dashboard" },
+      { href: "/", icon: BookOpen, label: "Guia" },
       { href: "/diagnostico", icon: MessageSquareHeart, label: "Diagnostico" },
       { href: "/radar", icon: Telescope, label: "Radar de Mercado" },
     ],
@@ -49,12 +45,12 @@ const navGroups = [
     items: [{ href: "/criativos", icon: ImageIcon, label: "Criativos" }],
   },
   {
-    title: "Veiculacao",
+    title: "Execucao",
     items: [
-      { href: "/aprovacao", icon: CheckSquare, label: "Aprovacao" },
       { href: "/calendario", icon: CalendarDays, label: "Calendario" },
+      { href: "/aprovacao", icon: CheckSquare, label: "Aprovacao" },
+      { href: "/integracoes", icon: Settings2, label: "Publicacao" },
       { href: "/campanhas", icon: Megaphone, label: "Campanhas" },
-      { href: "/ovos", icon: Egg, label: "Ovos de Ouro" },
     ],
   },
   {
@@ -68,11 +64,7 @@ const navGroups = [
     title: "Conta",
     items: [
       { href: "/biblioteca", icon: Library, label: "Biblioteca" },
-      { href: "/guia", icon: BookOpen, label: "Guia" },
-      { href: "/produto", icon: BadgeDollarSign, label: "Produto" },
       { href: "/creditos", icon: Coins, label: "Creditos" },
-      { href: "/notificacoes", icon: Bell, label: "Notificacoes" },
-      { href: "/integracoes", icon: Settings2, label: "Integracoes" },
       { href: "/configuracoes", icon: UserCog, label: "Configuracoes" },
     ],
   },
