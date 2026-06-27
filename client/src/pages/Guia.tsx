@@ -1,4 +1,6 @@
 import { AppLayout } from "@/components/AppLayout";
+import { JourneyGuide, journeySteps } from "@/components/JourneyGuide";
+import type { JourneyStepId } from "@/components/JourneyGuide";
 import { trpc } from "@/lib/trpc";
 import { Link } from "wouter";
 import {
@@ -6,131 +8,218 @@ import {
   BookOpen,
   CheckCircle2,
   ClipboardCheck,
-  FileText,
-  Megaphone,
   MousePointerClick,
-  Pencil,
-  Radar,
-  RefreshCw,
+  ShieldCheck,
 } from "lucide-react";
 
 export default function Guia() {
   const { data: diagnosis } = trpc.diagnosis.get.useQuery();
+  const { data: radar } = trpc.radar.get.useQuery();
   const { data: campaigns } = trpc.campaigns.list.useQuery();
+  const { data: creatives } = trpc.creatives.list.useQuery({
+    campaignId: undefined,
+  });
+
   const planItems = ((diagnosis as any)?.plano7Dias ?? []) as any[];
-  const measured = planItems.filter(
-    (item: any) =>
-      item.resultado || ["publicado", "medir"].includes(item.status)
-  );
   const approved = planItems.filter(
     (item: any) => item.status === "aprovado"
   ).length;
-  const activeCampaigns = (campaigns ?? []).filter(
-    (c: any) => c.status === "ativa"
+  const published = planItems.filter((item: any) =>
+    ["publicado", "medir"].includes(item.status)
   ).length;
+  const measured = planItems.filter((item: any) => item.resultado).length;
+  const activeCampaigns = (campaigns ?? []).filter(
+    (campaign: any) => campaign.status === "ativa"
+  ).length;
+  const radarFeedbackCount =
+    ((radar as any)?.feedback?.likedPostKeys?.length ?? 0) +
+    ((radar as any)?.feedback?.dislikedPostKeys?.length ?? 0);
+  const editedCreatives =
+    (creatives ?? []).filter((creative: any) => {
+      const meta = creative.generationMeta ?? {};
+      return (
+        meta?.humanReview?.finalVersion ||
+        meta?.humanReview?.score >= 4 ||
+        creative.status === "aprovado"
+      );
+    }).length || planItems.filter((item: any) => item.creativeId).length;
 
-  const steps = [
+  const cards: Array<{
+    id: JourneyStepId;
+    title: string;
+    action: string;
+    text: string;
+    done: boolean;
+    success: string;
+  }> = [
     {
-      title: "1. Perfil certo",
-      text: "Crie ou restaure o negocio que vai receber atencao nesta semana.",
-      href: "/diagnostico",
-      icon: FileText,
+      id: "diagnostico",
+      title: "1. Diagnostico",
+      action: "Preencha ou restaure o perfil que sera trabalhado nesta semana.",
+      text: "Defina negocio, objetivo e canais. Esta etapa cria a prescricao e impede que as outras abas misturem perfis.",
       done: !!diagnosis,
+      success: "Perfil ativo e parecer prontos.",
     },
     {
-      title: "2. Radar vivo",
-      text: "Use sinais do mercado para evitar conteudo que nasce só de palpite.",
-      href: "/radar",
-      icon: Radar,
-      done: !!(diagnosis as any)?.radarImpacto,
+      id: "radar",
+      title: "2. Radar",
+      action:
+        "Rode o Radar e marque quais concorrentes/postagens combinam com o negocio.",
+      text: "O usuario precisa dizer Gostei ou Nao gostei antes dos posts virarem recomendacao. Isso evita copiar referencia errada.",
+      done: !!radar && radarFeedbackCount > 0,
+      success: "Concorrencia validada com feedback humano.",
     },
     {
-      title: "3. Estudio humano",
-      text: "Abra os posts, ajuste copy/imagem e marque a versao humana final.",
-      href: "/criativos",
-      icon: Pencil,
-      done: approved > 0 || measured.length > 0,
+      id: "estudio",
+      title: "3. Estudio",
+      action:
+        "Abra os posts recomendados e aplique o toque humano antes de aprovar.",
+      text: "A base vem dos Agentes, mas o usuario ajusta texto, imagem, bastidor, prova e marca a versao humana final.",
+      done: editedCreatives > 0,
+      success: "Pelo menos um criativo foi humanizado.",
     },
     {
-      title: "4. Aprovar e publicar",
-      text: "Aprove os melhores posts e publique com registro em Integracoes.",
-      href: "/integracoes",
-      icon: ClipboardCheck,
-      done: measured.length > 0,
+      id: "aprovacao",
+      title: "4. Aprovacao",
+      action: "Selecione somente os posts que estao prontos para sair.",
+      text: "Esta etapa separa ideia de publicacao real. O que nao estiver claro volta para o Estudio.",
+      done: approved > 0 || published > 0 || measured > 0,
+      success: "Posts finais escolhidos.",
     },
     {
-      title: "5. Campanha pequena",
-      text: "Transforme o vencedor organico em campanha de baixo risco.",
-      href: "/campanhas",
-      icon: Megaphone,
+      id: "publicacao",
+      title: "5. Publicacao",
+      action:
+        "Copie legenda, baixe imagem, publique no canal e registre o link.",
+      text: "Sem link e resultado, o Cacarejar nao aprende. Publicacao assistida e o controle da execucao semanal.",
+      done: published > 0 || measured > 0,
+      success: "Conteudo publicado com rastreio.",
+    },
+    {
+      id: "campanhas",
+      title: "6. Campanhas",
+      action: "Transforme um post com sinal organico em campanha pequena.",
+      text: "A verba entra depois do sinal real. Primeiro prova, depois escala com seguranca.",
       done: activeCampaigns > 0,
+      success: "Campanha criada a partir de sinal.",
     },
     {
-      title: "6. Aprender",
-      text: "Registre resultados e rode o acompanhamento para recalibrar a proxima semana.",
-      href: "/recalibracao",
-      icon: RefreshCw,
-      done: measured.length > 0,
+      id: "metricas",
+      title: "7. Metricas",
+      action:
+        "Confira alcance, cliques, leads, vendas e o que merece variacao.",
+      text: "Aqui o usuario diferencia gosto pessoal de performance real.",
+      done: measured > 0,
+      success: "Resultado registrado.",
+    },
+    {
+      id: "acompanhamento",
+      title: "8. Acompanhamento",
+      action:
+        "Rode o check-in e transforme resultado em aprendizado da proxima semana.",
+      text: "A jornada fecha quando o que aconteceu vira prescricao melhor para o proximo ciclo.",
+      done: !!(diagnosis as any)?.aprendizadoSemanal && measured > 0,
+      success: "Aprendizado pronto para repetir o ciclo.",
     },
   ];
-  const done = steps.filter(step => step.done).length;
+
+  const next = cards.find(card => !card.done) ?? cards[cards.length - 1];
+  const nextStep = journeySteps.find(step => step.id === next.id)!;
+  const done = cards.filter(card => card.done).length;
 
   return (
     <AppLayout
       title="Guia de uso"
-      subtitle="Roteiro simples para usar o Cacarejar sem acompanhamento individual."
+      subtitle="A jornada guiada do Cacarejar, do perfil ativo ao aprendizado real."
     >
+      <JourneyGuide active={next.id} />
+
       <section className="rounded-3xl bg-[#071b44] text-white p-6 shadow-sm mb-6">
-        <div className="flex items-start justify-between gap-4 flex-wrap">
-          <div>
+        <div className="flex items-start justify-between gap-5 flex-wrap">
+          <div className="max-w-4xl">
             <p className="text-xs font-black text-white/60 uppercase tracking-widest flex items-center gap-2">
-              <BookOpen className="w-4 h-4" /> Onboarding guiado
+              <BookOpen className="w-4 h-4" /> Proximo clique certo
             </p>
-            <h2 className="text-2xl font-black mt-2">
-              Uma semana inteira, do diagnostico ao aprendizado
-            </h2>
-            <p className="text-sm text-white/75 mt-3 max-w-3xl">
-              Este guia existe para o usuario novo saber o que fazer em seguida
-              e para voce testar seus negocios com o mesmo padrao.
+            <h2 className="text-3xl font-black mt-2">{next.title}</h2>
+            <p className="text-base text-white/85 mt-3 leading-relaxed">
+              {next.action}
+            </p>
+            <p className="text-sm text-white/62 mt-2 leading-relaxed">
+              {next.text}
             </p>
           </div>
-          <div className="rounded-2xl bg-white/10 border border-white/15 px-5 py-4 min-w-[150px]">
+          <div className="rounded-2xl bg-white/10 border border-white/15 px-5 py-4 min-w-[170px]">
             <p className="text-xs font-black text-white/60 uppercase">
-              Progresso
+              Jornada
             </p>
             <p className="text-3xl font-black mt-1">
-              {done}/{steps.length}
+              {done}/{cards.length}
             </p>
           </div>
         </div>
+        <Link href={nextStep.href}>
+          <a className="mt-5 rounded-xl bg-white text-[#071b44] px-5 py-3 text-sm font-black inline-flex items-center gap-2 hover:bg-[#f6f8fc]">
+            {nextStep.label === "Estudio"
+              ? "Abrir Estudio"
+              : `Abrir ${nextStep.label}`}{" "}
+            <ArrowRight className="w-4 h-4" />
+          </a>
+        </Link>
       </section>
 
-      <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
-        {steps.map(step => {
+      <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+        {cards.map(card => {
+          const step = journeySteps.find(item => item.id === card.id)!;
           const Icon = step.icon;
+          const isNext = card.id === next.id;
           return (
-            <Link key={step.title} href={step.href}>
-              <a className="rounded-2xl border border-[#e6ebf3] bg-white p-5 shadow-sm hover:border-[#071b44] transition-colors min-h-[180px] flex flex-col">
+            <Link key={card.id} href={step.href}>
+              <a
+                className={`rounded-2xl border bg-white p-5 shadow-sm transition-colors min-h-[230px] flex flex-col ${
+                  isNext
+                    ? "border-[#ff3217] bg-[#fff8f6]"
+                    : "border-[#e6ebf3] hover:border-[#071b44]"
+                }`}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div
-                    className={`w-11 h-11 rounded-xl grid place-items-center ${step.done ? "bg-[#eafff1] text-[#087a32]" : "bg-[#fff1ef] text-[#ff3217]"}`}
+                    className={`w-11 h-11 rounded-xl grid place-items-center ${
+                      card.done
+                        ? "bg-[#eafff1] text-[#087a32]"
+                        : isNext
+                          ? "bg-[#ff3217] text-white"
+                          : "bg-[#fff1ef] text-[#ff3217]"
+                    }`}
                   >
-                    <Icon className="w-5 h-5" />
+                    {card.done ? (
+                      <CheckCircle2 className="w-5 h-5" />
+                    ) : (
+                      <Icon className="w-5 h-5" />
+                    )}
                   </div>
                   <span
-                    className={`text-[10px] font-black uppercase rounded-full px-2.5 py-1 ${step.done ? "bg-[#eafff1] text-[#087a32]" : "bg-[#fff1ef] text-[#8f2014]"}`}
+                    className={`text-[10px] font-black uppercase rounded-full px-2.5 py-1 ${
+                      card.done
+                        ? "bg-[#eafff1] text-[#087a32]"
+                        : isNext
+                          ? "bg-[#ff3217] text-white"
+                          : "bg-[#fff1ef] text-[#8f2014]"
+                    }`}
                   >
-                    {step.done ? "feito" : "pendente"}
+                    {card.done ? "feito" : isNext ? "agora" : "aguarde"}
                   </span>
                 </div>
                 <h3 className="text-lg font-black text-[#071b44] mt-4">
-                  {step.title}
+                  {card.title}
                 </h3>
-                <p className="text-sm text-[#61708a] leading-relaxed mt-2 flex-1">
-                  {step.text}
+                <p className="text-sm font-bold text-[#22304b] leading-snug mt-2">
+                  {card.action}
+                </p>
+                <p className="text-xs text-[#61708a] leading-relaxed mt-2 flex-1">
+                  {card.done ? card.success : card.text}
                 </p>
                 <span className="text-xs font-black text-[#ff3217] inline-flex items-center gap-1 mt-4">
-                  Abrir etapa <ArrowRight className="w-3.5 h-3.5" />
+                  Ir para etapa <ArrowRight className="w-3.5 h-3.5" />
                 </span>
               </a>
             </Link>
@@ -140,33 +229,32 @@ export default function Guia() {
 
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <InfoCard
-          title="Como saber se deu certo"
-          icon={MousePointerClick}
+          title="Regra da jornada"
+          icon={ShieldCheck}
           items={[
-            "1 post publicado",
-            "1 resultado registrado",
-            "1 aprendizado gerado",
-            "1 proxima acao clara",
+            "Nao aprove posts antes de validar o Radar.",
+            "Nao publique sem passar pelo Estudio.",
+            "Nao escale campanha sem resultado organico.",
           ]}
         />
         <InfoCard
-          title="Erros comuns"
-          icon={ClipboardCheck}
+          title="Como saber se deu certo"
+          icon={MousePointerClick}
           items={[
-            "Trocar de perfil no meio da semana",
-            "Aprovar sem editar",
-            "Publicar sem registrar link",
-            "Escalar campanha sem sinal real",
+            "1 perfil ativo sem mistura.",
+            "1 concorrente validado no Radar.",
+            "1 post humanizado e publicado.",
+            "1 resultado registrado.",
           ]}
         />
         <InfoCard
           title="Padrao minimo"
-          icon={CheckCircle2}
+          icon={ClipboardCheck}
           items={[
-            "Texto com detalhe real",
-            "Imagem coerente com a marca",
-            "CTA claro",
-            "Resultado salvo em ate 48h",
+            "Texto com detalhe real.",
+            "Imagem coerente com a marca.",
+            "CTA claro.",
+            "Check-in feito em ate 48h.",
           ]}
         />
       </section>

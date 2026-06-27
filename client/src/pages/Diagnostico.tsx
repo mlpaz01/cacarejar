@@ -727,6 +727,39 @@ export default function Diagnostico() {
       },
     });
   };
+  const radarHasFeedback =
+    !!rd?.scannedAt &&
+    (((rd?.feedback?.likedPostKeys ?? []) as any[]).length +
+      ((rd?.feedback?.dislikedPostKeys ?? []) as any[]).length >
+      0 ||
+      ((rd?.ideas ?? []) as any[]).some(
+        (idea: any) =>
+          idea.diagnosisDecision && idea.diagnosisDecision !== "agent"
+      ));
+  const journeyAction = !radarHasFeedback
+    ? {
+        label: "Continuar no Radar",
+        title: "Proxima acao: validar concorrencia antes dos posts",
+        text: "Rode o Radar, marque quais referencias combinam ou nao com este negocio e use esse feedback para fortalecer o plano antes de aprovar conteudos.",
+        run: () => navigate("/radar"),
+      }
+    : nextExecutionItem
+      ? {
+          label: "Editar proximo post",
+          title: "Proxima acao: humanizar o post no Estudio",
+          text: "Agora que o perfil e o Radar estao alinhados, abra o post recomendado no Estudio, ajuste texto/imagem e salve a versao humana final.",
+          run: () =>
+            openStudioFromPlan(
+              nextExecutionIndex >= 0 ? nextExecutionIndex : 0,
+              nextExecutionItem.creativeId
+            ),
+        }
+      : {
+          label: "Ir para aprovacao",
+          title: "Proxima acao: revisar posts finais",
+          text: "Os posts ja passaram pela base estrategica. Revise somente o que esta pronto para publicar.",
+          run: () => navigate("/aprovacao"),
+        };
 
   return (
     <AppLayout
@@ -748,16 +781,10 @@ export default function Diagnostico() {
             <RotateCcw className="w-4 h-4" /> Atualizar
           </button>
           <button
-            onClick={prepareApproval}
-            disabled={preparingApproval}
-            className="btn-action-primary px-5 py-2.5 text-sm flex items-center gap-2 disabled:opacity-50"
+            onClick={journeyAction.run}
+            className="btn-action-primary px-5 py-2.5 text-sm flex items-center gap-2"
           >
-            {preparingApproval ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Sparkles className="w-4 h-4" />
-            )}{" "}
-            Gerar conteudos para aprovacao
+            <ArrowRight className="w-4 h-4" /> {journeyAction.label}
           </button>
           <button
             onClick={openBlankDiagnosis}
@@ -775,6 +802,30 @@ export default function Diagnostico() {
       }
     >
       <JourneyGuide active="diagnostico" />
+
+      <section className="rounded-2xl border border-[#ffd6ce] bg-[#fff8f6] p-5 shadow-sm mb-5 flex flex-col lg:flex-row lg:items-center gap-4">
+        <div className="w-12 h-12 rounded-2xl bg-[#ff3217] text-white grid place-items-center flex-shrink-0">
+          <ArrowRight className="w-5 h-5" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-black text-[#ff3217] uppercase tracking-wide">
+            Jornada guiada
+          </p>
+          <h2 className="text-xl font-black text-[#071b44] mt-1">
+            {journeyAction.title}
+          </h2>
+          <p className="text-sm text-[#61708a] leading-relaxed mt-1">
+            {journeyAction.text}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={journeyAction.run}
+          className="rounded-xl bg-[#071b44] text-white px-4 py-2 text-xs font-black inline-flex items-center justify-center gap-2 hover:bg-[#0b255c]"
+        >
+          {journeyAction.label} <ArrowRight className="w-3.5 h-3.5" />
+        </button>
+      </section>
 
       {scanRadar.isPending && (
         <div className="max-w-3xl mx-auto mb-5">

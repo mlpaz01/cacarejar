@@ -6,6 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import { AppLayout } from "@/components/AppLayout";
+import { JourneyGuide } from "@/components/JourneyGuide";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import {
@@ -476,6 +477,8 @@ export default function CriativoEditor() {
         </div>
       }
     >
+      <JourneyGuide active="estudio" />
+
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.05fr] gap-5">
         {/* ═══════ PAINEL ESQUERDO — IMAGEM ═══════ */}
         <div className="space-y-4">

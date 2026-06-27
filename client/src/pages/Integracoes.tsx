@@ -1,4 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
+import { JourneyGuide } from "@/components/JourneyGuide";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
@@ -395,6 +396,8 @@ export default function Integracoes() {
       title="Integrações"
       subtitle="Configure as conexões com as plataformas de anúncios"
     >
+      <JourneyGuide active="publicacao" />
+
       <section className="grid grid-cols-1 xl:grid-cols-[1.1fr_.9fr] gap-5 mb-6">
         <div className="rounded-3xl bg-[#071b44] text-white p-6 shadow-sm">
           <p className="text-xs font-black text-white/60 uppercase tracking-widest">
