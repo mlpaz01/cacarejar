@@ -4,6 +4,8 @@ import { addDays, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useState } from "react";
 import {
+  ArrowRight,
+  CheckCircle2,
   CalendarDays,
   Copy,
   Download,
@@ -31,6 +33,8 @@ const STATUS_STYLE: Record<string, string> = {
   publicado: "bg-[#eef4ff] text-[#174a95] border-[#dbe8ff]",
   medir: "bg-[#071b44] text-white border-[#071b44]",
 };
+
+type PlanStatus = "ideia" | "em_edicao" | "aprovado" | "publicado" | "medir";
 
 export default function Calendario() {
   const [, navigate] = useLocation();
@@ -173,10 +177,7 @@ export default function Calendario() {
     URL.revokeObjectURL(url);
   }
 
-  function setStatus(
-    index: number,
-    status: "ideia" | "em_edicao" | "aprovado" | "publicado" | "medir"
-  ) {
+  function setStatus(index: number, status: PlanStatus) {
     updateItem.mutate({ index, patch: { status } });
   }
 
@@ -197,6 +198,49 @@ export default function Calendario() {
     } catch (e: any) {
       toast.error(e?.message || "Erro ao abrir Estudio");
     }
+  }
+
+  async function continueInStudio(item: any) {
+    try {
+      if (item.status === "ideia") {
+        await updateItem.mutateAsync({
+          index: item.index,
+          patch: { status: "em_edicao" },
+        });
+      }
+      await openStudio(item.index, item.creativeId);
+    } catch (e: any) {
+      toast.error(e?.message || "Erro ao abrir Estudio");
+    }
+  }
+
+  function scrollToResult(index: number) {
+    document.getElementById(`resultado-${index}`)?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+  }
+
+  function runPrimaryAction(item: any) {
+    if (item.resultado || item.status === "medir") {
+      navigate("/recalibracao");
+      return;
+    }
+    if (item.status === "publicado") {
+      scrollToResult(item.index);
+      return;
+    }
+    if (item.status === "aprovado") {
+      navigate("/integracoes#registro");
+      return;
+    }
+    continueInStudio(item);
+  }
+
+  function runSecondaryAction(item: any) {
+    const nextStatus = guidedSecondaryStatus(item);
+    if (nextStatus) setStatus(item.index, nextStatus);
+    else navigate("/metricas");
   }
 
   function saveResult(index: number) {
@@ -257,6 +301,8 @@ export default function Calendario() {
       </AppLayout>
     );
   }
+
+  const focusAction = focusItem ? guidedActionCopy(focusItem) : null;
 
   return (
     <AppLayout
@@ -333,7 +379,7 @@ export default function Calendario() {
         </div>
       </section>
 
-      {focusItem && (
+      {focusItem && focusAction && (
         <section className="rounded-3xl border border-[#ffd6ce] bg-[#fff8f6] p-5 shadow-sm mb-6">
           <div className="flex flex-col xl:flex-row xl:items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-[#ff3217] text-white grid place-items-center flex-shrink-0">
@@ -352,52 +398,48 @@ export default function Calendario() {
               </p>
               <p className="text-xs text-[#61708a] mt-2">
                 Status atual:{" "}
-                {STATUS_LABEL[focusItem.status] ?? focusItem.status}. Proximo
-                passo: {executionHint(focusItem)}.
+                {STATUS_LABEL[focusItem.status] ?? focusItem.status}. Siga um
+                passo por vez para nao misturar edicao, publicacao e medicao.
               </p>
             </div>
-            <div className="grid grid-cols-2 md:flex gap-2">
-              <button
-                type="button"
-                onClick={() =>
-                  openStudio(focusItem.index, focusItem.creativeId)
-                }
-                disabled={ensureOriginCreative.isPending}
-                className="rounded-xl bg-[#071b44] text-white px-4 py-2.5 text-xs font-black inline-flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {ensureOriginCreative.isPending &&
-                (ensureOriginCreative.variables as any)?.index ===
-                  focusItem.index ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Edit3 className="w-3.5 h-3.5" />
-                )}
-                Editar
-              </button>
-              <button
-                type="button"
-                onClick={() => setStatus(focusItem.index, "aprovado")}
-                disabled={updateItem.isPending}
-                className="rounded-xl border border-[#e6ebf3] bg-white text-[#071b44] px-4 py-2.5 text-xs font-black hover:bg-[#f8fafc] disabled:opacity-50"
-              >
-                Aprovar
-              </button>
-              <button
-                type="button"
-                onClick={() => setStatus(focusItem.index, "publicado")}
-                disabled={updateItem.isPending}
-                className="rounded-xl border border-[#e6ebf3] bg-white text-[#071b44] px-4 py-2.5 text-xs font-black hover:bg-[#f8fafc] disabled:opacity-50"
-              >
-                Publicado
-              </button>
-              <button
-                type="button"
-                onClick={() => saveResult(focusItem.index)}
-                disabled={updateItem.isPending}
-                className="rounded-xl border border-[#18b85c] bg-[#eafff1] text-[#087a32] px-4 py-2.5 text-xs font-black hover:bg-[#dffbea] disabled:opacity-50"
-              >
-                Medir
-              </button>
+            <div className="xl:min-w-[390px] rounded-2xl border border-[#ffd6ce] bg-white p-4 shadow-sm">
+              <p className="text-[10px] font-black text-[#ff3217] uppercase tracking-wide">
+                Proxima acao
+              </p>
+              <h3 className="text-lg font-black text-[#071b44] mt-1">
+                {focusAction.title}
+              </h3>
+              <p className="text-xs font-semibold text-[#61708a] leading-relaxed mt-1">
+                {focusAction.description}
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2 mt-4">
+                <button
+                  type="button"
+                  onClick={() => runPrimaryAction(focusItem)}
+                  disabled={
+                    ensureOriginCreative.isPending || updateItem.isPending
+                  }
+                  className="rounded-xl bg-[#ff3217] text-white px-4 py-2.5 text-xs font-black inline-flex items-center justify-center gap-2 disabled:opacity-50 shadow-sm"
+                >
+                  {(ensureOriginCreative.isPending || updateItem.isPending) &&
+                  (ensureOriginCreative.variables as any)?.index ===
+                    focusItem.index ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  )}
+                  {focusAction.primaryLabel}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => runSecondaryAction(focusItem)}
+                  disabled={updateItem.isPending}
+                  className="rounded-xl border border-[#e6ebf3] bg-white text-[#071b44] px-4 py-2.5 text-xs font-black hover:bg-[#f8fafc] disabled:opacity-50 inline-flex items-center justify-center gap-2"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  {focusAction.secondaryLabel}
+                </button>
+              </div>
             </div>
           </div>
         </section>
@@ -410,6 +452,7 @@ export default function Calendario() {
             (ensureOriginCreative.variables as any)?.index === item.index;
           return (
             <article
+              id={`post-${item.index}`}
               key={`${item.dia}-${item.index}`}
               className="rounded-2xl border border-[#e6ebf3] bg-white p-4 shadow-sm flex flex-col min-h-[560px]"
             >
@@ -458,7 +501,10 @@ export default function Calendario() {
                 </a>
               )}
 
-              <div className="mt-3 rounded-xl bg-[#fbfcff] border border-[#e6ebf3] p-3">
+              <div
+                id={`resultado-${item.index}`}
+                className="mt-3 rounded-xl bg-[#fbfcff] border border-[#e6ebf3] p-3 scroll-mt-32"
+              >
                 <p className="text-[10px] font-black text-[#61708a] uppercase">
                   Resultado
                 </p>
@@ -610,14 +656,58 @@ function nextAction(items: any[]) {
   return "Rode o check-in para transformar os resultados em aprendizado.";
 }
 
-function executionHint(item: any) {
-  if (item.resultado || item.status === "medir")
-    return "rodar o check-in e transformar resultado em aprendizado";
-  if (item.status === "publicado")
-    return "registrar link, numeros e observacoes do post";
-  if (item.status === "aprovado") return "publicar manualmente e colar o link";
-  if (item.status === "em_edicao") return "finalizar o toque humano no Estudio";
-  return "abrir no Estudio e deixar pronto para aprovacao";
+function guidedActionCopy(item: any) {
+  if (item.resultado || item.status === "medir") {
+    return {
+      title: "Aprender com o que aconteceu",
+      description:
+        "Os numeros ja entraram. Agora use o check-in para transformar o resultado em proximo ajuste.",
+      primaryLabel: "Abrir Acompanhamento",
+      secondaryLabel: "Ver metricas",
+    };
+  }
+  if (item.status === "publicado") {
+    return {
+      title: "Registrar resultado do post",
+      description:
+        "Cole o link e preencha os primeiros numeros para os Agentes aprenderem com o post.",
+      primaryLabel: "Preencher resultado",
+      secondaryLabel: "Marcar para medir",
+    };
+  }
+  if (item.status === "aprovado") {
+    return {
+      title: "Publicar ou programar",
+      description:
+        "O post ja passou pelo toque humano. Agora va para Publicacao e execute no canal certo.",
+      primaryLabel: "Abrir Publicacao",
+      secondaryLabel: "Marcar publicado",
+    };
+  }
+  if (item.status === "em_edicao") {
+    return {
+      title: "Finalizar o toque humano",
+      description:
+        "Revise copy, imagem e intencao no Estudio antes de aprovar este post.",
+      primaryLabel: "Continuar no Estudio",
+      secondaryLabel: "Marcar aprovado",
+    };
+  }
+  return {
+    title: "Comecar pelo Estudio",
+    description:
+      "Transforme a ideia em um post editavel, com copy e visual prontos para revisao.",
+    primaryLabel: "Continuar no Estudio",
+    secondaryLabel: "Marcar em edicao",
+  };
+}
+
+function guidedSecondaryStatus(item: any): PlanStatus | null {
+  if (item.resultado || item.status === "medir") return null;
+  if (item.status === "publicado") return "medir";
+  if (item.status === "aprovado") return "publicado";
+  if (item.status === "em_edicao") return "aprovado";
+  return "em_edicao";
 }
 
 function csvCell(value: any) {
