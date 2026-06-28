@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { BrandLogo } from "@/components/BrandLogo";
 import {
   BarChart3,
   Megaphone,
@@ -52,7 +53,12 @@ const PLANS = [
     price: "R$ 0",
     period: "/mês",
     highlight: false,
-    features: ["1 campanha ativa", "50 criativos", "Métricas básicas", "Suporte por e-mail"],
+    features: [
+      "1 campanha ativa",
+      "50 criativos",
+      "Métricas básicas",
+      "Suporte por e-mail",
+    ],
     cta: "Começar grátis",
   },
   {
@@ -93,9 +99,13 @@ export default function Landing() {
       {/* Nav */}
       <nav className="border-b border-border/40 sticky top-0 z-50 bg-background/80 backdrop-blur">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <span className="text-xl font-bold tracking-tight">🐓 cacarejar</span>
+          <BrandLogo size="sm" theme="light" />
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="sm" onClick={() => setLocation("/login")}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setLocation("/login")}
+            >
               Entrar
             </Button>
             <Button size="sm" onClick={() => setLocation("/register")}>
@@ -115,14 +125,18 @@ export default function Landing() {
           <span className="text-primary">realmente funciona</span>
         </h1>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-10">
-          Gerencie campanhas, criativos e métricas em múltiplos canais. Com Agentes
-          autônomos para otimizar seu ROI automaticamente.
+          Gerencie campanhas, criativos e métricas em múltiplos canais. Com
+          Agentes autônomos para otimizar seu ROI automaticamente.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Button size="lg" onClick={() => setLocation("/register")}>
             Criar conta grátis <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
-          <Button size="lg" variant="outline" onClick={() => setLocation("/login")}>
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={() => setLocation("/login")}
+          >
             Já tenho conta
           </Button>
         </div>
@@ -130,10 +144,15 @@ export default function Landing() {
 
       {/* Features */}
       <section className="max-w-6xl mx-auto px-4 py-20">
-        <h2 className="text-3xl font-bold text-center mb-12">Tudo que você precisa</h2>
+        <h2 className="text-3xl font-bold text-center mb-12">
+          Tudo que você precisa
+        </h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {FEATURES.map(f => (
-            <Card key={f.title} className="border-border/50 hover:border-primary/40 transition-colors">
+            <Card
+              key={f.title}
+              className="border-border/50 hover:border-primary/40 transition-colors"
+            >
               <CardHeader>
                 <f.icon className="h-8 w-8 text-primary mb-2" />
                 <CardTitle className="text-lg">{f.title}</CardTitle>
@@ -148,7 +167,9 @@ export default function Landing() {
 
       {/* Pricing */}
       <section className="max-w-6xl mx-auto px-4 py-20">
-        <h2 className="text-3xl font-bold text-center mb-4">Planos simples e transparentes</h2>
+        <h2 className="text-3xl font-bold text-center mb-4">
+          Planos simples e transparentes
+        </h2>
         <p className="text-center text-muted-foreground mb-12">
           Comece grátis. Faça upgrade quando precisar de mais.
         </p>
@@ -171,7 +192,9 @@ export default function Landing() {
                 <CardTitle className="text-lg">{plan.name}</CardTitle>
                 <div className="mt-2">
                   <span className="text-3xl font-bold">{plan.price}</span>
-                  <span className="text-muted-foreground text-sm">{plan.period}</span>
+                  <span className="text-muted-foreground text-sm">
+                    {plan.period}
+                  </span>
                 </div>
               </CardHeader>
               <CardContent className="flex flex-col flex-1">

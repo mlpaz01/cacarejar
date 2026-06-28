@@ -1,8 +1,7 @@
 interface BrandLogoProps {
   /** Tamanho */
   size?: "sm" | "md" | "lg" | "sidebar";
-  /** "light" = fundo claro -> logo.png (texto escuro)
-   *  "dark" = fundo escuro -> logo-dark.png (texto branco, fundo transparente) */
+  /** "light" = fundo claro -> logo.png; "dark" = fundo escuro -> logo-dark.png */
   theme?: "dark" | "light";
   /** "full" = lockup com texto; "icon" = so o mascote para menu retratil */
   variant?: "full" | "icon";
@@ -11,7 +10,7 @@ interface BrandLogoProps {
   href?: string;
 }
 
-// Logos recortadas (sem padding): lockup ratio ~2.92, icone ~0.93
+// Logos oficiais recortadas; os icones isolados permanecem os mesmos.
 const fullHeight = { sm: 48, md: 64, lg: 88, sidebar: 60 };
 const iconHeight = { sm: 56, md: 60, lg: 72, sidebar: 56 };
 
@@ -21,9 +20,14 @@ export function BrandLogo({
   variant = "full",
   href = "/",
 }: BrandLogoProps) {
-  const src = variant === "icon"
-    ? (theme === "dark" ? "/assets/brand-icon-dark.png" : "/assets/brand-icon.png")
-    : theme === "dark" ? "/assets/logo-dark.png" : "/assets/logo.png";
+  const src =
+    variant === "icon"
+      ? theme === "dark"
+        ? "/assets/brand-icon-dark.png"
+        : "/assets/brand-icon.png"
+      : theme === "dark"
+        ? "/assets/logo-dark.png"
+        : "/assets/logo.png";
   const h = (variant === "icon" ? iconHeight : fullHeight)[size];
 
   return (
@@ -34,7 +38,7 @@ export function BrandLogo({
     >
       <img
         src={src}
-        alt="Cacarejar - motor de marketing com agentes exclusivos"
+        alt="Cacarejar - Agentes autonomos de marketing"
         style={{ height: h, width: "auto", display: "block" }}
       />
     </a>
