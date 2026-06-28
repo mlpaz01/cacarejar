@@ -151,11 +151,18 @@ export function AppLayout({
             collapsed ? "justify-center px-2" : "px-3"
           )}
         >
-          {collapsed ? (
-            <BrandLogo size="sm" theme="dark" variant="icon" />
-          ) : (
-            <BrandLogo size="sidebar" theme="dark" />
-          )}
+          <div
+            className={cn(
+              "min-w-0 overflow-hidden flex items-center",
+              collapsed ? "w-14 justify-center" : "w-full"
+            )}
+          >
+            {collapsed ? (
+              <BrandLogo size="sm" theme="dark" variant="icon" />
+            ) : (
+              <BrandLogo size="sidebar" theme="dark" />
+            )}
+          </div>
 
           <button
             onClick={() => setCollapsed(v => !v)}

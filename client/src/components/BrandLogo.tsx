@@ -20,26 +20,50 @@ export function BrandLogo({
   variant = "full",
   href = "/",
 }: BrandLogoProps) {
-  const src =
-    variant === "icon"
-      ? theme === "dark"
-        ? "/assets/brand-icon-dark.png"
-        : "/assets/brand-icon.png"
-      : theme === "dark"
-        ? "/assets/logo-dark.png"
-        : "/assets/logo.png";
-  const h = (variant === "icon" ? iconHeight : fullHeight)[size];
+  const isIcon = variant === "icon";
+  const src = isIcon
+    ? theme === "dark"
+      ? "/assets/brand-icon-dark.png"
+      : "/assets/brand-icon.png"
+    : theme === "dark"
+      ? "/assets/logo-dark.png"
+      : "/assets/logo.png";
+  const h = (isIcon ? iconHeight : fullHeight)[size];
 
   return (
     <a
       href={href}
-      style={{ display: "inline-flex", textDecoration: "none", flexShrink: 0 }}
+      style={{
+        display: "inline-flex",
+        textDecoration: "none",
+        flexShrink: 0,
+        ...(isIcon
+          ? {
+              width: h,
+              height: h,
+              alignItems: "center",
+              justifyContent: "center",
+              overflow: "hidden",
+              borderRadius: 14,
+              background: theme === "dark" ? "#071b44" : "#ffffff",
+            }
+          : null),
+      }}
       aria-label="Cacarejar"
     >
       <img
         src={src}
         alt="Cacarejar - Agentes autonomos de marketing"
-        style={{ height: h, width: "auto", display: "block" }}
+        style={
+          isIcon
+            ? {
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                display: "block",
+              }
+            : { height: h, width: "auto", display: "block" }
+        }
       />
     </a>
   );
