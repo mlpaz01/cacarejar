@@ -7,6 +7,7 @@ import {
   ArrowRight,
   CheckCircle2,
   CalendarDays,
+  Clapperboard,
   Copy,
   Download,
   Edit3,
@@ -601,7 +602,7 @@ export default function Calendario() {
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-2 mt-3">
+              <div className="grid grid-cols-3 gap-2 mt-3">
                 <button
                   type="button"
                   onClick={() => openStudio(item.index, item.creativeId)}
@@ -614,6 +615,14 @@ export default function Calendario() {
                     <Edit3 className="w-3 h-3" />
                   )}
                   Estudio
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/videos?index=${item.index}`)}
+                  className="rounded-xl border border-[#e6ebf3] bg-white px-3 py-2 text-[10px] font-black text-[#071b44] hover:bg-[#f8fafc] flex items-center justify-center gap-1.5"
+                >
+                  <Clapperboard className="w-3 h-3" />
+                  Video
                 </button>
                 <button
                   onClick={async () => {

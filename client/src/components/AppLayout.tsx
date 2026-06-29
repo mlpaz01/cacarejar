@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import {
   Megaphone,
   ImageIcon,
+  Clapperboard,
   BarChart3,
   Zap,
   Library,
@@ -43,7 +44,10 @@ const navGroups = [
   },
   {
     title: "Criacao",
-    items: [{ href: "/criativos", icon: ImageIcon, label: "Criativos" }],
+    items: [
+      { href: "/criativos", icon: ImageIcon, label: "Criativos" },
+      { href: "/videos", icon: Clapperboard, label: "Videos TikTok" },
+    ],
   },
   {
     title: "Execucao",

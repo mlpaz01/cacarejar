@@ -24,6 +24,7 @@ import Creditos from "./pages/Creditos";
 import Guia from "./pages/Guia";
 import Produto from "./pages/Produto";
 import Estudio from "./pages/Estudio";
+import VideosTikTok from "./pages/VideosTikTok";
 import Aprovacao from "./pages/Aprovacao";
 import Notificacoes from "./pages/Notificacoes";
 import Configuracoes from "./pages/Configuracoes";
@@ -74,6 +75,7 @@ function AppRouter() {
       <Route path="/diagnostico" component={Diagnostico} />
       <Route path="/radar" component={Radar} />
       <Route path="/estudio" component={Estudio} />
+      <Route path="/videos" component={VideosTikTok} />
       <Route path="/aprovacao" component={Aprovacao} />
       <Route path="/ovos" component={Ovos} />
       <Route path="/notificacoes" component={Notificacoes} />
