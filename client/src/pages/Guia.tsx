@@ -65,7 +65,7 @@ export default function Guia() {
       title: "2. Radar",
       action:
         "Rode o Radar e marque quais concorrentes/postagens combinam com o negocio.",
-      text: "O usuario precisa dizer Gostei ou Nao gostei antes dos posts virarem recomendacao. Isso evita copiar referencia errada.",
+      text: "Esta etapa valida referencias e sinais de mercado. Ela nao gera posts; ela melhora o contexto antes da criacao.",
       done: !!radar && radarFeedbackCount > 0,
       success: "Concorrencia validada com feedback humano.",
     },
@@ -73,8 +73,8 @@ export default function Guia() {
       id: "estudio",
       title: "3. Estudio",
       action:
-        "Abra os posts recomendados e aplique o toque humano antes de aprovar.",
-      text: "A base vem dos Agentes, mas o usuario ajusta texto, imagem, bastidor, prova e marca a versao humana final.",
+        "Crie ou refine conteudos editaveis com base no diagnostico e no Radar.",
+      text: "Este e o unico lugar de criacao. A base vem dos Agentes, mas o usuario ajusta texto, imagem, bastidor, prova e marca a versao humana final.",
       done: editedCreatives > 0,
       success: "Pelo menos um criativo foi humanizado.",
     },
@@ -231,7 +231,8 @@ export default function Guia() {
           title="Regra da jornada"
           icon={ShieldCheck}
           items={[
-            "Nao aprove posts antes de validar o Radar.",
+            "Diagnostico e Radar orientam, mas nao sao telas de criacao.",
+            "Crie e edite conteudos no Estudio.",
             "Nao publique sem passar pelo Estudio.",
             "Nao escale campanha sem resultado organico.",
           ]}

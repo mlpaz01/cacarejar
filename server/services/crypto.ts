@@ -36,6 +36,20 @@ export function decryptSecret(stored: string): string {
   }
 }
 
+/** Identifica secrets no formato AES-GCM armazenado pelo Cacarejar. */
+export function isEncryptedSecret(stored?: string | null): boolean {
+  if (!stored) return false;
+  const parts = stored.split(".");
+  if (parts.length !== 4) return false;
+  return parts.every(part => /^[A-Za-z0-9+/]+={0,2}$/.test(part));
+}
+
+export function decryptMaybeSecret(stored?: string | null): string | null | undefined {
+  if (!stored) return stored;
+  if (!isEncryptedSecret(stored)) return stored;
+  return decryptSecret(stored) || stored;
+}
+
 /** Máscara para exibir no frontend (nunca o valor pleno). */
 export function maskSecret(plain: string): string {
   if (!plain) return "";

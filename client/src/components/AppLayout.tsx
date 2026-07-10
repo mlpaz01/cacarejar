@@ -45,7 +45,7 @@ const navGroups = [
   {
     title: "Criacao",
     items: [
-      { href: "/criativos", icon: ImageIcon, label: "Criativos" },
+      { href: "/criativos", icon: ImageIcon, label: "Estudio" },
       { href: "/videos", icon: Clapperboard, label: "Videos TikTok" },
     ],
   },

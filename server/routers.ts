@@ -71,6 +71,18 @@ async function requireOrgCalibration(orgId: number, calibrationId: number) {
   return calibration;
 }
 
+function creditHoldError(reason: "saldo_insuficiente" | "cota_diaria" | "db") {
+  if (reason === "saldo_insuficiente") return "Creditos insuficientes. Recarregue sua carteira em Creditos.";
+  if (reason === "cota_diaria") return "Cota diaria de creditos atingida. Tente novamente amanha ou ajuste seu plano.";
+  return "Nao foi possivel reservar creditos.";
+}
+
+async function holdCredits(orgId: number, cc: number, ref: string, description: string) {
+  const h = await creditsService.hold(orgId, cc, ref, { description });
+  if (!h.ok) throw new Error(creditHoldError(h.reason));
+  return h.holdLedgerId;
+}
+
 // ─── Campaigns Router ─────────────────────────────────────────────────────────
 
 const campaignsRouter = router({
@@ -829,6 +841,7 @@ const creditsRouter = router({
     .mutation(async ({ ctx, input }) => {
       const orgId = ctx.user.organizationId;
       if (!orgId) throw new Error("Organização não encontrada");
+      if (asaasService.asaasEnabled()) throw new Error("Compra simulada bloqueada com o Asaas habilitado.");
       const p = PACKAGES[input.pkg];
       await creditsService.credit(orgId, p.cc, "recarga", {
         ref: `mock_purchase:${input.pkg}`,
@@ -1331,7 +1344,10 @@ const diagnosisRouter = router({
       }
       try {
         const result = await adSpyService.scanAdSpy(orgId, { query: input?.query });
-        if (holdId !== null) await creditsService.settle(orgId, holdId);
+        if (holdId !== null) {
+          if (Array.isArray(result.ads) && result.ads.length > 0) await creditsService.settle(orgId, holdId);
+          else await creditsService.release(orgId, holdId);
+        }
         return result;
       } catch (e) {
         if (holdId !== null) await creditsService.release(orgId, holdId);
@@ -1341,10 +1357,23 @@ const diagnosisRouter = router({
   // Inteligência de Google — buscas reais (autocomplete) + pautas de SEO.
   scanGoogle: protectedProcedure
     .input(z.object({ query: z.string().optional() }).nullish())
-    .mutation(({ ctx, input }) => {
+    .mutation(async ({ ctx, input }) => {
       const orgId = ctx.user.organizationId;
       if (!orgId) throw new Error("Organizacao nao encontrada");
-      return googleIntelService.scanGoogleIntel(orgId, { query: input?.query });
+      const holdId = await holdCredits(
+        orgId,
+        creditsService.CC_COST.diagnostico,
+        "diagnosis:scanGoogle",
+        "Inteligencia de Google e pautas de SEO"
+      );
+      try {
+        const result = await googleIntelService.scanGoogleIntel(orgId, { query: input?.query });
+        await creditsService.settle(orgId, holdId);
+        return result;
+      } catch (e) {
+        await creditsService.release(orgId, holdId);
+        throw e;
+      }
     }),
 });
 
@@ -1363,10 +1392,23 @@ const radarRouter = router({
   }),
   scan: protectedProcedure
     .input(z.object({ handles: z.array(z.string()).optional() }).nullish())
-    .mutation(({ ctx, input }) => {
+    .mutation(async ({ ctx, input }) => {
       const orgId = ctx.user.organizationId;
       if (!orgId) throw new Error("Organização não encontrada");
-      return radarService.scan(orgId, { handles: input?.handles });
+      const holdId = await holdCredits(
+        orgId,
+        creditsService.CC_COST.recalibracao,
+        "radar:scan",
+        "Radar de mercado e concorrencia"
+      );
+      try {
+        const result = await radarService.scan(orgId, { handles: input?.handles });
+        await creditsService.settle(orgId, holdId);
+        return result;
+      } catch (e) {
+        await creditsService.release(orgId, holdId);
+        throw e;
+      }
     }),
   refine: protectedProcedure
     .input(z.object({

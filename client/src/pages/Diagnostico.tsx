@@ -7,7 +7,6 @@ import {
   BookOpen,
   CalendarDays,
   CheckCircle2,
-  ClipboardList,
   Copy,
   ExternalLink,
   FileDown,
@@ -88,8 +87,6 @@ export default function Diagnostico() {
   const [adQuery, setAdQuery] = useState("");
   const [googleQuery, setGoogleQuery] = useState("");
   const [feedback, setFeedback] = useState("");
-  const [preparingApproval, setPreparingApproval] = useState(false);
-  const [resultDrafts, setResultDrafts] = useState<Record<number, any>>({});
 
   const analyze = trpc.diagnosis.analyze.useMutation({
     onSuccess: p => {
@@ -163,50 +160,6 @@ export default function Diagnostico() {
     },
     onError: e => toast.error(e.message || "Erro ao buscar no Google"),
   });
-  const updateSevenDayItem = trpc.diagnosis.updateSevenDayItem.useMutation({
-    onSuccess: p => {
-      setPlan(p);
-      utils.diagnosis.get.invalidate();
-      toast.success("Plano atualizado.");
-    },
-    onError: e => toast.error(e.message || "Erro ao atualizar plano"),
-  });
-  const genProposals = trpc.studio.generateProposals.useMutation({
-    onError: e => toast.error(e.message || "Erro ao gerar posts"),
-  });
-  const ensureOriginCreative = trpc.studio.ensureOriginCreative.useMutation({
-    onError: e => toast.error(e.message || "Erro ao abrir Estudio"),
-  });
-  const genRadarIdea = trpc.radar.generateIdea.useMutation({
-    onError: e => toast.error(e.message || "Erro ao gerar ideia do Radar"),
-  });
-  const sendApproval = trpc.approvals.sendToApproval.useMutation({
-    onSuccess: () => {
-      toast.success("Conteudos enviados para aprovacao.");
-      navigate("/aprovacao");
-    },
-    onError: e => toast.error(e.message || "Erro ao enviar para aprovacao"),
-  });
-
-  const openStudioFromPlan = async (index: number, creativeId?: number) => {
-    try {
-      const id =
-        creativeId ??
-        (
-          await ensureOriginCreative.mutateAsync({
-            originType: "diagnosis-plan",
-            index,
-          })
-        ).id;
-      await utils.diagnosis.get.invalidate();
-      navigate(
-        `/criativos/${id}?returnTo=${encodeURIComponent(`/diagnostico?studioReturn=${Date.now()}`)}&closeOnSave=1`
-      );
-    } catch (e: any) {
-      toast.error(e?.message || "Erro ao abrir Estudio");
-    }
-  };
-
   const shown = plan ?? (forceForm ? null : existing.data);
   const rd: any = radar.data;
 
@@ -270,49 +223,6 @@ export default function Diagnostico() {
       redes: nextRedes,
       sobre: feedback || sobre || "",
     });
-  };
-
-  const prepareApproval = async () => {
-    setPreparingApproval(true);
-    try {
-      const strategic = await genProposals.mutateAsync();
-      const creativeIds: number[] = (strategic.creatives ?? [])
-        .map((c: any) => c.id)
-        .filter(Boolean);
-
-      let radarSource: any = rd;
-      if (!radarSource?.ideas?.length) {
-        radarSource = await scanRadar.mutateAsync(undefined);
-        await utils.radar.get.invalidate();
-      }
-      const radarIdeas = ((radarSource?.ideas ?? []) as any[]).slice(0, 3);
-      for (let index = 0; index < radarIdeas.length; index++) {
-        let creativeId = radarIdeas[index]?.creativeId ?? radarIdeas[index]?.id;
-        if (!creativeId) {
-          const generated = await genRadarIdea.mutateAsync({ index });
-          creativeId = (generated as any)?.id;
-        }
-        if (creativeId) creativeIds.push(Number(creativeId));
-      }
-
-      const uniqueIds = Array.from(new Set(creativeIds));
-      if (!uniqueIds.length)
-        throw new Error("Nenhum conteudo foi gerado para aprovacao");
-      await sendApproval.mutateAsync({
-        creativeIds: uniqueIds,
-        name: "Conteudos por canal do diagnostico",
-      });
-      await Promise.allSettled([
-        utils.diagnosis.get.invalidate(),
-        utils.radar.get.invalidate(),
-      ]);
-      toast.success("Conteudos preparados para aprovacao.");
-      navigate("/aprovacao");
-    } catch (e: any) {
-      toast.error(e?.message || "Erro ao preparar conteudos");
-    } finally {
-      setPreparingApproval(false);
-    }
   };
 
   const markHit = (hit: any, value: "like" | "dislike") => {
@@ -631,49 +541,6 @@ export default function Diagnostico() {
   const motorOrganico = shown.motorOrganico;
   const campanhaAssistida = shown.campanhaAssistida;
   const brandDNA = shown.brandDNA;
-  const numberOrUndefined = (value: any) => {
-    const n = Number(value);
-    return Number.isFinite(n) && n >= 0 ? n : undefined;
-  };
-  const executionDone = plano7Dias.filter(
-    (item: any) =>
-      ["publicado", "medir"].includes(item.status) || item.resultado
-  ).length;
-  const executionApproved = plano7Dias.filter(
-    (item: any) => item.status === "aprovado"
-  ).length;
-  const executionEditing = plano7Dias.filter(
-    (item: any) => item.status === "em_edicao"
-  ).length;
-  const nextExecutionIndex = plano7Dias.findIndex(
-    (item: any) =>
-      !["publicado", "medir"].includes(item.status) && !item.resultado
-  );
-  const nextExecutionItem =
-    nextExecutionIndex >= 0 ? plano7Dias[nextExecutionIndex] : plano7Dias[0];
-  const executionProgress = plano7Dias.length
-    ? Math.round((executionDone / plano7Dias.length) * 100)
-    : 0;
-  const weeklyPackageText = plano7Dias
-    .map((item: any) =>
-      [
-        `${item.dia} - ${item.canal}`,
-        `Status: ${String(item.status || "ideia").replace("_", " ")}`,
-        `Objetivo: ${item.objetivo}`,
-        `Gancho: ${item.gancho}`,
-        `Legenda: ${item.legenda}`,
-        item.cta ? `CTA: ${item.cta}` : "",
-        item.hashtags?.length ? `Hashtags: ${item.hashtags.join(" ")}` : "",
-        item.metricaChave ? `Medir: ${item.metricaChave}` : "",
-      ]
-        .filter(Boolean)
-        .join("\n")
-    )
-    .join("\n\n---\n\n");
-  const copyWeeklyPackage = async () => {
-    await navigator.clipboard?.writeText(weeklyPackageText);
-    toast.success("Pacote da semana copiado.");
-  };
   const organicPackageText = motorOrganico
     ? [
         `Motor organico - ${(shown as any)?.produto || (shown as any)?.nicho || "perfil ativo"}`,
@@ -704,31 +571,6 @@ export default function Diagnostico() {
     await navigator.clipboard?.writeText(organicPackageText);
     toast.success("Pacote organico copiado.");
   };
-  const updatePlanStatus = (
-    index: number,
-    status: "ideia" | "em_edicao" | "aprovado" | "publicado" | "medir"
-  ) => {
-    updateSevenDayItem.mutate({ index, patch: { status } });
-  };
-  const savePlanResult = (index: number) => {
-    const draft = resultDrafts[index] ?? {};
-    updateSevenDayItem.mutate({
-      index,
-      patch: {
-        status: "medir",
-        publicadoUrl: draft.publicadoUrl || undefined,
-        resultado: {
-          alcance: numberOrUndefined(draft.alcance),
-          salvamentos: numberOrUndefined(draft.salvamentos),
-          cliques: numberOrUndefined(draft.cliques),
-          leads: numberOrUndefined(draft.leads),
-          vendas: numberOrUndefined(draft.vendas),
-          receita: numberOrUndefined(draft.receita),
-          observacoes: draft.observacoes || undefined,
-        },
-      },
-    });
-  };
   const radarHasFeedback =
     !!rd?.scannedAt &&
     (((rd?.feedback?.likedPostKeys ?? []) as any[]).length +
@@ -741,26 +583,22 @@ export default function Diagnostico() {
   const journeyAction = !radarHasFeedback
     ? {
         label: "Continuar no Radar",
-        title: "Proxima acao: validar concorrencia antes dos posts",
-        text: "Rode o Radar, marque quais referencias combinam ou nao com este negocio e use esse feedback para fortalecer o plano antes de aprovar conteudos.",
+        title: "Proxima acao: validar concorrencia antes da criacao",
+        text: "Rode o Radar, marque quais referencias combinam ou nao com este negocio e use esse feedback para fortalecer o contexto antes de abrir o Estudio.",
         run: () => navigate("/radar"),
       }
-    : nextExecutionItem
+    : plano7Dias.length > 0
       ? {
-          label: "Editar proximo post",
-          title: "Proxima acao: humanizar o post no Estudio",
-          text: "Agora que o perfil e o Radar estao alinhados, abra o post recomendado no Estudio, ajuste texto/imagem e salve a versao humana final.",
-          run: () =>
-            openStudioFromPlan(
-              nextExecutionIndex >= 0 ? nextExecutionIndex : 0,
-              nextExecutionItem.creativeId
-            ),
+          label: "Abrir Estudio",
+          title: "Proxima acao: criar e humanizar no Estudio",
+          text: "Agora que o perfil e o Radar estao alinhados, use o Estudio como unico lugar para transformar estrategia em conteudo editavel.",
+          run: () => navigate("/criativos"),
         }
       : {
-          label: "Ir para aprovacao",
-          title: "Proxima acao: revisar posts finais",
-          text: "Os posts ja passaram pela base estrategica. Revise somente o que esta pronto para publicar.",
-          run: () => navigate("/aprovacao"),
+          label: "Abrir Estudio",
+          title: "Proxima acao: criar os primeiros conteudos",
+          text: "O diagnostico ja definiu a direcao. Agora a criacao acontece no Estudio, antes de qualquer aprovacao.",
+          run: () => navigate("/criativos"),
         };
 
   return (
@@ -1121,340 +959,19 @@ export default function Diagnostico() {
 
       {plano7Dias.length > 0 && (
         <section className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
-          <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <HeaderLine
-              icon={ClipboardList}
-              title="Central da semana"
-              subtitle="O plano vivo para transformar diagnostico em execucao, medicao e aprendizado."
+              icon={Pencil}
+              title="Conteudos fora do diagnostico"
+              subtitle={`O plano encontrou ${plano7Dias.length} direcoes para a semana. Para manter a jornada simples, a criacao e a edicao ficam concentradas no Estudio.`}
             />
             <button
               type="button"
-              onClick={copyWeeklyPackage}
-              className="rounded-xl border border-[#e6ebf3] bg-white px-4 py-2 text-xs font-black text-[#071b44] hover:border-[#071b44] flex items-center gap-2"
+              onClick={() => navigate("/criativos")}
+              className="rounded-xl bg-[#071b44] text-white px-5 py-3 text-sm font-black inline-flex items-center justify-center gap-2 hover:bg-[#0b255c]"
             >
-              <Copy className="w-3.5 h-3.5" /> Copiar pacote
+              Abrir Estudio <ArrowRight className="w-4 h-4" />
             </button>
-          </div>
-          <div className="grid grid-cols-1 xl:grid-cols-[260px_1fr_320px] gap-5 mt-5">
-            <div className="rounded-3xl bg-[#071b44] text-white p-5">
-              <p className="text-xs font-black text-white/60 uppercase">
-                Execucao
-              </p>
-              <p className="text-5xl font-black mt-2">{executionProgress}%</p>
-              <div className="h-2 rounded-full bg-white/15 mt-4 overflow-hidden">
-                <div
-                  className="h-full bg-[#18b85c]"
-                  style={{ width: `${executionProgress}%` }}
-                />
-              </div>
-              <p className="text-xs text-white/75 leading-relaxed mt-4">
-                {executionDone} de {plano7Dias.length} itens publicados ou
-                medidos. {executionApproved} aprovado(s), {executionEditing} em
-                edicao.
-              </p>
-            </div>
-            {nextExecutionItem && (
-              <div className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-[10px] font-black text-[#ff3217] uppercase">
-                      {nextExecutionItem.dia} - {nextExecutionItem.canal}
-                    </p>
-                    <h3 className="text-xl font-black text-[#071b44] mt-1">
-                      {nextExecutionItem.gancho}
-                    </h3>
-                  </div>
-                  <span className="rounded-full bg-white border border-[#e6ebf3] px-3 py-1 text-[10px] font-black text-[#071b44]">
-                    {nextExecutionItem.formato}
-                  </span>
-                </div>
-                <p className="text-sm text-[#22304b] font-semibold leading-relaxed mt-3">
-                  {nextExecutionItem.legenda}
-                </p>
-                <div className="flex flex-wrap gap-2 mt-4">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      openStudioFromPlan(
-                        nextExecutionIndex >= 0 ? nextExecutionIndex : 0,
-                        nextExecutionItem.creativeId
-                      )
-                    }
-                    className="rounded-xl bg-[#ff3217] text-white px-4 py-2 text-xs font-black hover:bg-[#e12a12] flex items-center gap-2"
-                  >
-                    <Pencil className="w-3.5 h-3.5" /> Editar proximo post
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      updatePlanStatus(
-                        nextExecutionIndex >= 0 ? nextExecutionIndex : 0,
-                        "aprovado"
-                      )
-                    }
-                    disabled={updateSevenDayItem.isPending}
-                    className="rounded-xl border border-[#18b85c] bg-[#eafff1] text-[#087a32] px-4 py-2 text-xs font-black disabled:opacity-50 flex items-center gap-2"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Marcar aprovado
-                  </button>
-                </div>
-              </div>
-            )}
-            <div className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-5">
-              <p className="text-[10px] font-black text-[#ff3217] uppercase">
-                Pipeline
-              </p>
-              <div className="space-y-3 mt-3">
-                {[
-                  ["E", "Em edicao", executionEditing],
-                  ["A", "Aprovados", executionApproved],
-                  ["M", "Medidos", executionDone],
-                ].map(([n, title, value]) => (
-                  <div key={title} className="flex gap-3">
-                    <span className="w-7 h-7 rounded-full bg-white border border-[#e6ebf3] flex items-center justify-center text-xs font-black text-[#071b44]">
-                      {n}
-                    </span>
-                    <div>
-                      <p className="text-xs font-black text-[#071b44]">
-                        {title}
-                      </p>
-                      <p className="text-[11px] text-[#61708a] leading-snug">
-                        {value} item(ns)
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {plano7Dias.length > 0 && (
-        <section className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
-          <HeaderLine
-            icon={CalendarDays}
-            title="Plano de 7 dias"
-            subtitle="Uma semana de execucao: os Agentes criam a base, voce edita e coloca o toque humano antes de publicar."
-          />
-          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mt-5">
-            {plano7Dias.map((item: any, index: number) => {
-              const creatingCreative =
-                ensureOriginCreative.isPending &&
-                (ensureOriginCreative.variables as any)?.index === index;
-              const copyText = [
-                `${item.dia} - ${item.canal}`,
-                `Objetivo: ${item.objetivo}`,
-                `Gancho: ${item.gancho}`,
-                `Legenda: ${item.legenda}`,
-                `CTA: ${item.cta}`,
-                item.hashtags?.length
-                  ? `Hashtags: ${item.hashtags.join(" ")}`
-                  : "",
-              ]
-                .filter(Boolean)
-                .join("\n\n");
-              return (
-                <article
-                  key={`${item.dia}-${index}`}
-                  className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-5 flex flex-col"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-xs font-black text-[#ff3217] uppercase">
-                        {item.dia}
-                      </p>
-                      <h3 className="text-lg font-black text-[#071b44] mt-1">
-                        {item.canal}
-                      </h3>
-                    </div>
-                    <span className="rounded-full bg-white border border-[#e6ebf3] text-[#071b44] text-[10px] font-black px-3 py-1">
-                      {item.formato}
-                    </span>
-                  </div>
-                  <p className="text-xs font-bold text-[#61708a] mt-2">
-                    {item.objetivo}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5 mt-3">
-                    {(
-                      ["ideia", "em_edicao", "aprovado", "publicado"] as const
-                    ).map(status => (
-                      <button
-                        key={status}
-                        type="button"
-                        onClick={() => updatePlanStatus(index, status)}
-                        disabled={updateSevenDayItem.isPending}
-                        className={`rounded-full border px-2.5 py-1 text-[10px] font-black disabled:opacity-50 ${
-                          item.status === status
-                            ? "bg-[#071b44] border-[#071b44] text-white"
-                            : "bg-white border-[#e6ebf3] text-[#61708a] hover:text-[#071b44]"
-                        }`}
-                      >
-                        {status.replace("_", " ")}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="mt-4 rounded-xl bg-white border border-[#e6ebf3] p-3">
-                    <p className="text-[10px] font-black text-[#ff3217] uppercase">
-                      Gancho
-                    </p>
-                    <p className="text-sm font-black text-[#071b44] leading-snug mt-1">
-                      {item.gancho}
-                    </p>
-                    <p className="text-xs text-[#22304b] leading-relaxed mt-2">
-                      {item.legenda}
-                    </p>
-                  </div>
-                  {item.roteiro?.cenas?.length ? (
-                    <div className="mt-3 rounded-xl bg-white border border-[#e6ebf3] p-3">
-                      <p className="text-[10px] font-black text-[#61708a] uppercase">
-                        Roteiro rapido
-                      </p>
-                      <div className="space-y-1.5 mt-2">
-                        {item.roteiro.cenas
-                          .slice(0, 4)
-                          .map((cena: any, i: number) => (
-                            <p
-                              key={i}
-                              className="text-[11px] text-[#22304b] leading-snug"
-                            >
-                              <b>{cena.tempo}:</b> {cena.acao}
-                            </p>
-                          ))}
-                      </div>
-                    </div>
-                  ) : null}
-                  <p className="text-[10px] font-black text-[#61708a] uppercase tracking-wide mt-3">
-                    Toque humano antes de publicar
-                  </p>
-                  <ul className="mt-1 space-y-1">
-                    {(item.checklistHumano ?? [])
-                      .slice(0, 3)
-                      .map((check: string) => (
-                        <li
-                          key={check}
-                          className="text-[11px] text-[#22304b] leading-snug flex gap-2"
-                        >
-                          <span className="text-[#ff3217] font-black">-</span>
-                          {check}
-                        </li>
-                      ))}
-                  </ul>
-                  <div className="mt-4 rounded-xl bg-white border border-[#e6ebf3] p-3">
-                    <p className="text-[10px] font-black text-[#61708a] uppercase">
-                      Resultado manual
-                    </p>
-                    <input
-                      value={
-                        resultDrafts[index]?.publicadoUrl ??
-                        item.publicadoUrl ??
-                        ""
-                      }
-                      onChange={e =>
-                        setResultDrafts(prev => ({
-                          ...prev,
-                          [index]: {
-                            ...(prev[index] ?? {}),
-                            publicadoUrl: e.target.value,
-                          },
-                        }))
-                      }
-                      placeholder="Link do post publicado"
-                      className="mt-2 w-full rounded-lg border border-[#e6ebf3] bg-[#fbfcff] px-3 py-2 text-xs font-semibold text-[#071b44] outline-none focus:border-[#ff3217]"
-                    />
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mt-2">
-                      {[
-                        ["alcance", "Alcance"],
-                        ["salvamentos", "Salvos"],
-                        ["cliques", "Cliques"],
-                        ["leads", "Leads"],
-                        ["vendas", "Vendas"],
-                        ["receita", "Receita R$"],
-                      ].map(([key, label]) => (
-                        <input
-                          key={key}
-                          type="number"
-                          min={0}
-                          value={
-                            resultDrafts[index]?.[key] ??
-                            item.resultado?.[key] ??
-                            ""
-                          }
-                          onChange={e =>
-                            setResultDrafts(prev => ({
-                              ...prev,
-                              [index]: {
-                                ...(prev[index] ?? {}),
-                                [key]: e.target.value,
-                              },
-                            }))
-                          }
-                          placeholder={label}
-                          className="rounded-lg border border-[#e6ebf3] bg-[#fbfcff] px-3 py-2 text-xs font-semibold text-[#071b44] outline-none focus:border-[#ff3217]"
-                        />
-                      ))}
-                    </div>
-                    <textarea
-                      value={
-                        resultDrafts[index]?.observacoes ??
-                        item.resultado?.observacoes ??
-                        ""
-                      }
-                      onChange={e =>
-                        setResultDrafts(prev => ({
-                          ...prev,
-                          [index]: {
-                            ...(prev[index] ?? {}),
-                            observacoes: e.target.value,
-                          },
-                        }))
-                      }
-                      placeholder="Observacao humana: o que aconteceu, comentarios, DMs, percepcao..."
-                      className="mt-2 w-full min-h-[64px] resize-none rounded-lg border border-[#e6ebf3] bg-[#fbfcff] px-3 py-2 text-xs font-semibold text-[#071b44] outline-none focus:border-[#ff3217]"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => savePlanResult(index)}
-                      disabled={updateSevenDayItem.isPending}
-                      className="mt-2 w-full rounded-xl border border-[#18b85c] bg-[#eafff1] text-[#087a32] px-3 py-2 text-xs font-black hover:bg-[#dffbea] disabled:opacity-50"
-                    >
-                      Salvar resultado e aprender
-                    </button>
-                  </div>
-                  <div className="mt-4 pt-4 border-t border-[#e6ebf3] flex items-center justify-between gap-3 flex-wrap">
-                    <span className="text-[11px] font-black text-[#61708a]">
-                      Medir: {item.metricaChave}
-                    </span>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          openStudioFromPlan(index, item.creativeId)
-                        }
-                        disabled={creatingCreative}
-                        className="rounded-xl border border-[#e6ebf3] bg-white text-[#071b44] px-3 py-2 text-xs font-black hover:border-[#071b44] disabled:opacity-50 flex items-center gap-1.5"
-                      >
-                        {creatingCreative ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Pencil className="w-3.5 h-3.5" />
-                        )}
-                        Editar no Estudio
-                      </button>
-                      <button
-                        onClick={async () => {
-                          await navigator.clipboard?.writeText(copyText);
-                          toast.success("Conteudo copiado.");
-                        }}
-                        className="rounded-xl bg-[#071b44] text-white px-3 py-2 text-xs font-black hover:bg-[#0d2a5e]"
-                      >
-                        Copiar post
-                      </button>
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
           </div>
         </section>
       )}

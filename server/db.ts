@@ -18,6 +18,7 @@ import {
   InsertCalibrationLog,
   InsertOrganization,
 } from "../drizzle/schema";
+import { decryptMaybeSecret, encryptSecret, isEncryptedSecret } from "./services/crypto";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -312,12 +313,22 @@ export async function getDashboardSummary(orgId: number) {
 export async function getIntegrations(orgId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(integrations).where(eq(integrations.organizationId, orgId));
+  const rows = await db.select().from(integrations).where(eq(integrations.organizationId, orgId));
+  return rows.map(row => ({
+    ...row,
+    accessToken: decryptMaybeSecret(row.accessToken) ?? row.accessToken,
+    refreshToken: decryptMaybeSecret(row.refreshToken) ?? row.refreshToken,
+  }));
 }
 
 export async function upsertIntegration(data: InsertIntegration) {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
+  const dataToSave: InsertIntegration = {
+    ...data,
+    accessToken: data.accessToken && !isEncryptedSecret(data.accessToken) ? encryptSecret(data.accessToken) : data.accessToken,
+    refreshToken: data.refreshToken && !isEncryptedSecret(data.refreshToken) ? encryptSecret(data.refreshToken) : data.refreshToken,
+  };
   const existing = await db
     .select()
     .from(integrations)
@@ -329,9 +340,9 @@ export async function upsertIntegration(data: InsertIntegration) {
     )
     .limit(1);
   if (existing.length > 0) {
-    return db.update(integrations).set(data).where(eq(integrations.id, existing[0].id));
+    return db.update(integrations).set(dataToSave).where(eq(integrations.id, existing[0].id));
   }
-  return db.insert(integrations).values(data);
+  return db.insert(integrations).values(dataToSave);
 }
 
 // ─── Dispatch Logs ────────────────────────────────────────────────────────────

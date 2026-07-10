@@ -126,7 +126,8 @@ async function startServer() {
   app.post("/api/asaas/webhook", async (req, res) => {
     try {
       const expected = process.env.ASAAS_WEBHOOK_TOKEN;
-      if (expected && req.headers["asaas-access-token"] !== expected) {
+      const received = req.headers["asaas-access-token"];
+      if (!expected || received !== expected) {
         res.status(401).json({ error: "unauthorized" });
         return;
       }

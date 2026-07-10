@@ -17,10 +17,7 @@ import {
   Flame,
   ThumbsUp,
   ThumbsDown,
-  Wand2,
-  MessageSquare,
   FileDown,
-  Pencil,
   Copy,
   Network,
   Hash,
@@ -136,12 +133,8 @@ export default function Radar() {
     enabled: !!diagnosis.data,
   });
   const [handles, setHandles] = useState("");
-  const [generatingBatch, setGeneratingBatch] = useState(false);
   const [likedHitKeys, setLikedHitKeys] = useState<string[]>([]);
   const [dislikedHitKeys, setDislikedHitKeys] = useState<string[]>([]);
-  const [ideaFeedbacks, setIdeaFeedbacks] = useState<Record<number, string>>(
-    {}
-  );
 
   const scan = trpc.radar.scan.useMutation({
     onSuccess: () => {
@@ -150,33 +143,6 @@ export default function Radar() {
     },
     onError: e => toast.error(e.message || "Erro na pesquisa"),
   });
-  const genIdea = trpc.radar.generateIdea.useMutation({
-    onSuccess: () => {
-      utils.radar.get.invalidate();
-      toast.success("Conteúdo gerado na sua identidade!");
-    },
-    onError: e => toast.error(e.message || "Erro ao gerar"),
-  });
-  const ensureOriginCreative = trpc.studio.ensureOriginCreative.useMutation({
-    onError: e => toast.error(e.message || "Erro ao abrir Estudio"),
-  });
-
-  const sendApproval = trpc.approvals.sendToApproval.useMutation({
-    onSuccess: () => {
-      toast.success("Enviado para aprovação!");
-      navigate("/aprovacao");
-    },
-    onError: e => toast.error(e.message || "Erro ao enviar para aprovação"),
-  });
-
-  const decideIdea = trpc.radar.updateIdeaDecision.useMutation({
-    onSuccess: () => {
-      utils.radar.get.invalidate();
-      toast.success("Decisao salva para o Agente Especialista");
-    },
-    onError: e => toast.error(e.message || "Erro ao salvar decisao"),
-  });
-
   const refine = trpc.radar.refine.useMutation({
     onSuccess: () => {
       utils.radar.get.invalidate();
@@ -231,12 +197,6 @@ export default function Radar() {
     0,
     (refineInfo.freeLimit ?? 3) - (refineInfo.refinementCount ?? 0)
   );
-  const ideaLikes = ((data?.ideas ?? []) as any[]).filter(
-    it => it.diagnosisDecision === "use"
-  ).length;
-  const ideaDislikes = ((data?.ideas ?? []) as any[]).filter(
-    it => it.diagnosisDecision === "skip"
-  ).length;
   const hits = (data?.hits ?? []) as any[];
   const sourceStats = useMemo(() => {
     const map = new Map<string, any>();
@@ -302,11 +262,6 @@ export default function Radar() {
     if (!data) return;
     setLikedHitKeys((data.feedback?.likedPostKeys ?? []) as string[]);
     setDislikedHitKeys((data.feedback?.dislikedPostKeys ?? []) as string[]);
-    const nextFeedbacks: Record<number, string> = {};
-    ((data.ideas ?? []) as any[]).forEach((idea, index) => {
-      if (idea.diagnosisFeedback) nextFeedbacks[index] = idea.diagnosisFeedback;
-    });
-    setIdeaFeedbacks(nextFeedbacks);
   }, [data?.scannedAt]);
 
   useEffect(() => {
@@ -364,64 +319,6 @@ export default function Radar() {
     const key = hitKey(hit);
     setLikedHitKeys(prev => prev.filter(k => k !== key));
     setDislikedHitKeys(prev => (prev.includes(key) ? prev : [...prev, key]));
-  };
-  const setIdeaDecision = (
-    index: number,
-    decision: "use" | "skip" | "agent"
-  ) => {
-    decideIdea.mutate({ index, decision, feedback: ideaFeedbacks[index] });
-  };
-  const openStudioFromIdea = async (index: number, creativeId?: number) => {
-    try {
-      const id =
-        creativeId ??
-        (
-          await ensureOriginCreative.mutateAsync({
-            originType: "radar-idea",
-            index,
-          })
-        ).id;
-      await utils.radar.get.invalidate();
-      navigate(
-        `/criativos/${id}?returnTo=${encodeURIComponent(`/radar?studioReturn=${Date.now()}`)}&closeOnSave=1`
-      );
-    } catch (e: any) {
-      toast.error(e?.message || "Erro ao abrir Estudio");
-    }
-  };
-  const sendIdeasToApproval = async () => {
-    const sourceIdeas = ((data?.ideas ?? []) as any[]).slice(0, 3);
-    if (!sourceIdeas.length) {
-      toast.error("Nenhuma ideia do Radar encontrada");
-      return;
-    }
-    setGeneratingBatch(true);
-    try {
-      const creativeIds: number[] = [];
-      for (const { idea, index } of sourceIdeas.map((idea, index) => ({
-        idea,
-        index,
-      }))) {
-        let creativeId = idea.creativeId as number | undefined;
-        if (!creativeId) {
-          const generated = await genIdea.mutateAsync({ index });
-          creativeId = (generated as any)?.id;
-        }
-        if (creativeId) creativeIds.push(creativeId);
-      }
-      const uniqueIds = Array.from(new Set(creativeIds));
-      if (!uniqueIds.length)
-        throw new Error("Criativos nao encontrados para aprovacao");
-      await sendApproval.mutateAsync({
-        creativeIds: uniqueIds,
-        name: "Posts do Radar de Mercado",
-      });
-      await utils.radar.get.invalidate();
-    } catch (e: any) {
-      toast.error(e?.message || "Erro ao preparar posts para aprovacao");
-    } finally {
-      setGeneratingBatch(false);
-    }
   };
   const exportPdf = () => {
     try {
@@ -842,14 +739,6 @@ export default function Radar() {
                           {o.suggestedAngle}
                         </p>
                       )}
-                      {o.firstPostIdea && (
-                        <p className="text-[11px] text-[#61708a] mt-1">
-                          <span className="font-black text-[#070b17]">
-                            Primeiro post:
-                          </span>{" "}
-                          {o.firstPostIdea}
-                        </p>
-                      )}
                       {o.effort && (
                         <span className="inline-flex mt-3 text-[9px] font-black text-[#071b44] bg-[#f6f8fc] border border-[#e6ebf3] rounded px-1.5 py-0.5">
                           esforco {o.effort}
@@ -1059,264 +948,24 @@ export default function Radar() {
             )}
           </div>
 
-          {/* Ideias adaptadas */}
           {data.ideas?.length > 0 && (
             <div className="bg-white rounded-xl border border-[#e6ebf3] p-5 shadow-sm">
-              <div className="flex items-center justify-between flex-wrap gap-2 mb-1">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div>
                   <h3 className="text-sm font-black text-[#070b17] flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-[#ff3217]" /> Ideias para
-                    voce (na sua identidade)
+                    <Sparkles className="w-4 h-4 text-[#ff3217]" /> Direcoes do Radar guardadas
                   </h3>
-                  <p className="text-[11px] text-[#61708a] mt-1">
-                    {ideaLikes} gostei / {ideaDislikes} não gostei. O Agente
-                    Especialista decide o que ficar em aberto.
+                  <p className="text-[11px] text-[#61708a] mt-1 max-w-3xl leading-relaxed">
+                    O Radar encontrou caminhos possiveis, mas a criacao de posts nao acontece mais nesta tela. Use estes sinais como contexto e siga para o Estudio, onde os Agentes montam a base editavel e voce aplica o toque humano.
                   </p>
                 </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <button
-                    onClick={sendIdeasToApproval}
-                    disabled={
-                      generatingBatch ||
-                      genIdea.isPending ||
-                      sendApproval.isPending
-                    }
-                    className="btn-action-primary text-xs px-4 py-2 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {generatingBatch ||
-                    genIdea.isPending ||
-                    sendApproval.isPending ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Sparkles className="w-3.5 h-3.5" />
-                    )}
-                    {generatingBatch ||
-                    genIdea.isPending ||
-                    sendApproval.isPending
-                      ? "Preparando..."
-                      : "Gerar posts para aprovacao"}
-                  </button>
-                  <button
-                    onClick={() =>
-                      recalibrate.mutate({
-                        feedback:
-                          "Usar as ideias do Radar como parte do diagnostico.",
-                      })
-                    }
-                    disabled={recalibrate.isPending}
-                    className="btn-action-secondary text-xs px-4 py-2 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {recalibrate.isPending ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Wand2 className="w-3.5 h-3.5" />
-                    )}
-                    Usar Feedbacks de ideias no Diagnóstico
-                  </button>
-                </div>
-              </div>
-              <p className="text-[11px] text-[#61708a] mb-3">
-                Cada ideia adapta um hit do mercado para a sua marca. Marque
-                seus feedbacks; os posts sao gerados direto em Revisar e
-                publicar.
-              </p>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {data.ideas.map((it: any, i: number) => {
-                  const gen =
-                    genIdea.isPending &&
-                    (genIdea.variables as any)?.index === i;
-                  const openingStudio =
-                    ensureOriginCreative.isPending &&
-                    (ensureOriginCreative.variables as any)?.index === i;
-                  const decision = it.diagnosisDecision ?? "agent";
-                  return (
-                    <div
-                      key={i}
-                      className={`rounded-xl border overflow-hidden flex flex-col ${decision === "use" ? "border-[#18b85c]" : decision === "skip" ? "border-[#ffd0c8]" : "border-[#e6ebf3]"}`}
-                    >
-                      {it.imageUrl ? (
-                        <img
-                          src={it.imageUrl}
-                          alt=""
-                          className="w-full aspect-square object-cover bg-[#f6f8fc]"
-                        />
-                      ) : (
-                        <div className="w-full aspect-square bg-[#f6f8fc] flex flex-col items-center justify-center text-[#9aa7bd] gap-1 relative">
-                          {gen ? (
-                            <Loader2 className="w-7 h-7 animate-spin text-[#ff3217]" />
-                          ) : (
-                            <Sparkles className="w-7 h-7" />
-                          )}
-                          <span className="text-[10px] font-bold">
-                            {gen ? "Gerando…" : "Ideia (sem imagem ainda)"}
-                          </span>
-                        </div>
-                      )}
-                      <div className="p-3 flex-1 flex flex-col">
-                        <div className="flex flex-wrap gap-1 mb-1.5">
-                          {it.fonte && (
-                            <span className="text-[9px] font-black text-[#ff3217] bg-[#fff1ef] rounded px-1.5 py-0.5">
-                              inspirado em @{it.fonte}
-                            </span>
-                          )}
-                          {it.priorityScore && (
-                            <span className="text-[9px] font-black text-[#18b85c] bg-[#eafff1] border border-[#bfeccb] rounded px-1.5 py-0.5">
-                              {it.priorityScore} prioridade
-                            </span>
-                          )}
-                          {it.formato && (
-                            <span className="text-[9px] font-black text-[#61708a] bg-[#f1f4f9] rounded px-1.5 py-0.5 uppercase flex items-center gap-0.5">
-                              {it.formato === "reels" && (
-                                <Film className="w-2.5 h-2.5" />
-                              )}
-                              {it.formato}
-                            </span>
-                          )}
-                        </div>
-                        {it.opportunityTitle && (
-                          <p className="text-[10px] text-[#61708a] font-bold mb-1">
-                            Oportunidade: {it.opportunityTitle}
-                          </p>
-                        )}
-                        {it.gancho && (
-                          <p className="text-xs font-black text-[#070b17] leading-snug mb-1">
-                            {it.gancho}
-                          </p>
-                        )}
-                        {it.copy && (
-                          <p className="text-[11px] text-[#22304b] font-semibold leading-snug flex-1">
-                            {it.copy}
-                          </p>
-                        )}
-                        {Array.isArray(it.hashtags) &&
-                          it.hashtags.length > 0 && (
-                            <p className="text-[10px] text-[#ff3217] font-bold mt-1">
-                              {it.hashtags
-                                .map((h: string) =>
-                                  h.startsWith("#") ? h : "#" + h
-                                )
-                                .join(" ")}
-                            </p>
-                          )}
-                        {it.cta && (
-                          <p className="text-[10px] text-[#61708a] mt-1">
-                            <span className="font-black">CTA:</span> {it.cta}
-                          </p>
-                        )}
-                        <div className="mt-2.5 rounded-lg border border-[#e6ebf3] bg-[#fbfcff] p-2">
-                          <div className="flex items-center justify-between gap-2 mb-2">
-                            <span
-                              className={`text-[10px] font-black rounded-full px-2 py-1 ${
-                                decision === "use"
-                                  ? "text-[#087a32] bg-[#eafff1] border border-[#bfeccb]"
-                                  : decision === "skip"
-                                    ? "text-[#c20f00] bg-[#fff1ef] border border-[#ffd0c8]"
-                                    : "text-[#071b44] bg-[#eef2f7] border border-[#dbe3ef]"
-                              }`}
-                            >
-                              {decision === "use"
-                                ? "Gostei - entra no diagnostico"
-                                : decision === "skip"
-                                  ? "Não gostei - não usar"
-                                  : "Agente Especialista decide"}
-                            </span>
-                            {it.diagnosisReason && (
-                              <span className="text-[9px] text-[#61708a] font-bold truncate">
-                                {it.diagnosisReason}
-                              </span>
-                            )}
-                          </div>
-                          <div className="grid grid-cols-2 gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => setIdeaDecision(i, "use")}
-                              disabled={decideIdea.isPending}
-                              className={`text-[9px] font-black rounded-lg border py-1.5 flex items-center justify-center gap-1 disabled:opacity-50 ${decision === "use" ? "text-white bg-[#18b85c] border-[#18b85c]" : "text-[#61708a] bg-white border-[#e6ebf3] hover:border-[#18b85c]"}`}
-                            >
-                              <ThumbsUp className="w-3 h-3" /> Gostei
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setIdeaDecision(i, "skip")}
-                              disabled={decideIdea.isPending}
-                              className={`text-[9px] font-black rounded-lg border py-1.5 flex items-center justify-center gap-1 disabled:opacity-50 ${decision === "skip" ? "text-white bg-[#c20f00] border-[#c20f00]" : "text-[#61708a] bg-white border-[#e6ebf3] hover:border-[#c20f00]"}`}
-                            >
-                              <ThumbsDown className="w-3 h-3" /> Não gostei
-                            </button>
-                          </div>
-                          <div className="mt-2 flex items-start gap-1.5">
-                            <MessageSquare className="w-3.5 h-3.5 text-[#9aa7bd] mt-1 flex-shrink-0" />
-                            <textarea
-                              value={ideaFeedbacks[i] ?? ""}
-                              onChange={e =>
-                                setIdeaFeedbacks(prev => ({
-                                  ...prev,
-                                  [i]: e.target.value,
-                                }))
-                              }
-                              onBlur={() =>
-                                (ideaFeedbacks[i] ?? "") !==
-                                  (it.diagnosisFeedback ?? "") &&
-                                setIdeaDecision(i, decision)
-                              }
-                              placeholder="Observacao para o Agente sobre esta ideia"
-                              className="w-full min-h-[54px] text-[10px] border border-[#e6ebf3] rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:border-[#ff3217]"
-                            />
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => openStudioFromIdea(i, it.creativeId)}
-                          disabled={openingStudio || gen}
-                          className="mt-2 w-full rounded-lg border border-[#e6ebf3] bg-white text-[#071b44] px-3 py-2 text-[11px] font-black hover:border-[#071b44] disabled:opacity-50 flex items-center justify-center gap-1.5"
-                        >
-                          {openingStudio ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <Pencil className="w-3.5 h-3.5" />
-                          )}
-                          Editar no Estudio
-                        </button>
-                        {it.roteiro && (
-                          <details className="mt-2">
-                            <summary className="text-[10px] font-black text-[#071b44] cursor-pointer flex items-center gap-1">
-                              <Film className="w-3 h-3" /> Ver roteiro
-                            </summary>
-                            <div className="mt-1.5 rounded-lg bg-[#f6f8fc] p-2 space-y-1">
-                              <p className="text-[10px] font-bold text-[#070b17]">
-                                🎬 {it.roteiro.gancho3s}
-                              </p>
-                              {(it.roteiro.cenas ?? []).map(
-                                (c: any, j: number) => (
-                                  <div
-                                    key={j}
-                                    className="text-[10px] text-[#22304b] flex gap-1.5"
-                                  >
-                                    <span className="font-black whitespace-nowrap">
-                                      {c.tempo}
-                                    </span>
-                                    <span>
-                                      {c.acao}{" "}
-                                      <span className="opacity-60">
-                                        · {c.audio}
-                                      </span>
-                                    </span>
-                                  </div>
-                                )
-                              )}
-                              {it.roteiro.cta && (
-                                <p className="text-[10px]">
-                                  <span className="font-black">CTA:</span>{" "}
-                                  {it.roteiro.cta}
-                                </p>
-                              )}
-                            </div>
-                          </details>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
+                <button
+                  type="button"
+                  onClick={() => navigate("/criativos")}
+                  className="btn-action-primary text-xs px-4 py-2 flex items-center gap-2"
+                >
+                  Abrir Estudio
+                </button>
               </div>
             </div>
           )}

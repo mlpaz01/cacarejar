@@ -47,7 +47,7 @@ export const journeySteps: Array<{
     label: "Estudio",
     href: "/criativos",
     icon: Pencil,
-    detail: "Toque humano",
+    detail: "Criacao e toque humano",
   },
   {
     id: "aprovacao",
