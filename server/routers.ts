@@ -1322,14 +1322,16 @@ const approvalsRouter = router({
 // ─── Notifications Router ─────────────────────────────────────────────────────
 
 const notificationsRouter = router({
-  list: protectedProcedure.query(({ ctx }) => {
+  list: protectedProcedure.query(async ({ ctx }) => {
     const orgId = ctx.user.organizationId;
     if (!orgId) return [];
+    await notifService.ensureOperationalReminders(orgId, ctx.user.id);
     return notifService.listForOrg(orgId);
   }),
-  unreadCount: protectedProcedure.query(({ ctx }) => {
+  unreadCount: protectedProcedure.query(async ({ ctx }) => {
     const orgId = ctx.user.organizationId;
     if (!orgId) return 0;
+    await notifService.ensureOperationalReminders(orgId, ctx.user.id);
     return notifService.unreadCount(orgId);
   }),
   markRead: protectedProcedure
