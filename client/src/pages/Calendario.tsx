@@ -282,7 +282,7 @@ export default function Calendario() {
     return (
       <AppLayout
         title="Calendario Editorial"
-        subtitle="Crie um diagnostico para gerar o calendario."
+        subtitle="Crie um diagnostico para abrir a rotina semanal."
         journeyActive="publicacao"
       >
         <div className="rounded-3xl border border-[#e6ebf3] bg-white p-10 text-center shadow-sm">
@@ -291,7 +291,7 @@ export default function Calendario() {
             Nenhum plano semanal ativo
           </p>
           <p className="text-sm text-[#61708a] mt-1">
-            O calendario nasce do Plano de 7 dias do diagnostico.
+            A rotina semanal nasce do perfil ativo e depois segue para Estudio, Publicacao e Metricas.
           </p>
           <Link href="/diagnostico">
             <a className="btn-action-primary mt-5 px-5 py-3 text-sm inline-flex items-center gap-2">
@@ -368,7 +368,7 @@ export default function Calendario() {
           <div className="flex flex-wrap gap-2 mt-4">
             <Link href="/diagnostico">
               <a className="rounded-xl border border-[#e6ebf3] px-4 py-2 text-xs font-black text-[#071b44] hover:bg-[#f8fafc] inline-flex items-center gap-2">
-                <FileText className="w-3.5 h-3.5" /> Plano completo
+                <FileText className="w-3.5 h-3.5" /> Ver estrategia
               </a>
             </Link>
             <Link href="/recalibracao">
@@ -659,10 +659,10 @@ function nextAction(items: any[]) {
   if (items.some(item => item.status === "em_edicao"))
     return "Finalize a edicao e aprove os posts prontos.";
   if (items.some(item => item.status === "aprovado"))
-    return "Publique os aprovados e cole os links no diagnostico.";
+    return "Publique os aprovados pela etapa Publicacao e cole os links por la.";
   if (items.some(item => item.status === "publicado"))
     return "Registre resultados e marque como medir.";
-  return "Rode o check-in para transformar os resultados em aprendizado.";
+  return "Abra o Acompanhamento para transformar resultados em aprendizado.";
 }
 
 function guidedActionCopy(item: any) {

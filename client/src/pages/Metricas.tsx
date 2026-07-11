@@ -247,7 +247,7 @@ export default function Metricas() {
         : "Publicar mais itens antes de escolher um vencedor.";
   const leitura =
     totals.impressions === 0
-      ? "Ainda não há volume suficiente. Aprove posts, publique campanhas e volte para medir a primeira leitura."
+      ? "Ainda nao ha volume suficiente. Publique pela etapa Publicacao, registre os primeiros numeros e volte para medir a primeira leitura."
       : ctr < 0.8
         ? "O alcance existe, mas o gancho ainda não está puxando clique. Priorize teste de promessa, primeira frase e imagem."
         : totals.conversions === 0
@@ -404,8 +404,8 @@ export default function Metricas() {
               O que o plano de 7 dias ja ensinou
             </h2>
             <p className="text-sm text-[#61708a] mt-2">
-              Esses numeros vêm dos resultados registrados manualmente no
-              Diagnostico ou no Calendario.
+              Esses numeros vem dos resultados registrados manualmente em
+              Publicacao ou no Calendario.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -414,9 +414,9 @@ export default function Metricas() {
                 Abrir calendario
               </a>
             </Link>
-            <Link href="/diagnostico">
+            <Link href="/integracoes">
               <a className="rounded-xl bg-[#071b44] px-4 py-2 text-xs font-black text-white hover:bg-[#0d2a5e]">
-                Abrir plano
+                Abrir publicacao
               </a>
             </Link>
           </div>

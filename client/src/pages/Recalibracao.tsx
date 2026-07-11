@@ -226,7 +226,7 @@ export default function Recalibracao() {
   return (
     <AppLayout
       title="Acompanhamento"
-      subtitle="Transforme o diagnostico em execucao, registre a evolucao e recalcule a rota."
+      subtitle="Feche o ciclo semanal: resultados entram, aprendizado sai, proxima rota melhora."
       journeyActive="acompanhamento"
       actions={
         <div className="flex gap-2 flex-wrap justify-end">
@@ -234,7 +234,7 @@ export default function Recalibracao() {
             onClick={() => navigate("/diagnostico")}
             className="btn-quiet"
           >
-            <FileText className="w-4 h-4" /> Ver diagnostico
+            <FileText className="w-4 h-4" /> Ver estrategia
           </button>
           <button
             onClick={savePlanner}
@@ -273,7 +273,7 @@ export default function Recalibracao() {
               semana
             </h2>
             <p className="text-sm text-[#61708a] mt-1">
-              Resumo automatico para transformar execucao em aprendizado e
+              Resumo do ciclo para transformar execucao em aprendizado e
               alimentar a nova rota.
             </p>
           </div>
@@ -330,7 +330,7 @@ export default function Recalibracao() {
           </p>
           <p className="text-xs text-[#61708a] leading-relaxed mt-2">
             {bestPlanItem
-              ? "Use esse sinal como base para o proximo conteudo, uma campanha pequena ou uma nova variacao no Estudio."
+              ? "Use esse sinal como base para o proximo Estudio, uma campanha pequena ou uma nova variacao."
               : "Quando houver resultado, o resumo passa a orientar o que repetir, ajustar ou abandonar."}
           </p>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mt-4">
@@ -453,7 +453,7 @@ export default function Recalibracao() {
           <textarea
             value={feedback}
             onChange={e => setFeedback(e.target.value)}
-            placeholder="O que aconteceu desde o diagnostico? Ex.: publiquei 3 posts, o LinkedIn gerou comentarios bons, o Instagram nao respondeu, a campanha teve CPL alto..."
+            placeholder="O que aconteceu nesta semana? Ex.: publiquei 3 posts, o LinkedIn gerou comentarios bons, o Instagram nao respondeu, a campanha teve CPL alto..."
             className="input-clean min-h-[112px] resize-none mt-5"
           />
         </div>
