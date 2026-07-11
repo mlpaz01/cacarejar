@@ -1368,12 +1368,13 @@ export default function Diagnostico() {
       {(() => {
         const adData: any =
           scanAds.data ??
-          (plan?.anunciosConcorrentes?.length
+          (plan?.anunciosScannedAt || plan?.anunciosDataQuality
             ? {
                 query: plan.anunciosQuery,
-                ads: plan.anunciosConcorrentes,
+                ads: plan.anunciosConcorrentes ?? [],
                 insights: plan.anunciosInsights ?? [],
                 scannedAt: plan.anunciosScannedAt,
+                dataQuality: plan.anunciosDataQuality,
               }
             : null);
         return (
@@ -1407,6 +1408,28 @@ export default function Diagnostico() {
                 {scanAds.isPending ? "Escaneando..." : "Escanear anuncios"}
               </button>
             </div>
+            {adData?.dataQuality?.status === "degraded" && (
+              <div className="rounded-2xl border border-[#ffd0c8] bg-[#fff8f7] p-4 mb-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-full bg-white border border-[#ffd0c8] flex items-center justify-center text-[#ff3217] shrink-0">
+                    <AlertTriangle className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-wide text-[#9b1c0b]">
+                      Leitura parcial dos anuncios
+                    </p>
+                    <p className="text-sm text-[#22304b] font-semibold leading-relaxed mt-1">
+                      {adData.dataQuality.message}
+                    </p>
+                    {!!adData.dataQuality.warnings?.length && (
+                      <p className="text-xs text-[#61708a] mt-1">
+                        {adData.dataQuality.warnings.join(" ")}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
             {scanAds.isPending ? (
               <EmptyText>
                 Buscando anuncios reais na Biblioteca da Meta... isso pode levar

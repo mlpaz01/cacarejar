@@ -343,6 +343,13 @@ export interface CacaPlan {
   anunciosInsights?: { titulo: string; detalhe: string }[];
   anunciosQuery?: string;
   anunciosScannedAt?: number;
+  anunciosDataQuality?: {
+    status: "complete" | "degraded";
+    message: string;
+    missing: string[];
+    warnings: string[];
+    checkedAt: number;
+  };
   // Inteligência de Google (Sprint 3) — buscas reais (autocomplete) + pautas SEO + volume (DataForSEO opcional).
   googleSEO?: {
     termo: string;

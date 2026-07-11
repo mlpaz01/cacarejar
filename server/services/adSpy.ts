@@ -36,7 +36,20 @@ export interface AdSpyResult {
   scannedAt: number;
   ads: CompetitorAd[];
   insights: { titulo: string; detalhe: string }[];
+  dataQuality?: {
+    status: "complete" | "degraded";
+    message: string;
+    missing: string[];
+    warnings: string[];
+    checkedAt: number;
+  };
 }
+
+type FetchAdsResult = {
+  ads: CompetitorAd[];
+  missing: string[];
+  warnings: string[];
+};
 
 function cleanKeyword(s: string): string {
   return (s || "").replace(/[,;].*$/, "").trim().split(/\s+/).slice(0, 4).join(" ").slice(0, 60);
@@ -90,10 +103,23 @@ function mapAd(item: any): CompetitorAd | null {
 }
 
 /** Busca anúncios de concorrentes por palavra-chave na Biblioteca de Anúncios da Meta (país BR). */
-export async function fetchCompetitorAds(keyword: string, opts: { country?: string; count?: number } = {}): Promise<CompetitorAd[]> {
+export async function fetchCompetitorAds(keyword: string, opts: { country?: string; count?: number } = {}): Promise<FetchAdsResult> {
   const token = process.env.APIFY_TOKEN;
   const kw = cleanKeyword(keyword);
-  if (!token || !kw) return [];
+  if (!kw) {
+    return {
+      ads: [],
+      missing: ["keyword"],
+      warnings: ["Informe uma palavra-chave ou rode um diagnostico antes de usar o Espiao de Anuncios."],
+    };
+  }
+  if (!token) {
+    return {
+      ads: [],
+      missing: ["APIFY_TOKEN"],
+      warnings: ["O Espiao de Anuncios nao conseguiu acessar o provedor de leitura agora."],
+    };
+  }
   const country = opts.country || "BR";
   const count = Math.max(10, opts.count ?? 16); // actor exige mínimo 10
   const libUrl = `https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=${country}&q=${encodeURIComponent(kw)}&search_type=keyword_unordered&media_type=all`;
@@ -106,9 +132,21 @@ export async function fetchCompetitorAds(keyword: string, opts: { country?: stri
         body: JSON.stringify({ urls: [{ url: libUrl }], count }),
       }
     );
-    if (!res.ok) return [];
+    if (!res.ok) {
+      return {
+        ads: [],
+        missing: ["Meta Ads Library"],
+        warnings: [`O provedor do Espiao respondeu com erro ${res.status}. Tente novamente em alguns minutos.`],
+      };
+    }
     const items = (await res.json()) as any[];
-    if (!Array.isArray(items)) return [];
+    if (!Array.isArray(items)) {
+      return {
+        ads: [],
+        missing: ["Meta Ads Library"],
+        warnings: ["A resposta do provedor veio em formato inesperado."],
+      };
+    }
     const ads = items.map(mapAd).filter(Boolean) as CompetitorAd[];
     // dedup por anunciante + início do texto
     const seen = new Set<string>();
@@ -120,9 +158,18 @@ export async function fetchCompetitorAds(keyword: string, opts: { country?: stri
     });
     // ativos há mais tempo primeiro (provável vencedor)
     uniq.sort((a, b) => (b.runningDays ?? -1) - (a.runningDays ?? -1));
-    return uniq.slice(0, 12);
-  } catch {
-    return [];
+    const sliced = uniq.slice(0, 12);
+    return {
+      ads: sliced,
+      missing: [],
+      warnings: sliced.length ? [] : ["Nao encontramos anuncios aderentes para esta busca agora."],
+    };
+  } catch (e) {
+    return {
+      ads: [],
+      missing: ["Meta Ads Library"],
+      warnings: [`O Espiao nao conseguiu concluir a leitura: ${(e as any)?.message || "erro desconhecido"}.`],
+    };
   }
 }
 
@@ -169,15 +216,35 @@ export async function scanAdSpy(orgId: number, params: { query?: string } = {}):
   }
   if (!keyword) throw new Error("Rode um diagnostico primeiro ou informe uma palavra-chave para o Espiao de Anuncios.");
 
-  const ads = await fetchCompetitorAds(keyword, { country: "BR", count: 16 });
+  const fetched = await fetchCompetitorAds(keyword, { country: "BR", count: 16 });
+  const ads = fetched.ads;
   // localiza thumbs (CDN da Meta bloqueia hotlink)
   await Promise.all(ads.map(async (a, i) => { a.thumb = await localizeRemoteImage(a.thumb, `ad${i}`); }));
   const insights = await generateInsights(keyword, ads);
   const scannedAt = Date.now();
+  const dataQuality: AdSpyResult["dataQuality"] = {
+    status: fetched.warnings.length || ads.length === 0 ? "degraded" : "complete",
+    message: fetched.warnings.length || ads.length === 0
+      ? "Leitura parcial dos anuncios. Use como sinal inicial e tente outra palavra-chave se precisar aprofundar."
+      : "Leitura feita com anuncios reais encontrados na Biblioteca da Meta.",
+    missing: fetched.missing,
+    warnings: fetched.warnings,
+    checkedAt: scannedAt,
+  };
+  if (dataQuality.status === "degraded") {
+    console.warn("[data-quality]", JSON.stringify({
+      event: "adspy_degraded",
+      orgId,
+      query: keyword,
+      adsCount: ads.length,
+      missing: dataQuality.missing,
+      warnings: dataQuality.warnings,
+    }));
+  }
 
   if (db && row && plan) {
-    const nextPlan = { ...plan, anunciosConcorrentes: ads, anunciosInsights: insights, anunciosQuery: keyword, anunciosScannedAt: scannedAt };
+    const nextPlan = { ...plan, anunciosConcorrentes: ads, anunciosInsights: insights, anunciosQuery: keyword, anunciosScannedAt: scannedAt, anunciosDataQuality: dataQuality };
     await db.update(orgProfile).set({ planoJson: nextPlan }).where(eq(orgProfile.organizationId, orgId));
   }
-  return { query: keyword, scannedAt, ads, insights };
+  return { query: keyword, scannedAt, ads, insights, dataQuality };
 }
