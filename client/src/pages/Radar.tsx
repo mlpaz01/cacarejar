@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { AppLayout } from "@/components/AppLayout";
+import { JourneyNextAction } from "@/components/JourneyNextAction";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import {
@@ -157,8 +158,8 @@ export default function Radar() {
     onSuccess: () => {
       utils.diagnosis.get.invalidate();
       utils.radar.get.invalidate();
-      toast.success("Diagnostico atualizado pelo Agente Especialista!");
-      navigate("/diagnostico");
+      toast.success("Diagnostico atualizado. Abrindo o Estudio.");
+      navigate("/criativos");
     },
     onError: e =>
       toast.error(e.message || "Erro ao usar as ideias no diagnostico"),
@@ -259,6 +260,7 @@ export default function Radar() {
     () => topSocialTerms(hits, data?.hashtags ?? []),
     [hits, data?.hashtags]
   );
+  const feedbackCount = likedHitKeys.length + dislikedHitKeys.length;
 
   useEffect(() => {
     if (!data) return;
@@ -305,6 +307,15 @@ export default function Radar() {
       likedPostKeys: likedHitKeys,
       dislikedPostKeys: dislikedHitKeys,
     });
+  const applyRadarFeedback = () =>
+    recalibrate.mutate({
+      feedback:
+        "Usar os feedbacks do Radar no diagnostico e seguir para criacao no Estudio.",
+    });
+  const scrollToFeedback = () =>
+    document
+      .getElementById("radar-feedback")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
   const markHitLike = (hit: any) => {
     const key = hitKey(hit);
     const owner = hitOwner(hit);
@@ -362,6 +373,38 @@ export default function Radar() {
     await navigator.clipboard?.writeText(text);
     toast.success("Pacote do Radar copiado.");
   };
+
+  const radarNextAction = !data
+    ? {
+        title: "Proxima acao: iniciar o Radar",
+        text: "Use o perfil ativo do diagnostico ou informe perfis inspiradores. O objetivo aqui e encontrar referencias reais antes de criar qualquer conteudo.",
+        label: scan.isPending ? "Pesquisando..." : "Iniciar Radar",
+        run: runScan,
+        disabled: scan.isPending || !canStartRadar,
+      }
+    : feedbackCount === 0
+      ? {
+          title: "Proxima acao: marcar referencias que combinam",
+          text: "Abra os posts encontrados e marque Gostei ou Nao gostei. Esse toque humano ensina os Agentes o que serve para este negocio antes de ir ao Estudio.",
+          label: "Ver posts para marcar",
+          run: scrollToFeedback,
+          disabled: false,
+        }
+      : (refineInfo.refinementCount ?? 0) === 0
+        ? {
+            title: "Proxima acao: refinar o Radar com seu feedback",
+            text: "Voce ja marcou referencias. Agora refaca a pesquisa com esse criterio para evitar copiar concorrente errado e melhorar o contexto da criacao.",
+            label: refine.isPending ? "Refinando..." : "Refinar Radar",
+            run: runRefine,
+            disabled: refine.isPending || likedHitKeys.length === 0,
+          }
+        : {
+            title: "Proxima acao: aplicar feedback e abrir o Estudio",
+            text: "O Radar ja recebeu seu criterio. Agora aplique esse aprendizado ao diagnostico e siga para criar, editar visualmente e dar o toque humano.",
+            label: recalibrate.isPending ? "Aplicando..." : "Abrir Estudio",
+            run: applyRadarFeedback,
+            disabled: recalibrate.isPending,
+          };
 
   const SearchBar = (
     <div className="bg-white rounded-xl border border-[#e6ebf3] p-5 shadow-sm mb-5">
@@ -452,8 +495,8 @@ export default function Radar() {
               feedback: "Usar os feedbacks do Radar no diagnóstico.",
             })
           }
-          disabled={recalibrate.isPending || !data}
-          className="btn-action-primary text-sm px-5 py-2.5 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={recalibrate.isPending || !data || feedbackCount === 0}
+          className="hidden"
         >
           {recalibrate.isPending ? (
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -461,7 +504,7 @@ export default function Radar() {
             <Sparkles className="w-4 h-4" />
           )}
           {recalibrate.isPending
-            ? "Recalculando..."
+            ? "Aplicando..."
             : "Usar Feedbacks do Radar no diagnóstico"}
         </button>
       </div>
@@ -491,6 +534,14 @@ export default function Radar() {
         </button>
       }
     >
+      <JourneyNextAction
+        title={radarNextAction.title}
+        text={radarNextAction.text}
+        label={radarNextAction.label}
+        onClick={radarNextAction.run}
+        disabled={radarNextAction.disabled}
+      />
+
       {SearchBar}
 
       {dataQuality?.status === "degraded" && (
@@ -541,7 +592,10 @@ export default function Radar() {
       {data && (
         <>
           {/* Inteligencia de audiencia */}
-          <div className="bg-white rounded-xl border border-[#e6ebf3] p-5 shadow-sm mb-5">
+          <div
+            id="radar-feedback"
+            className="bg-white rounded-xl border border-[#e6ebf3] p-5 shadow-sm mb-5 scroll-mt-32"
+          >
             <div className="flex items-start justify-between flex-wrap gap-3 mb-4">
               <div>
                 <h3 className="text-sm font-black text-[#070b17] flex items-center gap-2">
