@@ -20,6 +20,50 @@ const archiveId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 10)
 const stripAccents = (s: string) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 const lowerPlain = (s: string) => stripAccents(s).toLowerCase();
 
+function buildDiagnosisDataQuality(
+  redes: Record<string, string>,
+  profile: SocialProfile | null,
+  site: SiteSnapshot | null
+): CacaPlan["dataQuality"] {
+  const missing: string[] = [];
+  const warnings: string[] = [];
+  const expectedSocial = [
+    redes.instagram ? "Instagram" : "",
+    redes.tiktok ? "TikTok" : "",
+  ].filter(Boolean);
+  const readSocial =
+    profile?.network === "instagram" ? "Instagram" :
+    profile?.network === "tiktok" ? "TikTok" :
+    "";
+
+  for (const source of expectedSocial) {
+    if (source !== readSocial) missing.push(source);
+  }
+  if (redes.site && !site?.title && !site?.description && !site?.excerpt) missing.push("Site");
+  if (expectedSocial.length && !profileReadingEnabled()) warnings.push("APIFY_TOKEN ausente: leitura social real indisponivel.");
+  if (missing.length) warnings.push(`Fontes nao lidas automaticamente: ${missing.join(", ")}.`);
+
+  const status = missing.length ? "degraded" : "complete";
+  if (status === "degraded") {
+    console.warn("[data-quality]", JSON.stringify({
+      event: "diagnosis_degraded",
+      missing,
+      hasProfile: !!profile,
+      hasSite: !!(site?.title || site?.description || site?.excerpt),
+    }));
+  }
+
+  return {
+    status,
+    message: status === "complete"
+      ? "Leitura feita com as fontes automaticas disponiveis."
+      : "Algumas fontes nao puderam ser lidas agora. O parecer continua util, mas deve ser revisado ou atualizado antes de virar decisao final.",
+    missing,
+    warnings,
+    checkedAt: Date.now(),
+  };
+}
+
 function linkedinSlug(raw?: string) {
   const value = (raw || "").trim();
   if (!value) return "";
@@ -232,6 +276,13 @@ export interface CacaPlan {
   site?: SiteSnapshot | null;
   linkedin?: string | null;
   redes?: Record<string, string>;
+  dataQuality?: {
+    status: "complete" | "degraded";
+    message: string;
+    missing?: string[];
+    warnings?: string[];
+    checkedAt: number;
+  };
   fontesUsadas?: { canal: string; origem: string; sinal: string; impacto: string; status?: string }[];
   metodoDiagnostico?: {
     etapa: string;
@@ -1513,7 +1564,9 @@ export async function analyze(params: {
   plan.siteLido = !!site?.title || !!site?.description;
   plan.linkedin = redes.linkedin || null;
   plan.redes = redes;
+  plan.dataQuality = buildDiagnosisDataQuality(redes, profile, site);
   const enhancedPlan = enhancePlanV2(applyContextGuard(plan, params.produto, redes, site, profile), redes);
+  enhancedPlan.dataQuality = plan.dataQuality;
 
   const base = suggestFactors(params.produto, params.objetivo, profile, redes, site).factors;
   enhancedPlan.suggestedFactors = await sanitizeFactors(enhancedPlan.suggestedFactors, base);

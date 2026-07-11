@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import {
+  AlertTriangle,
   ArrowRight,
   BadgeCheck,
   BarChart3,
@@ -541,6 +542,7 @@ export default function Diagnostico() {
   const motorOrganico = shown.motorOrganico;
   const campanhaAssistida = shown.campanhaAssistida;
   const brandDNA = shown.brandDNA;
+  const dataQuality = (shown as any).dataQuality;
   const organicPackageText = motorOrganico
     ? [
         `Motor organico - ${(shown as any)?.produto || (shown as any)?.nicho || "perfil ativo"}`,
@@ -675,6 +677,27 @@ export default function Diagnostico() {
             subtitle="O Agente Radar esta buscando sinais quentes para reforcar o parecer."
           />
         </div>
+      )}
+
+      {dataQuality?.status === "degraded" && (
+        <section className="rounded-2xl border border-[#ffd5ce] bg-[#fff8f6] p-4 shadow-sm mb-5 flex gap-3">
+          <div className="w-9 h-9 rounded-xl bg-white border border-[#ffd5ce] text-[#ff3217] grid place-items-center flex-shrink-0">
+            <AlertTriangle className="w-4 h-4" />
+          </div>
+          <div>
+            <p className="text-xs font-black text-[#8f2014] uppercase tracking-wide">
+              Leitura parcial dos dados
+            </p>
+            <p className="text-sm text-[#22304b] font-semibold leading-relaxed mt-1">
+              {dataQuality.message}
+            </p>
+            {!!dataQuality.warnings?.length && (
+              <p className="text-xs text-[#61708a] mt-1">
+                {dataQuality.warnings.join(" ")}
+              </p>
+            )}
+          </div>
+        </section>
       )}
 
       <ProfileHero plan={shown} />

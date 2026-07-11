@@ -331,6 +331,13 @@ export interface RadarResult {
     hitsCount: number;
     message: string;
   };
+  dataQuality?: {
+    status: "complete" | "degraded";
+    message: string;
+    missing?: string[];
+    warnings?: string[];
+    checkedAt: number;
+  };
   feedback?: {
     likedHandles: string[];
     rejectedHandles: string[];
@@ -521,6 +528,19 @@ export async function scan(orgId: number, opts: { handles?: string[]; excludeHan
   handles = handles.slice(0, 12);
 
   const profiles = await fetchInstagramProfilesBatch(handles);
+  const qualityWarnings: string[] = [];
+  const missingSources: string[] = [];
+  if (handles.length && profiles.length < handles.length) {
+    const readHandles = new Set(profiles.map(p => cleanHandle(p.handle)));
+    const notRead = handles.filter(h => !readHandles.has(cleanHandle(h)));
+    if (notRead.length) {
+      missingSources.push(...notRead.map(h => `@${h}`));
+      qualityWarnings.push(`Nem todos os perfis informados foram lidos automaticamente (${notRead.slice(0, 5).join(", ")}).`);
+    }
+  }
+  if (!profiles.length && !hashtagPosts.length) {
+    qualityWarnings.push("A coleta automatica nao trouxe perfis ou hashtags com posts suficientes nesta rodada.");
+  }
   const candidates: RadarHit[] = [];
 
   for (const p of profiles) {
@@ -736,6 +756,29 @@ Regras:
         ? "Pesquisa com poucos sinais aderentes; o Agente filtrou posts fora de Saude do Trabalho/SST. Informe @ inspiradores para aprofundar."
         : "Pesquisa com poucos sinais; informe perfis inspiradores para aprofundar.",
   };
+  if (!hits.length) {
+    qualityWarnings.push("O Radar ficou sem evidencias visuais suficientes e usou contexto do diagnostico como apoio.");
+  }
+  const dataQuality: RadarResult["dataQuality"] = {
+    status: qualityWarnings.length || quality.grade === "fraca" ? "degraded" : "complete",
+    message: qualityWarnings.length || quality.grade === "fraca"
+      ? "Leitura parcial do mercado. Use como sinal inicial e informe perfis inspiradores para aprofundar."
+      : "Leitura feita com bom volume de evidencias automaticas.",
+    missing: missingSources,
+    warnings: qualityWarnings,
+    checkedAt: Date.now(),
+  };
+  if (dataQuality.status === "degraded") {
+    console.warn("[data-quality]", JSON.stringify({
+      event: "radar_degraded",
+      orgId,
+      handles,
+      missing: missingSources,
+      hitsCount: hits.length,
+      sourcesCount: scanned.length,
+      warnings: qualityWarnings,
+    }));
+  }
 
   const result: RadarResult = {
     scannedAt: Date.now(),
@@ -753,6 +796,7 @@ Regras:
     opportunities,
     ideas,
     quality,
+    dataQuality,
     feedback: opts.feedback,
   };
 

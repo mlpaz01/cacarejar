@@ -4,6 +4,7 @@ import { AppLayout } from "@/components/AppLayout";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import {
+  AlertTriangle,
   Loader2,
   Telescope,
   Sparkles,
@@ -198,6 +199,7 @@ export default function Radar() {
     (refineInfo.freeLimit ?? 3) - (refineInfo.refinementCount ?? 0)
   );
   const hits = (data?.hits ?? []) as any[];
+  const dataQuality = (data as any)?.dataQuality;
   const sourceStats = useMemo(() => {
     const map = new Map<string, any>();
     for (const h of hits) {
@@ -490,6 +492,27 @@ export default function Radar() {
       }
     >
       {SearchBar}
+
+      {dataQuality?.status === "degraded" && (
+        <section className="rounded-2xl border border-[#ffd5ce] bg-[#fff8f6] p-4 shadow-sm mb-5 flex gap-3">
+          <div className="w-9 h-9 rounded-xl bg-white border border-[#ffd5ce] text-[#ff3217] grid place-items-center flex-shrink-0">
+            <AlertTriangle className="w-4 h-4" />
+          </div>
+          <div>
+            <p className="text-xs font-black text-[#8f2014] uppercase tracking-wide">
+              Radar com leitura parcial
+            </p>
+            <p className="text-sm text-[#22304b] font-semibold leading-relaxed mt-1">
+              {dataQuality.message}
+            </p>
+            {!!dataQuality.warnings?.length && (
+              <p className="text-xs text-[#61708a] mt-1">
+                {dataQuality.warnings.join(" ")}
+              </p>
+            )}
+          </div>
+        </section>
+      )}
 
       {scan.isPending && (
         <div className="max-w-2xl mx-auto mb-5">

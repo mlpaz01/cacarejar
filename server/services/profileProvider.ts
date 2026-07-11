@@ -31,6 +31,10 @@ export interface SocialProfile {
   source: string;
 }
 
+function warnDataQuality(event: string, details: Record<string, unknown>) {
+  console.warn("[data-quality]", JSON.stringify({ event, ...details }));
+}
+
 function cleanHandle(h: string): string {
   return (h || "").trim().replace(/^@/, "").replace(/^https?:\/\/(www\.)?instagram\.com\//i, "").replace(/\/$/, "");
 }
@@ -178,7 +182,10 @@ function mapTikTokItems(items: any[], fallbackHandle?: string): SocialProfile | 
 /** TikTok via Apify (clockworks/tiktok-profile-scraper). Requer APIFY_TOKEN. */
 async function fetchTikTokApify(handle: string): Promise<SocialProfile | null> {
   const token = process.env.APIFY_TOKEN;
-  if (!token) return null;
+  if (!token) {
+    warnDataQuality("apify_missing_token", { network: "tiktok" });
+    return null;
+  }
   const user = cleanTikTokHandle(handle);
   if (!user) return null;
   try {
@@ -190,13 +197,23 @@ async function fetchTikTokApify(handle: string): Promise<SocialProfile | null> {
         body: JSON.stringify({ profiles: [`https://www.tiktok.com/@${user}`], resultsPerPage: 12 }),
       }
     );
-    if (!res.ok) return null;
+    if (!res.ok) {
+      warnDataQuality("apify_profile_http_error", { network: "tiktok", handle: user, status: res.status });
+      return null;
+    }
     const items = (await res.json()) as any[];
-    if (!Array.isArray(items) || !items.length) return null;
+    if (!Array.isArray(items) || !items.length) {
+      warnDataQuality("apify_profile_empty", { network: "tiktok", handle: user });
+      return null;
+    }
     const profile = mapTikTokItems(items, user);
-    if (!profile) return null;
+    if (!profile) {
+      warnDataQuality("apify_profile_unmapped", { network: "tiktok", handle: user });
+      return null;
+    }
     return localizeProfile(profile);
-  } catch {
+  } catch (e) {
+    warnDataQuality("apify_profile_exception", { network: "tiktok", handle: user, message: (e as any)?.message });
     return null;
   }
 }
@@ -204,7 +221,10 @@ async function fetchTikTokApify(handle: string): Promise<SocialProfile | null> {
 /** Instagram via Apify (apify/instagram-profile-scraper). Requer APIFY_TOKEN. */
 async function fetchInstagramApify(handle: string): Promise<SocialProfile | null> {
   const token = process.env.APIFY_TOKEN;
-  if (!token) return null;
+  if (!token) {
+    warnDataQuality("apify_missing_token", { network: "instagram" });
+    return null;
+  }
   const user = cleanHandle(handle);
   if (!user) return null;
   try {
@@ -212,12 +232,19 @@ async function fetchInstagramApify(handle: string): Promise<SocialProfile | null
       `https://api.apify.com/v2/acts/apify~instagram-profile-scraper/run-sync-get-dataset-items?token=${token}`,
       { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ usernames: [user] }) }
     );
-    if (!res.ok) return null;
+    if (!res.ok) {
+      warnDataQuality("apify_profile_http_error", { network: "instagram", handle: user, status: res.status });
+      return null;
+    }
     const items = (await res.json()) as any[];
     const profile = mapProfileItem(items?.[0], user);
-    if (!profile) return null;
+    if (!profile) {
+      warnDataQuality("apify_profile_unmapped", { network: "instagram", handle: user });
+      return null;
+    }
     return localizeProfile(profile);
-  } catch {
+  } catch (e) {
+    warnDataQuality("apify_profile_exception", { network: "instagram", handle: user, message: (e as any)?.message });
     return null;
   }
 }
@@ -232,7 +259,11 @@ export async function fetchInstagramProfile(handle: string): Promise<SocialProfi
  *  (o Radar localiza só os hits selecionados, pra economizar). */
 export async function fetchInstagramProfilesBatch(handles: string[]): Promise<SocialProfile[]> {
   const token = process.env.APIFY_TOKEN;
-  if (!token || !handles.length) return [];
+  if (!token) {
+    warnDataQuality("apify_missing_token", { network: "instagram_batch" });
+    return [];
+  }
+  if (!handles.length) return [];
   const users = [...new Set(handles.map(cleanHandle).filter(Boolean))].slice(0, 12);
   if (!users.length) return [];
   try {
@@ -240,16 +271,24 @@ export async function fetchInstagramProfilesBatch(handles: string[]): Promise<So
       `https://api.apify.com/v2/acts/apify~instagram-profile-scraper/run-sync-get-dataset-items?token=${token}`,
       { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ usernames: users }) }
     );
-    if (!res.ok) return [];
+    if (!res.ok) {
+      warnDataQuality("apify_batch_http_error", { network: "instagram", handles: users, status: res.status });
+      return [];
+    }
     const items = (await res.json()) as any[];
-    if (!Array.isArray(items)) return [];
+    if (!Array.isArray(items)) {
+      warnDataQuality("apify_batch_invalid_response", { network: "instagram", handles: users });
+      return [];
+    }
     const out: SocialProfile[] = [];
     for (const it of items) {
       const prof = mapProfileItem(it);
       if (prof && (prof.posts?.length ?? 0) > 0) out.push(prof); // só os que realmente raspou
     }
+    if (!out.length) warnDataQuality("apify_batch_no_profiles", { network: "instagram", handles: users });
     return out;
-  } catch {
+  } catch (e) {
+    warnDataQuality("apify_batch_exception", { network: "instagram", handles: users, message: (e as any)?.message });
     return [];
   }
 }
@@ -275,7 +314,11 @@ export interface HotPost {
  *  com o @ do autor — usado para DESCOBRIR perfis ativos no setor (depois raspamos os top posts deles). */
 export async function fetchHotPostsByHashtag(hashtags: string[], limit = 30): Promise<HotPost[]> {
   const token = process.env.APIFY_TOKEN;
-  if (!token || !hashtags.length) return [];
+  if (!token) {
+    warnDataQuality("apify_missing_token", { network: "hashtag" });
+    return [];
+  }
+  if (!hashtags.length) return [];
   const tags = hashtags
     .map(h => (h || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/^#/, "").replace(/[^a-zA-Z0-9_]/g, "").trim().toLowerCase())
     .filter(Boolean)
@@ -289,9 +332,16 @@ export async function fetchHotPostsByHashtag(hashtags: string[], limit = 30): Pr
         body: JSON.stringify({ hashtags: tags, resultsType: "posts", resultsLimit: limit }),
       }
     );
-    if (!res.ok) return [];
+    if (!res.ok) {
+      warnDataQuality("apify_hashtag_http_error", { hashtags: tags, status: res.status });
+      return [];
+    }
     const items = (await res.json()) as any[];
-    if (!Array.isArray(items)) return [];
+    if (!Array.isArray(items)) {
+      warnDataQuality("apify_hashtag_invalid_response", { hashtags: tags });
+      return [];
+    }
+    if (!items.length) warnDataQuality("apify_hashtag_empty", { hashtags: tags });
     return items.map(x => ({
       caption: x.caption ?? "",
       likes: x.likesCount ?? 0,
@@ -303,7 +353,8 @@ export async function fetchHotPostsByHashtag(hashtags: string[], limit = 30): Pr
       ownerFullName: x.ownerFullName ?? undefined,
       type: x.type ?? undefined,
     }));
-  } catch {
+  } catch (e) {
+    warnDataQuality("apify_hashtag_exception", { hashtags: tags, message: (e as any)?.message });
     return [];
   }
 }
