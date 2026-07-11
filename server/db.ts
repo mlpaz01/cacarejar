@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser,
@@ -17,6 +17,8 @@ import {
   InsertDispatchLog,
   InsertCalibrationLog,
   InsertOrganization,
+  InsertTestimonial,
+  testimonials,
 } from "../drizzle/schema";
 import { decryptMaybeSecret, encryptSecret, isEncryptedSecret } from "./services/crypto";
 
@@ -73,6 +75,69 @@ export async function updateOrg(id: number, data: Partial<InsertOrganization>) {
   const db = await getDb();
   if (!db) throw new Error("DB unavailable");
   return db.update(organizations).set(data).where(eq(organizations.id, id));
+}
+
+let testimonialsTableReady = false;
+
+async function ensureTestimonialsTable() {
+  const db = await getDb();
+  if (!db || testimonialsTableReady) return;
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS testimonials (
+      id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      name VARCHAR(160) NOT NULL,
+      company VARCHAR(180),
+      niche VARCHAR(160),
+      quote TEXT NOT NULL,
+      resultLabel VARCHAR(255),
+      imageUrl TEXT,
+      isPublished BOOLEAN NOT NULL DEFAULT FALSE,
+      sortOrder INT NOT NULL DEFAULT 0,
+      createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )
+  `);
+  testimonialsTableReady = true;
+}
+
+export async function listTestimonials() {
+  const db = await getDb();
+  if (!db) return [];
+  await ensureTestimonialsTable();
+  return db.select().from(testimonials).orderBy(asc(testimonials.sortOrder), desc(testimonials.createdAt));
+}
+
+export async function listPublishedTestimonials() {
+  const db = await getDb();
+  if (!db) return [];
+  await ensureTestimonialsTable();
+  return db
+    .select()
+    .from(testimonials)
+    .where(eq(testimonials.isPublished, true))
+    .orderBy(asc(testimonials.sortOrder), desc(testimonials.createdAt));
+}
+
+export async function createTestimonial(data: InsertTestimonial) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await ensureTestimonialsTable();
+  const result = await db.insert(testimonials).values(data);
+  return insertIdOf(result);
+}
+
+export async function updateTestimonial(id: number, data: Partial<InsertTestimonial>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await ensureTestimonialsTable();
+  return db.update(testimonials).set(data).where(eq(testimonials.id, id));
+}
+
+export async function deleteTestimonial(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  await ensureTestimonialsTable();
+  return db.delete(testimonials).where(eq(testimonials.id, id));
 }
 
 // ─── Users ────────────────────────────────────────────────────────────────────

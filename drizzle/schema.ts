@@ -444,6 +444,22 @@ export const notifications = mysqlTable("notifications", {
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = typeof notifications.$inferInsert;
 
+export const testimonials = mysqlTable("testimonials", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 160 }).notNull(),
+  company: varchar("company", { length: 180 }),
+  niche: varchar("niche", { length: 160 }),
+  quote: text("quote").notNull(),
+  resultLabel: varchar("resultLabel", { length: 255 }),
+  imageUrl: text("imageUrl"),
+  isPublished: boolean("isPublished").default(false).notNull(),
+  sortOrder: int("sortOrder").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type Testimonial = typeof testimonials.$inferSelect;
+export type InsertTestimonial = typeof testimonials.$inferInsert;
+
 export const notificationPrefs = mysqlTable("notification_prefs", {
   organizationId: int("organizationId").notNull(),
   userId: int("userId").notNull(),

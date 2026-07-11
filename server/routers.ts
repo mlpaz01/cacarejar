@@ -35,6 +35,10 @@ import {
   getUserByEmail,
   getAdminStats,
   getAllOrgs,
+  listTestimonials,
+  createTestimonial,
+  updateTestimonial,
+  deleteTestimonial,
 } from "./db";
 import { analyzeAndCalibrate } from "./openrouter";
 import fs from "fs";
@@ -588,6 +592,59 @@ const adminRouter = router({
   stats: adminProcedure.query(() => getAdminStats()),
 
   orgs: adminProcedure.query(() => getAllOrgs()),
+
+  testimonials: adminProcedure.query(() => listTestimonials()),
+
+  createTestimonial: adminProcedure
+    .input(z.object({
+      name: z.string().trim().min(2).max(160),
+      company: z.string().trim().max(180).optional(),
+      niche: z.string().trim().max(160).optional(),
+      quote: z.string().trim().min(10).max(1200),
+      resultLabel: z.string().trim().max(255).optional(),
+      imageUrl: z.string().trim().max(1200).optional(),
+      isPublished: z.boolean().default(false),
+      sortOrder: z.number().int().min(0).max(9999).default(0),
+    }))
+    .mutation(async ({ input }) => {
+      const id = await createTestimonial({
+        ...input,
+        company: input.company || null,
+        niche: input.niche || null,
+        resultLabel: input.resultLabel || null,
+        imageUrl: input.imageUrl || null,
+      });
+      return { success: true, id };
+    }),
+
+  updateTestimonial: adminProcedure
+    .input(z.object({
+      id: z.number().int().positive(),
+      name: z.string().trim().min(2).max(160).optional(),
+      company: z.string().trim().max(180).nullable().optional(),
+      niche: z.string().trim().max(160).nullable().optional(),
+      quote: z.string().trim().min(10).max(1200).optional(),
+      resultLabel: z.string().trim().max(255).nullable().optional(),
+      imageUrl: z.string().trim().max(1200).nullable().optional(),
+      isPublished: z.boolean().optional(),
+      sortOrder: z.number().int().min(0).max(9999).optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const { id, ...patch } = input;
+      const cleanPatch: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(patch)) {
+        cleanPatch[key] = typeof value === "string" ? value.trim() || null : value;
+      }
+      await updateTestimonial(id, cleanPatch as any);
+      return { success: true };
+    }),
+
+  deleteTestimonial: adminProcedure
+    .input(z.object({ id: z.number().int().positive() }))
+    .mutation(async ({ input }) => {
+      await deleteTestimonial(input.id);
+      return { success: true };
+    }),
 
   updateOrgPlan: adminProcedure
     .input(

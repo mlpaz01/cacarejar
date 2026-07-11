@@ -122,6 +122,26 @@ async function startServer() {
     }
   });
 
+  app.get("/api/depoimentos", async (_req, res) => {
+    try {
+      const { listPublishedTestimonials } = await import("../db");
+      const rows = await listPublishedTestimonials();
+      res.json({
+        items: rows.map(row => ({
+          id: row.id,
+          name: row.name,
+          company: row.company,
+          niche: row.niche,
+          quote: row.quote,
+          resultLabel: row.resultLabel,
+          imageUrl: row.imageUrl,
+        })),
+      });
+    } catch {
+      res.status(500).json({ items: [] });
+    }
+  });
+
   // Webhook Asaas — confirma pagamento e credita a carteira (idempotente). Público (o Asaas chama).
   app.post("/api/asaas/webhook", async (req, res) => {
     try {

@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Building2, Users, TrendingUp, LayoutDashboard, LogOut, ShieldCheck, DollarSign } from "lucide-react";
+import { Building2, Users, TrendingUp, LayoutDashboard, LogOut, ShieldCheck, DollarSign, MessageSquareQuote } from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
@@ -80,6 +80,13 @@ export default function AdminDashboard() {
           </span>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setLocation("/depoimentos")}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black text-white border border-white/20 hover:bg-white/10 transition-colors"
+          >
+            <MessageSquareQuote className="w-3.5 h-3.5" />
+            Depoimentos
+          </button>
           <button
             onClick={() => setLocation("/financeiro")}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black text-white border border-white/20 hover:bg-white/10 transition-colors"
