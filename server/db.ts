@@ -19,6 +19,7 @@ import {
   InsertOrganization,
   InsertTestimonial,
   testimonials,
+  rateLimits,
 } from "../drizzle/schema";
 import { decryptMaybeSecret, encryptSecret, isEncryptedSecret } from "./services/crypto";
 
@@ -138,6 +139,50 @@ export async function deleteTestimonial(id: number) {
   if (!db) throw new Error("DB unavailable");
   await ensureTestimonialsTable();
   return db.delete(testimonials).where(eq(testimonials.id, id));
+}
+
+let rateLimitsTableReady = false;
+
+async function ensureRateLimitsTable() {
+  const db = await getDb();
+  if (!db || rateLimitsTableReady) return;
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS rate_limits (
+      \`key\` VARCHAR(255) NOT NULL PRIMARY KEY,
+      \`count\` INT NOT NULL DEFAULT 0,
+      resetAt TIMESTAMP NOT NULL,
+      updatedAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )
+  `);
+  rateLimitsTableReady = true;
+}
+
+export async function consumeRateLimit(key: string, max: number, windowMs: number) {
+  const db = await getDb();
+  if (!db) return { allowed: true, count: 1, limit: max, resetAt: Date.now() + windowMs };
+  await ensureRateLimitsTable();
+  const safeKey = key.slice(0, 255);
+  const nowMs = Date.now();
+  const nextReset = new Date(nowMs + windowMs);
+  const rows = await db.select().from(rateLimits).where(eq(rateLimits.key, safeKey)).limit(1);
+  const current = rows[0];
+  const currentResetMs = current?.resetAt ? new Date(current.resetAt as any).getTime() : 0;
+
+  if (!current || Number.isNaN(currentResetMs) || currentResetMs <= nowMs) {
+    await db.insert(rateLimits)
+      .values({ key: safeKey, count: 1, resetAt: nextReset })
+      .onDuplicateKeyUpdate({ set: { count: 1, resetAt: nextReset } });
+    return { allowed: true, count: 1, limit: max, resetAt: nextReset.getTime() };
+  }
+
+  if (current.count >= max) {
+    return { allowed: false, count: current.count, limit: max, resetAt: currentResetMs };
+  }
+
+  await db.update(rateLimits)
+    .set({ count: sql`${rateLimits.count} + 1` })
+    .where(eq(rateLimits.key, safeKey));
+  return { allowed: true, count: current.count + 1, limit: max, resetAt: currentResetMs };
 }
 
 // ─── Users ────────────────────────────────────────────────────────────────────

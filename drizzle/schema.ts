@@ -243,6 +243,15 @@ export const creditDailyCounter = mysqlTable("credit_daily_counter", {
 });
 export type CreditDailyCounter = typeof creditDailyCounter.$inferSelect;
 
+// ─── Rate limits persistentes ───────────────────────────────────────────────
+export const rateLimits = mysqlTable("rate_limits", {
+  key: varchar("key", { length: 255 }).primaryKey(),
+  count: int("count").default(0).notNull(),
+  resetAt: timestamp("resetAt").notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type RateLimit = typeof rateLimits.$inferSelect;
+
 // ─── Pagamentos & assinaturas ───────────────────────────────────────────────
 export const payments = mysqlTable("payments", {
   id: int("id").autoincrement().primaryKey(),

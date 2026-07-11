@@ -1,22 +1,15 @@
 /**
  * Micro-ferramentas isca (Sprint 5) — endpoints públicos (sem login) para atrair tráfego
- * orgânico e funilar para o diagnóstico pago. Inclui rate limit simples por IP (anti-abuso/custo).
+ * orgânico e funilar para o diagnóstico pago. Inclui rate limit persistente por IP (anti-abuso/custo).
  */
 import { openRouterChat, ContentPart } from "../openrouter";
+import { consumeRateLimit } from "../db";
 
 const BRAIN = "anthropic/claude-sonnet-4.6";
 
-// Rate limit em memória por IP (reinicia ao reiniciar o processo — suficiente para v1).
-const hits = new Map<string, { count: number; reset: number }>();
-export function rateLimited(ip: string, max = 8, windowMs = 60 * 60 * 1000): boolean {
-  const now = Date.now();
-  const h = hits.get(ip);
-  if (!h || now > h.reset) {
-    hits.set(ip, { count: 1, reset: now + windowMs });
-    return false;
-  }
-  h.count++;
-  return h.count > max;
+export async function rateLimited(ip: string, max = 8, windowMs = 60 * 60 * 1000): Promise<boolean> {
+  const result = await consumeRateLimit(`tools:${ip || "unknown"}`, max, windowMs);
+  return !result.allowed;
 }
 
 export interface Legenda {

@@ -6,20 +6,6 @@ import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
 import { nanoid } from "nanoid";
 
-// Rate limit: máximo 2 cadastros por IP nas últimas 24h
-const _regLimit = new Map<string, { count: number; resetAt: number }>();
-function checkRegLimit(ip: string): boolean {
-  const now = Date.now();
-  const entry = _regLimit.get(ip);
-  if (!entry || now > entry.resetAt) {
-    _regLimit.set(ip, { count: 1, resetAt: now + 86_400_000 });
-    return true;
-  }
-  if (entry.count >= 2) return false;
-  entry.count++;
-  return true;
-}
-
 function slugify(name: string): string {
   return name
     .toLowerCase()
@@ -66,7 +52,8 @@ export function registerAuthRoutes(app: Express) {
   // ── Register (self-service) ────────────────────────────────────────────────
   app.post("/api/auth/register", async (req: Request, res: Response) => {
     const ip = ((req.headers["x-forwarded-for"] as string) ?? "").split(",")[0].trim() || req.ip || "unknown";
-    if (!checkRegLimit(ip)) {
+    const regLimit = await db.consumeRateLimit(`register:${ip}`, 2, 86_400_000);
+    if (!regLimit.allowed) {
       return res.status(429).json({ error: "Muitos cadastros deste IP. Tente novamente amanhã." });
     }
 

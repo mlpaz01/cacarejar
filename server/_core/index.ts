@@ -111,7 +111,7 @@ async function startServer() {
     try {
       const { gerarLegenda, rateLimited } = await import("../services/tools");
       const ip = (req.headers["x-forwarded-for"]?.toString().split(",")[0] || req.ip || "unknown").trim();
-      if (rateLimited(ip)) {
+      if (await rateLimited(ip)) {
         res.status(429).json({ error: "Muitas geracoes seguidas. Tente novamente em alguns minutos." });
         return;
       }
@@ -126,7 +126,7 @@ async function startServer() {
     try {
       const { analisarBio, rateLimited } = await import("../services/tools");
       const ip = (req.headers["x-forwarded-for"]?.toString().split(",")[0] || req.ip || "unknown").trim();
-      if (rateLimited(ip)) {
+      if (await rateLimited(ip)) {
         res.status(429).json({ error: "Muitas analises seguidas. Tente novamente em alguns minutos." });
         return;
       }
