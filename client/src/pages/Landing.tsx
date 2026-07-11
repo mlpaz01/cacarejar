@@ -4,6 +4,7 @@ import { useLocation } from "wouter";
 
 const benefits = [
   "Diagnostico gratuito do perfil ativo",
+  "30 CC de boas-vindas para testar os Agentes",
   "Radar de mercado antes da criacao",
   "Estudio para editar posts, imagens e videos",
   "Publicacao assistida com registro de resultado",
@@ -31,7 +32,7 @@ export default function Landing() {
             onClick={() => setLocation("/register")}
             className="rounded-xl bg-[#ff3217] px-4 py-2.5 text-sm font-black text-white"
           >
-            Ver diagnostico gratis
+            Diagnostico gratis + 30 CC
           </button>
         </div>
       </header>
@@ -45,14 +46,15 @@ export default function Landing() {
         </h1>
         <p className="mx-auto mt-5 max-w-2xl text-base font-semibold text-[#61708a] leading-relaxed">
           O Cacarejar le seu perfil, organiza referencias reais e ajuda voce a
-          criar conteudo editavel com toque humano antes de publicar.
+          criar conteudo editavel com toque humano antes de publicar. A conta
+          gratis inclui diagnostico e 30 CC de boas-vindas.
         </p>
         <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
           <button
             onClick={() => setLocation("/register")}
             className="rounded-xl bg-[#ff3217] px-6 py-3 text-sm font-black text-white inline-flex items-center justify-center gap-2"
           >
-            Ver raio-X do meu perfil <ArrowRight className="w-4 h-4" />
+            Fazer diagnostico gratis + 30 CC <ArrowRight className="w-4 h-4" />
           </button>
           <button
             onClick={() => { window.location.href = "/precos"; }}

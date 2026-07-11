@@ -8,6 +8,7 @@ import { BrandLogo } from "@/components/BrandLogo";
 
 const BENEFITS = [
   "Raio-X gratuito do perfil na criação da conta",
+  "30 CC de boas-vindas para testar os Agentes",
   "Créditos avulsos via PIX — sem assinatura",
   "Agentes autônomos para criar, analisar e otimizar",
   "Suporte humano disponível",
@@ -101,10 +102,10 @@ export default function Register() {
 
           <div className="bg-white rounded-xl border border-[#e6ebf3] p-8 shadow-sm">
             <h1 className="text-2xl font-black mb-1" style={{ color: "#070b17" }}>
-              Ver diagnóstico grátis
+              Diagnóstico grátis + 30 CC
             </h1>
             <p className="text-sm mb-6" style={{ color: "#61708a" }}>
-              Crie sua conta e comece pelo raio-X do seu perfil
+              Crie sua conta, veja o raio-X do perfil e receba créditos para testar o Estúdio.
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -181,7 +182,7 @@ export default function Register() {
                     Criando conta...
                   </>
                 ) : (
-                  "Ver meu diagnóstico grátis"
+                  "Fazer diagnóstico grátis + 30 CC"
                 )}
               </button>
             </form>
