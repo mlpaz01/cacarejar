@@ -92,7 +92,7 @@ export default function Aprovacao() {
 
   const approve = trpc.approvals.clientApprove.useMutation({
     onSuccess: () => {
-      toast.success("Aprovado! Os Agentes vão revisar e colocar no ar.");
+      toast.success("Pacote aprovado. Agora siga para Publicacao para copiar, baixar e registrar.");
       setSel({});
       utils.approvals.pendingForClient.invalidate();
       utils.notifications.unreadCount.invalidate();
@@ -102,12 +102,10 @@ export default function Aprovacao() {
 
   return (
     <AppLayout
-      title="Revisar e publicar"
+      title="Aprovacao final"
       journeyActive="aprovacao"
       subtitle={
-        activeLabel
-          ? `Conteúdos do perfil ativo: ${activeLabel}`
-          : "Crie ou restaure um diagnóstico antes de aprovar campanhas."
+        activeLabel ? `Selecione somente os conteudos finais do perfil ativo: ${activeLabel}` : "Crie ou restaure um diagnostico antes de aprovar conteudos."
       }
     >
       {pending.isLoading ? (
@@ -116,12 +114,11 @@ export default function Aprovacao() {
         <div className="bg-white rounded-xl border border-[#e6ebf3] p-10 text-center shadow-sm">
           <Inbox className="w-10 h-10 text-[#c7cdd8] mx-auto mb-3" />
           <p className="text-sm font-bold text-[#070b17]">
-            Nada para publicar agora
+            Nada para aprovar agora
           </p>
           <p className="text-xs text-[#61708a] mt-1">
             {activeLabel
-              ? `Nenhum conteúdo pendente para ${activeLabel}.`
-              : "Crie ou restaure um diagnóstico com perfil antes de aprovar campanhas."}
+              ? `Nenhum conteudo pendente para ${activeLabel}.` : "Crie ou restaure um diagnostico com perfil antes de aprovar conteudos."}
           </p>
         </div>
       ) : (
@@ -147,7 +144,7 @@ export default function Aprovacao() {
           const approvalPackageText = [
             `Pacote de aprovacao: ${exp.name}`,
             activeLabel ? `Perfil ativo: ${activeLabel}` : "",
-            `Verba diaria: ${brl(budgetDailyCents)}`,
+            `Orcamento sugerido: ${brl(budgetDailyCents)}/dia`,
             `Posts selecionados: ${selectedVariants.length}/${exp.variants.length}`,
             "",
             ...selectedVariants.flatMap((v: any, index: number) => {
@@ -216,7 +213,7 @@ export default function Aprovacao() {
                     ) : (
                       <CheckCircle2 className="w-4 h-4" />
                     )}
-                    Aprovar e publicar
+                    Aprovar pacote
                   </button>
                 </div>
               </div>
@@ -364,10 +361,9 @@ export default function Aprovacao() {
 
                 <aside className="rounded-xl border border-[#e6ebf3] bg-[#fbfcff] p-4 h-fit">
                   <h4 className="text-sm font-black text-[#070b17] flex items-center gap-2">
-                    <Coins className="w-4 h-4 text-[#ff3217]" /> Verba diária
-                  </h4>
+                    <Coins className="w-4 h-4 text-[#ff3217]" /> Orcamento sugerido</h4>
                   <p className="text-[11px] text-[#61708a] mt-1">
-                    Esse é o teto que pode ser investido por dia neste teste.
+                    Sugestao para quando voce publicar ou impulsionar manualmente.
                   </p>
                   <div className="grid grid-cols-1 gap-2 mt-3">
                     {BUDGETS.map(b => {
@@ -398,7 +394,7 @@ export default function Aprovacao() {
                     })}
                   </div>
                   <label className="block mt-3 text-[10px] font-black text-[#61708a] uppercase">
-                    Outro valor diário
+                    Outro valor diario sugerido
                   </label>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-xs font-black text-[#071b44]">
@@ -425,7 +421,7 @@ export default function Aprovacao() {
                   <div className="mt-4 rounded-lg bg-white border border-[#e6ebf3] p-3">
                     <p className="text-xs font-black text-[#071b44] flex items-center gap-1.5">
                       <Coins className="w-3.5 h-3.5 text-[#ff3217]" />{" "}
-                      Distribuicao inicial
+                      Distribuicao sugerida
                     </p>
                     <div className="grid grid-cols-2 gap-2 mt-3">
                       <div className="rounded-lg bg-[#f6f8fc] p-2">
@@ -446,14 +442,12 @@ export default function Aprovacao() {
                       </div>
                     </div>
                     <p className="text-[11px] text-[#61708a] leading-relaxed mt-3">
-                      O teste comeca equilibrado. Depois, os Agentes comparam
-                      resultado antes de puxar verba para o vencedor.
+                      Use como guia manual. Depois da publicacao, registre os resultados para os Agentes apontarem o vencedor.
                     </p>
                   </div>
                   <div className="mt-4 rounded-lg bg-[#071b44] text-white p-3">
                     <p className="text-xs font-black flex items-center gap-1.5">
-                      <TrendingUp className="w-3.5 h-3.5 text-[#ff8a72]" /> Como
-                      a verba é dividida?
+                      <TrendingUp className="w-3.5 h-3.5 text-[#ff8a72]" /> Como usar esse orcamento?
                     </p>
                     <p className="text-[11px] leading-relaxed mt-1 text-white/85">
                       No começo, os {selectedIds.length || 0} posts recebem
@@ -479,9 +473,7 @@ export default function Aprovacao() {
                       Para que serve aprovar?
                     </p>
                     <p className="text-[11px] text-[#61708a] leading-relaxed mt-1">
-                      É sua autorização final de conteúdo e verba. Depois disso,
-                      os Agentes revisam marca, política e performance antes de
-                      colocar no ar.
+                      E sua autorizacao final de conteudo. Depois disso, siga para Publicacao para copiar legenda, baixar imagem, publicar no canal e registrar o link.
                     </p>
                   </div>
                 </aside>

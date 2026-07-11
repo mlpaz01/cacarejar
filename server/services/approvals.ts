@@ -212,8 +212,8 @@ export async function approve(approvalId: number, by: string) {
   await db.update(experiments).set({ status: "aprovado" }).where(eq(experiments.id, ap.itemId));
   await notif.notify({
     organizationId: ap.organizationId, userId: ap.clientApprovedBy, type: "aprovado",
-    title: "Suas campanhas foram aprovadas! ✅",
-    body: "Tudo certo na revisão. Suas campanhas já entraram no ar. 🐓",
+    title: "Seu pacote foi aprovado!",
+    body: "Tudo certo na revisao. Agora siga para Publicacao para copiar, baixar e registrar o que sair nos canais.",
   });
 
   // Motor: publica (mock), coleta métricas e faz a 1ª redistribuição

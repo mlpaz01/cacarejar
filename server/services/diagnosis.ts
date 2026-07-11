@@ -1361,14 +1361,14 @@ function templatePlan(produto: string, objetivo: string, redes: Record<string, s
       oferta: "Oferta principal + parcelamento + downsell.",
     },
     cronograma: [
-      { periodo: "Semana 1", foco: "Gerar 6 criativos (Teste A/Z), aprovar e publicar.", meta: "Campanha no ar" },
+      { periodo: "Semana 1", foco: "Gerar 6 criativos no Estudio e aprovar o pacote final.", meta: "Pacote pronto para publicacao" },
       { periodo: "Semana 2", foco: "Acompanhar Ovos de Ouro; a verba migra para o que vende.", meta: "1º criativo vencedor" },
       { periodo: "Semana 3", foco: "Escalar o vencedor e gerar variações do ângulo campeão.", meta: "ROAS positivo" },
       { periodo: "Semana 4", foco: "Novos ângulos + remarketing do público quente.", meta: "Escala sustentável" },
     ],
     planoAcao: [
       { dia: "Dia 1", foco: "Gerar 6 criativos no Estúdio (Teste A/Z)." },
-      { dia: "Dia 2", foco: "Aprovar e publicar; deixar o público aquecer." },
+      { dia: "Dia 2", foco: "Publicar manualmente nos canais e registrar os links." },
       { dia: "Dia 4", foco: "Acompanhar os Ovos de Ouro." },
       { dia: "Dia 7", foco: "Escalar o vencedor e variar o ângulo campeão." },
     ],

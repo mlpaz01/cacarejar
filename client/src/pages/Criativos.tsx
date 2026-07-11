@@ -202,8 +202,8 @@ export default function Criativos() {
 
   return (
     <AppLayout
-      title="Criativos"
-      subtitle="Biblioteca + criação de novos posts no estilo da sua marca"
+      title="Estudio"
+      subtitle="Biblioteca de criacao: gere, edite e envie somente o que ficou pronto para aprovacao."
       journeyActive="estudio"
       actions={
         <div className="flex gap-2">
@@ -212,7 +212,7 @@ export default function Criativos() {
             className="text-sm font-black text-white px-4 py-2.5 rounded-lg flex items-center gap-2"
             style={{ background: "linear-gradient(180deg,#ff421f,#f0200d)" }}
           >
-            <Sparkles className="w-4 h-4" /> + Criar novo
+            <Sparkles className="w-4 h-4" /> Criar no Estudio
           </button>
         </div>
       }
@@ -227,7 +227,7 @@ export default function Criativos() {
               </div>
               <div>
                 <h2 className="text-sm font-semibold text-foreground">
-                  Adicionar Criativo
+                  Adicionar referencia
                 </h2>
                 <p className="text-xs text-muted-foreground">
                   JPG, PNG ou WebP
@@ -355,7 +355,7 @@ export default function Criativos() {
                 ) : (
                   <>
                     <Upload className="w-4 h-4" />
-                    Adicionar Criativo
+                    Adicionar referencia
                   </>
                 )}
               </Button>
@@ -367,7 +367,7 @@ export default function Criativos() {
         <div className="lg:col-span-2">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-foreground">
-              Criativos
+              Conteudos do Estudio
               {creatives && (
                 <span className="ml-2 text-xs text-muted-foreground font-normal">
                   ({creatives.length})
@@ -389,10 +389,10 @@ export default function Criativos() {
             <div className="flex flex-col items-center justify-center py-20 text-center">
               <ImageIcon className="w-12 h-12 text-muted-foreground/30 mb-4" />
               <p className="text-base font-medium text-muted-foreground">
-                Nenhum criativo adicionado
+                Nenhum conteudo no Estudio
               </p>
               <p className="text-sm text-muted-foreground/60 mt-1">
-                Faça upload de uma imagem do seu computador.
+                Crie com os Agentes ou adicione uma referencia manual.
               </p>
             </div>
           ) : (

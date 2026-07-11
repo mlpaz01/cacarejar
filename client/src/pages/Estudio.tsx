@@ -144,8 +144,8 @@ export default function Estudio() {
 
   return (
     <AppLayout
-      title="Criar novos criativos"
-      subtitle="Descreva seu produto, escolha o jeitão e gere os posts"
+      title="Estudio de criacao"
+      subtitle="O unico lugar para transformar estrategia em conteudo editavel antes da aprovacao."
       journeyActive="estudio"
       actions={
         <>
@@ -153,7 +153,7 @@ export default function Estudio() {
             onClick={() => navigate("/criativos")}
             className="text-xs font-bold text-[#61708a] hover:text-[#070b17] flex items-center gap-1.5 px-3 py-2"
           >
-            ← Voltar para Criativos
+            Voltar para Estudio
           </button>
           <span className="text-xs font-bold text-[#071b44] bg-[#f6f8fc] border border-[#e6ebf3] rounded-full px-3 py-1.5 flex items-center gap-1.5">
             <Coins className="w-3.5 h-3.5 text-[#ff3217]" />{" "}
@@ -175,8 +175,7 @@ export default function Estudio() {
                 Deixe o Estrategista decidir por você
               </p>
               <p className="text-xs text-white/60">
-                Geramos 6 variações com as características que o seu plano
-                sugere — você não precisa configurar nada.
+                Geramos 6 caminhos com as caracteristicas do seu plano. Depois voce edita, salva e envia somente os melhores para aprovacao.
               </p>
             </div>
           </div>
@@ -213,7 +212,7 @@ export default function Estudio() {
       {/* Form */}
       <div className="bg-white rounded-xl border border-[#e6ebf3] p-5 shadow-sm mb-6">
         <label className="text-xs font-black text-[#071b44] uppercase tracking-wide">
-          O que você vai anunciar?
+          O que voce quer criar?
         </label>
         <textarea
           value={produto}
@@ -298,7 +297,7 @@ export default function Estudio() {
             className="text-sm font-bold"
             style={{ color: az ? "#ff3217" : "#61708a" }}
           >
-            🥚 Teste A/Z — gerar 6 variações cruzando características
+            Teste A/Z - gerar 6 variacoes cruzando caracteristicas
           </span>
           <span
             className="w-10 h-5 rounded-full relative transition-colors"
@@ -361,7 +360,7 @@ export default function Estudio() {
             ) : (
               <Sparkles className="w-4 h-4" />
             )}
-            {gen.isPending ? "Gerando..." : "Gerar criativos 🥚"}
+            {gen.isPending ? "Gerando..." : "Gerar no Estudio"}
           </button>
         </div>
       </div>
@@ -371,7 +370,7 @@ export default function Estudio() {
         <>
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-black text-[#070b17]">
-              Variações geradas
+              Conteudos gerados no Estudio
             </h3>
             <button
               onClick={() =>
