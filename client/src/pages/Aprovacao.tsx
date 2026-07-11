@@ -96,6 +96,7 @@ export default function Aprovacao() {
       setSel({});
       utils.approvals.pendingForClient.invalidate();
       utils.notifications.unreadCount.invalidate();
+      navigate("/integracoes");
     },
     onError: e => toast.error(e.message || "Erro ao aprovar"),
   });

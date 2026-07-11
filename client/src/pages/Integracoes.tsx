@@ -241,8 +241,7 @@ function IntegrationCard({
               <strong className="text-foreground">Como obter o token:</strong>{" "}
               Acesse o painel de desenvolvedor do {config.label}, crie um
               aplicativo com permissões de anúncios e copie o token de acesso
-              gerado. Os tokens são armazenados de forma segura e usados apenas
-              para disparar campanhas.
+              gerado. Os tokens sao armazenados de forma segura e usados apenas quando houver integracao real habilitada para o canal.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -735,8 +734,7 @@ export default function Integracoes() {
               Nenhum post aprovado ainda
             </p>
             <p className="text-xs text-[#61708a] mt-1">
-              Aprove posts no Diagnostico, Calendario ou Aprovacao para montar a
-              fila de publicacao.
+              Envie conteudos do Estudio para Aprovacao para montar a fila de publicacao.
             </p>
           </div>
         )}
@@ -804,7 +802,7 @@ export default function Integracoes() {
       {/* Dispatch logs */}
       <div>
         <h2 className="text-sm font-semibold text-foreground mb-3">
-          Logs de Disparo
+          Registros de publicacao
           {dispatchLogs && (
             <span className="ml-2 text-xs font-normal text-muted-foreground">
               ({dispatchLogs.length} registros)
@@ -828,8 +826,7 @@ export default function Integracoes() {
               Nenhum disparo registrado ainda
             </p>
             <p className="text-xs text-muted-foreground/60 mt-1">
-              Os logs de disparo aparecerão aqui após o agente automático
-              executar campanhas.
+              Os registros de publicacao aparecem aqui depois que voce executar e salvar os resultados.
             </p>
           </div>
         ) : (
