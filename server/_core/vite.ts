@@ -85,6 +85,7 @@ export function serveStatic(app: Express) {
     "/ferramentas": "ferramentas.html",
     "/ferramentas/engajamento": "ferramentas-engajamento.html",
     "/ferramentas/gerador-de-legenda": "ferramentas-legenda.html",
+    "/ferramentas/analisador-de-bio": "ferramentas-bio.html",
   };
   for (const [route, file] of Object.entries(staticPages)) {
     app.get(route, (_req, res) => {

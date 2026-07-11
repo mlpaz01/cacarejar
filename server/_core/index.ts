@@ -122,6 +122,21 @@ async function startServer() {
     }
   });
 
+  app.post("/api/ferramentas/bio", async (req, res) => {
+    try {
+      const { analisarBio, rateLimited } = await import("../services/tools");
+      const ip = (req.headers["x-forwarded-for"]?.toString().split(",")[0] || req.ip || "unknown").trim();
+      if (rateLimited(ip)) {
+        res.status(429).json({ error: "Muitas analises seguidas. Tente novamente em alguns minutos." });
+        return;
+      }
+      const out = await analisarBio({ bio: req.body?.bio, nicho: req.body?.nicho });
+      res.json(out);
+    } catch {
+      res.status(500).json({ error: "Erro ao analisar bio." });
+    }
+  });
+
   app.get("/api/depoimentos", async (_req, res) => {
     try {
       const { listPublishedTestimonials } = await import("../db");

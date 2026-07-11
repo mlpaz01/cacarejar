@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Analisador de Bio do Instagram (gratis) | Cacarejar</title>
+  <meta name="description" content="Cole sua bio do Instagram e receba uma nota com sugestoes para deixar o perfil mais claro, confiavel e pronto para converter visitantes. Ferramenta gratis do Cacarejar.">
+  <meta property="og:title" content="Analisador de Bio do Instagram - gratis">
+  <meta property="og:description" content="Receba nota, ajustes e uma bio reescrita para melhorar seu perfil.">
+  <meta property="og:image" content="/assets/logo-dark.png">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://cacarejar.com.br/ferramentas/analisador-de-bio">
+  <meta name="theme-color" content="#071b44">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/landing.css">
+  <style>
+    .tool-wrap { max-width: 820px; margin: 0 auto; padding: 28px 0 40px; }
+    .tool-head h1 { font-size: clamp(28px,3.4vw,42px); font-weight: 900; color: var(--navy); margin: 0 0 10px; line-height: 1.08; }
+    .tool-head h1 span { color: var(--red); }
+    .tool-head p { font-size: 15px; color: #263754; font-weight: 600; line-height: 1.6; margin: 0 0 24px; }
+    .calc-card { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 24px; box-shadow: 0 2px 12px rgba(7,27,68,.05); }
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-size: 13px; font-weight: 800; color: var(--navy); margin-bottom: 6px; }
+    .field input, .field textarea { width: 100%; box-sizing: border-box; border: 1.5px solid var(--line); border-radius: 10px; padding: 12px 14px; font-size: 15px; font-family: inherit; background: #fff; }
+    .field textarea { min-height: 124px; resize: vertical; line-height: 1.55; }
+    .field input:focus, .field textarea:focus { outline: none; border-color: var(--red); }
+    .calc-btn { width: 100%; border: none; cursor: pointer; background: linear-gradient(180deg,#ff421f,#f0200d); color: #fff; font-weight: 900; font-size: 15px; padding: 14px; border-radius: 10px; box-shadow: 0 6px 18px rgba(255,49,22,.25); }
+    .calc-btn:hover { opacity: .93; }
+    .calc-btn:disabled { opacity: .6; cursor: default; }
+    .status { margin-top: 16px; font-size: 13px; color: var(--muted); font-weight: 700; text-align: center; }
+    .result { display: none; margin-top: 22px; }
+    .result.show { display: block; }
+    .score-row { display: grid; grid-template-columns: 180px 1fr; gap: 16px; align-items: stretch; }
+    .score-box { border-radius: 14px; background: var(--navy); color: #fff; padding: 22px; text-align: center; }
+    .score-box .num { font-size: 54px; line-height: 1; font-weight: 900; }
+    .score-box .label { color: rgba(255,255,255,.7); font-size: 12px; font-weight: 900; text-transform: uppercase; }
+    .summary-box { border: 1px solid var(--line); border-radius: 14px; padding: 18px; background: #fbfcff; }
+    .summary-box h2 { margin: 0 0 8px; color: var(--navy); font-size: 20px; font-weight: 900; }
+    .summary-box p { margin: 0; color: #263754; font-size: 14px; font-weight: 650; line-height: 1.65; }
+    .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+    .result-card { border: 1px solid var(--line); border-radius: 14px; padding: 18px; background: #fff; }
+    .result-card h3 { margin: 0 0 10px; color: var(--red); font-size: 12px; font-weight: 900; text-transform: uppercase; letter-spacing: .04em; }
+    .result-card ul { margin: 0; padding-left: 18px; color: #263754; font-size: 13px; font-weight: 700; line-height: 1.65; }
+    .bio-new { margin: 0; white-space: pre-wrap; color: #10203a; font-size: 15px; font-weight: 850; line-height: 1.5; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip { border: 1px solid #ffd0c8; border-radius: 999px; background: #fff8f7; color: #c0200d; padding: 6px 10px; font-size: 12px; font-weight: 900; }
+    .copy { margin-top: 12px; font-size: 12px; font-weight: 900; color: var(--navy); background: #fff; border: 1.5px solid var(--line); border-radius: 8px; padding: 8px 12px; cursor: pointer; }
+    .copy:hover { border-color: var(--navy); }
+    .tool-cta { margin-top: 26px; background: #fffdfb; border: 1px solid #f2d3bd; border-radius: 14px; padding: 22px; text-align: center; }
+    .tool-cta h2 { font-size: 20px; font-weight: 900; color: var(--navy); margin: 0 0 6px; }
+    .tool-cta h2 span { color: var(--red); }
+    .tool-cta p { font-size: 13px; color: #263754; font-weight: 600; margin: 0 0 16px; }
+    .back-link { font-size: 13px; font-weight: 800; color: var(--muted); text-decoration: none; }
+    .back-link:hover { color: var(--red); }
+    @media (max-width: 760px) {
+      .score-row, .result-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<main class="page">
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Cacarejar"><img src="/assets/logo.png" alt="Cacarejar"></a>
+    <nav class="nav">
+      <a href="/">Inicio</a>
+      <a href="/precos">Precos</a>
+      <a href="/ferramentas" class="active">Ferramentas</a>
+      <a href="/empresa">Empresa</a>
+    </nav>
+    <div class="header-actions">
+      <a class="login" href="/login">Entrar</a>
+      <a class="button primary small" href="/register">Diagnostico gratis + 30 CC</a>
+    </div>
+  </header>
+
+  <div class="tool-wrap">
+    <a class="back-link" href="/ferramentas">← Ferramentas</a>
+    <div class="tool-head" style="margin-top:14px">
+      <h1>Analisador de <span>Bio</span> do Instagram</h1>
+      <p>Cole sua bio e receba uma nota, ajustes práticos e uma versão reescrita para deixar o perfil mais claro, confiável e pronto para conversa.</p>
+    </div>
+
+    <div class="calc-card">
+      <div class="field">
+        <label for="bio">Sua bio atual</label>
+        <textarea id="bio" maxlength="220" placeholder="Ex: Ajudo mães a organizarem a rotina dos filhos com aulas personalizadas. Atendimento online. Chame no WhatsApp."></textarea>
+      </div>
+      <div class="field">
+        <label for="nicho">Nicho ou negócio (opcional)</label>
+        <input id="nicho" type="text" maxlength="80" placeholder="Ex: educação infantil, estética, restaurante, consultoria">
+      </div>
+      <button class="calc-btn" id="btn" onclick="analisar()">Analisar minha bio</button>
+      <div class="status" id="status"></div>
+
+      <div class="result" id="result">
+        <div class="score-row">
+          <div class="score-box">
+            <div class="num" id="score">0</div>
+            <div class="label">nota da bio</div>
+          </div>
+          <div class="summary-box">
+            <h2 id="verdict">Resultado</h2>
+            <p id="resumo"></p>
+          </div>
+        </div>
+        <div class="result-grid">
+          <div class="result-card">
+            <h3>Pontos fortes</h3>
+            <ul id="fortes"></ul>
+          </div>
+          <div class="result-card">
+            <h3>Ajustes prioritários</h3>
+            <ul id="ajustes"></ul>
+          </div>
+          <div class="result-card">
+            <h3>Bio reescrita</h3>
+            <p class="bio-new" id="bioNova"></p>
+            <button class="copy" onclick="copiarBio(this)">Copiar bio</button>
+          </div>
+          <div class="result-card">
+            <h3>CTAs e palavras-chave</h3>
+            <div class="chips" id="chips"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tool-cta">
+      <h2>Quer o perfil inteiro analisado <span>de verdade?</span></h2>
+      <p>O diagnóstico do Cacarejar lê seu perfil, seus posts e sinais do mercado para montar o plano completo.</p>
+      <a class="button primary" href="/register">Fazer diagnóstico grátis + 30 CC</a>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <a href="/">Inicio</a>
+    <a href="/precos">Precos</a>
+    <a href="/ferramentas">Ferramentas</a>
+    <a href="/empresa">Empresa</a>
+  </footer>
+</main>
+<script>
+  function esc(s){ return String(s||'').replace(/[&<>]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]; }); }
+  function list(id, arr) {
+    document.getElementById(id).innerHTML = (arr || []).map(function(x){ return '<li>'+esc(x)+'</li>'; }).join('');
+  }
+  async function analisar() {
+    var bio = document.getElementById('bio').value.trim();
+    if (!bio) { alert('Cole sua bio atual.'); return; }
+    var btn = document.getElementById('btn');
+    var status = document.getElementById('status');
+    btn.disabled = true; btn.textContent = 'Analisando...'; status.textContent = 'O Agente está lendo clareza, promessa, prova e CTA...';
+    try {
+      var res = await fetch('/api/ferramentas/bio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bio: bio, nicho: document.getElementById('nicho').value })
+      });
+      if (res.status === 429) { status.textContent = 'Você fez muitas análises seguidas. Tente de novo em alguns minutos.'; return; }
+      var data = await res.json();
+      status.textContent = '';
+      document.getElementById('score').textContent = Math.round(data.score || 0);
+      document.getElementById('verdict').textContent = data.verdict || 'Resultado';
+      document.getElementById('resumo').textContent = data.resumo || '';
+      list('fortes', data.pontosFortes || []);
+      list('ajustes', data.ajustes || []);
+      document.getElementById('bioNova').textContent = data.bioReescrita || '';
+      var chips = [].concat(data.ctas || [], data.palavrasChave || []);
+      document.getElementById('chips').innerHTML = chips.slice(0, 10).map(function(x){ return '<span class="chip">'+esc(x)+'</span>'; }).join('');
+      document.getElementById('result').classList.add('show');
+    } catch (e) {
+      status.textContent = 'Erro de conexão. Tente novamente.';
+    } finally {
+      btn.disabled = false; btn.textContent = 'Analisar minha bio';
+    }
+  }
+  function copiarBio(el) {
+    var t = document.getElementById('bioNova').textContent || '';
+    navigator.clipboard.writeText(t).then(function(){ el.textContent = 'Copiado!'; setTimeout(function(){ el.textContent='Copiar bio'; }, 1500); });
+  }
+  (function () {
+    var tb = document.querySelector('.topbar');
+    if (!tb) return;
+    var onScroll = function () { tb.classList.toggle('scrolled', window.scrollY > 8); };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  })();
+</script>
+</body>
+</html>
