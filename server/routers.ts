@@ -44,7 +44,18 @@ import { analyzeAndCalibrate } from "./openrouter";
 import fs from "fs";
 import path from "path";
 import { nanoid } from "nanoid";
-import { campaigns, payments, creditLedger, notificationPrefs, organizations, orgProfile, users } from "../drizzle/schema";
+import {
+  approvals,
+  campaigns,
+  creditLedger,
+  creditWallet,
+  dispatchLogs,
+  notificationPrefs,
+  organizations,
+  orgProfile,
+  payments,
+  users,
+} from "../drizzle/schema";
 import * as creditsService from "./services/credits";
 import * as asaasService from "./services/asaas";
 import * as studioService from "./services/studio";
@@ -590,6 +601,130 @@ const calibrationRouter = router({
 
 const adminRouter = router({
   stats: adminProcedure.query(() => getAdminStats()),
+
+  health: adminProcedure.query(async () => {
+    const db = await getDb();
+    if (!db) return null;
+
+    const since24h = new Date(Date.now() - 86_400_000);
+    const since7d = new Date(Date.now() - 7 * 86_400_000);
+
+    const [
+      [orgsRow],
+      [profilesRow],
+      [pendingPaymentsRow],
+      [failedDispatchesRow],
+      [reviewQueueRow],
+      [walletRow],
+      creditRows,
+      testimonialRows,
+    ] = await Promise.all([
+      db.select({ count: sql<number>`COUNT(*)` }).from(organizations),
+      db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(orgProfile)
+        .where(gte(orgProfile.updatedAt, since7d)),
+      db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(payments)
+        .where(eq(payments.status, "pendente")),
+      db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(dispatchLogs)
+        .where(and(eq(dispatchLogs.status, "falhou"), gte(dispatchLogs.createdAt, since7d))),
+      db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(approvals)
+        .where(sql`${approvals.reviewStatus} IN ('pendente', 'em_revisao')`),
+      db
+        .select({
+          heldCC: sql<number>`COALESCE(SUM(${creditWallet.heldCC}), 0)`,
+          balanceCC: sql<number>`COALESCE(SUM(${creditWallet.balanceCC}), 0)`,
+          wallets: sql<number>`COUNT(*)`,
+        })
+        .from(creditWallet),
+      db
+        .select({
+          ref: creditLedger.ref,
+          count: sql<number>`COUNT(*)`,
+          credits: sql<number>`COALESCE(SUM(ABS(${creditLedger.amountCC})), 0)`,
+        })
+        .from(creditLedger)
+        .where(and(eq(creditLedger.type, "consumo"), gte(creditLedger.createdAt, since7d)))
+        .groupBy(creditLedger.ref),
+      listTestimonials().catch(() => []),
+    ]);
+
+    const publishedTestimonials = testimonialRows.filter(row => row.isPublished).length;
+    const operations = creditRows
+      .map(row => ({
+        ref: row.ref || "sem referencia",
+        group: (row.ref || "outro").split(":")[0],
+        count: Number(row.count ?? 0),
+        credits: Number(row.credits ?? 0),
+      }))
+      .sort((a, b) => b.credits - a.credits)
+      .slice(0, 10);
+
+    const cards = {
+      totalOrgs: Number(orgsRow?.count ?? 0),
+      profilesUpdated7d: Number(profilesRow?.count ?? 0),
+      pendingPayments: Number(pendingPaymentsRow?.count ?? 0),
+      failedDispatches7d: Number(failedDispatchesRow?.count ?? 0),
+      reviewQueue: Number(reviewQueueRow?.count ?? 0),
+      heldCC: Number(walletRow?.heldCC ?? 0),
+      balanceCC: Number(walletRow?.balanceCC ?? 0),
+      wallets: Number(walletRow?.wallets ?? 0),
+      publishedTestimonials,
+      totalTestimonials: testimonialRows.length,
+    };
+
+    const alerts: Array<{ level: "ok" | "warn" | "danger"; title: string; detail: string }> = [];
+    if (cards.failedDispatches7d > 0) {
+      alerts.push({
+        level: "danger",
+        title: "Falhas de publicacao nos ultimos 7 dias",
+        detail: `${cards.failedDispatches7d} registro(s) precisam de revisao manual.`,
+      });
+    }
+    if (cards.heldCC > 0) {
+      alerts.push({
+        level: "warn",
+        title: "Creditos reservados em aberto",
+        detail: `${cards.heldCC} credito(s) centesimais ainda estao em hold.`,
+      });
+    }
+    if (cards.pendingPayments > 0) {
+      alerts.push({
+        level: "warn",
+        title: "Pagamentos pendentes",
+        detail: `${cards.pendingPayments} pagamento(s) aguardando confirmacao.`,
+      });
+    }
+    if (cards.reviewQueue > 0) {
+      alerts.push({
+        level: "warn",
+        title: "Fila de revisao com itens",
+        detail: `${cards.reviewQueue} item(ns) ainda aguardam aprovacao operacional.`,
+      });
+    }
+    if (alerts.length === 0) {
+      alerts.push({
+        level: "ok",
+        title: "Operacao sem bloqueios criticos",
+        detail: "Nao encontrei falhas recentes, pagamentos pendentes ou fila operacional urgente.",
+      });
+    }
+
+    return {
+      generatedAt: new Date().toISOString(),
+      since24h: since24h.toISOString(),
+      since7d: since7d.toISOString(),
+      cards,
+      alerts,
+      operations,
+    };
+  }),
 
   orgs: adminProcedure.query(() => getAllOrgs()),
 

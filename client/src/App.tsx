@@ -8,6 +8,7 @@ import AdminDashboard from "@/pages/admin/AdminDashboard";
 import AdminRevisao from "@/pages/admin/AdminRevisao";
 import AdminFinanceiro from "@/pages/admin/AdminFinanceiro";
 import AdminDepoimentos from "@/pages/admin/AdminDepoimentos";
+import AdminSaude from "@/pages/admin/AdminSaude";
 import { Router, Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
@@ -94,6 +95,7 @@ function AdminRouter() {
     <Switch>
       <Route path="/" component={AdminDashboard} />
       <Route path="/depoimentos" component={AdminDepoimentos} />
+      <Route path="/saude" component={AdminSaude} />
       <Route path="/revisao" component={AdminRevisao} />
       <Route path="/financeiro" component={AdminFinanceiro} />
       <Route component={NotFound} />

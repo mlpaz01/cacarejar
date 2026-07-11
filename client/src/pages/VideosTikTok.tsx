@@ -2,11 +2,12 @@ import { AppLayout } from "@/components/AppLayout";
 import { trpc } from "@/lib/trpc";
 import {
   ArrowRight,
-  CalendarDays,
   CheckCircle2,
   Clapperboard,
   Copy,
   MonitorPlay,
+  Pencil,
+  Send,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "wouter";
@@ -113,7 +114,7 @@ export default function VideosTikTok() {
     return (
       <AppLayout
         title="Videos TikTok"
-        subtitle="Transforme posts do plano semanal em roteiro, cenas e prompts."
+        subtitle="Transforme posts do plano semanal em roteiro, cenas e prompts para video vertical."
         journeyActive="estudio"
       >
         <div className="rounded-3xl border border-[#e6ebf3] bg-white p-10 text-center shadow-sm">
@@ -123,7 +124,7 @@ export default function VideosTikTok() {
           </p>
           <p className="text-sm text-[#61708a] mt-1">
             Crie ou restaure um diagnostico para gerar videos a partir dos posts
-            recomendados.
+            recomendados na jornada.
           </p>
           <Link href="/diagnostico">
             <a className="btn-action-primary mt-5 px-5 py-3 text-sm inline-flex items-center gap-2">
@@ -138,7 +139,7 @@ export default function VideosTikTok() {
   return (
     <AppLayout
       title="Videos TikTok"
-      subtitle="Roteiro, storyboard e pacote visual para ComfyUI, Magnific ou CapCut."
+      subtitle="Ferramenta do Estudio para preparar roteiro, storyboard e pacote visual antes da Publicacao."
       journeyActive="estudio"
       actions={
         <div className="flex gap-2 flex-wrap justify-end">
@@ -148,9 +149,14 @@ export default function VideosTikTok() {
           >
             <Copy className="w-4 h-4" /> Copiar pacote
           </button>
-          <Link href="/calendario">
+          <Link href="/criativos">
             <a className="rounded-xl border border-[#e6ebf3] bg-white px-4 py-2.5 text-sm font-black text-[#071b44] hover:bg-[#f8fafc] inline-flex items-center gap-2">
-              <CalendarDays className="w-4 h-4" /> Calendario
+              <Pencil className="w-4 h-4" /> Estudio
+            </a>
+          </Link>
+          <Link href="/integracoes">
+            <a className="rounded-xl border border-[#e6ebf3] bg-white px-4 py-2.5 text-sm font-black text-[#071b44] hover:bg-[#f8fafc] inline-flex items-center gap-2">
+              <Send className="w-4 h-4" /> Publicacao
             </a>
           </Link>
         </div>
@@ -167,6 +173,7 @@ export default function VideosTikTok() {
           <p className="text-sm text-white/75 leading-relaxed mt-3 max-w-3xl">
             Os Agentes montam o roteiro e o pacote tecnico. Voce ajusta o toque
             humano e leva para ComfyUI, Magnific, CapCut ou gravacao propria.
+            Depois volte para Publicacao para registrar link e resultado.
           </p>
           <div className="grid grid-cols-3 gap-3 mt-5">
             <MiniMetric label="Formato" value="9:16" />

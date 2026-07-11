@@ -22,6 +22,7 @@ import {
   CalendarDays,
   Settings,
   BarChart3,
+  Clapperboard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -442,6 +443,20 @@ export default function Integracoes() {
     toast.success("Post copiado.");
   }
 
+  function isVideoItem(item: any) {
+    const haystack = [
+      item.formato,
+      item.canal,
+      item.tipo,
+      item.objetivo,
+      item.gancho,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    return /reels|tiktok|video|story|stories|shorts/.test(haystack);
+  }
+
   function savePublication(
     index: number,
     status: "publicado" | "medir" = "publicado"
@@ -581,7 +596,7 @@ export default function Integracoes() {
                     </p>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-4">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mt-4">
                   <button
                     onClick={() => copyPost(item)}
                     className="rounded-xl bg-[#071b44] text-white px-3 py-2 text-[10px] font-black inline-flex items-center justify-center gap-1.5"
@@ -600,6 +615,13 @@ export default function Integracoes() {
                     <span className="rounded-xl border border-[#e6ebf3] bg-white text-[#9aa7bd] px-3 py-2 text-[10px] font-black inline-flex items-center justify-center">
                       Sem imagem
                     </span>
+                  )}
+                  {isVideoItem(item) && (
+                    <Link href={`/videos?index=${item.index}`}>
+                      <a className="rounded-xl border border-[#ffd0c8] bg-[#fff8f6] text-[#ff3217] px-3 py-2 text-[10px] font-black inline-flex items-center justify-center gap-1.5">
+                        <Clapperboard className="w-3 h-3" /> Video
+                      </a>
+                    </Link>
                   )}
                   {item.publicadoUrl ? (
                     <a

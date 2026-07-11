@@ -7,6 +7,7 @@ import {
   ArrowRight,
   BookOpen,
   CheckCircle2,
+  Clapperboard,
   ClipboardCheck,
   MousePointerClick,
   ShieldCheck,
@@ -73,8 +74,8 @@ export default function Guia() {
       id: "estudio",
       title: "3. Estudio",
       action:
-        "Crie ou refine conteudos editaveis com base no diagnostico e no Radar.",
-      text: "Este e o unico lugar de criacao. A base vem dos Agentes, mas o usuario ajusta texto, imagem, bastidor, prova e marca a versao humana final.",
+        "Crie ou refine posts, imagens e roteiros de video com base no Diagnostico e no Radar.",
+      text: "Este e o unico lugar de criacao. A base vem dos Agentes, mas o usuario ajusta texto, imagem, bastidor, prova, videos verticais e marca a versao humana final.",
       done: editedCreatives > 0,
       success: "Pelo menos um criativo foi humanizado.",
     },
@@ -226,7 +227,7 @@ export default function Guia() {
         })}
       </section>
 
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         <InfoCard
           title="Regra da jornada"
           icon={ShieldCheck}
@@ -235,6 +236,16 @@ export default function Guia() {
             "Crie e edite conteudos no Estudio.",
             "Nao publique sem passar pelo Estudio.",
             "Nao escale campanha sem resultado organico.",
+          ]}
+        />
+        <InfoCard
+          title="Videos verticais"
+          icon={Clapperboard}
+          items={[
+            "Videos TikTok fica dentro do Estudio.",
+            "Use depois de escolher um post base.",
+            "Copie roteiro, cenas e prompt visual.",
+            "Depois registre publicacao e resultado.",
           ]}
         />
         <InfoCard

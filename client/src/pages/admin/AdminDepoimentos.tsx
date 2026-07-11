@@ -106,6 +106,7 @@ export default function AdminDepoimentos() {
   });
 
   const rows = testimonials.data ?? [];
+  const publishedRows = rows.filter((row: any) => row.isPublished);
   const canSave = form.name.trim().length >= 2 && form.quote.trim().length >= 10;
   const isSaving = create.isPending || update.isPending;
 
@@ -265,6 +266,69 @@ export default function AdminDepoimentos() {
             {editingId ? <Save className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
             {editingId ? "Salvar depoimento" : "Cadastrar depoimento"}
           </button>
+        </section>
+
+        <section className="bg-white rounded-xl border border-[#e6ebf3] p-6 shadow-sm">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <h2 className="text-base font-black text-[#070b17]">
+                Preview dos publicados
+              </h2>
+              <p className="text-sm text-[#61708a] mt-1 font-semibold">
+                Esta e a lista que a vitrine podera consumir quando mexermos no
+                site. Endpoint: <span className="font-black">/api/depoimentos</span>
+              </p>
+            </div>
+            <span className="rounded-full bg-[#eafff1] px-3 py-1 text-xs font-black text-[#087a32]">
+              {publishedRows.length} publicado(s)
+            </span>
+          </div>
+
+          {publishedRows.length === 0 ? (
+            <div className="mt-5 rounded-xl border border-dashed border-[#d9e1ee] bg-[#f8fafc] p-5 text-sm font-semibold text-[#61708a]">
+              Nenhum depoimento publicado ainda. Marque pelo menos um como
+              publicado para visualizar a prova social.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-5">
+              {publishedRows.slice(0, 3).map((row: any) => (
+                <article
+                  key={`preview-${row.id}`}
+                  className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-5"
+                >
+                  <div className="flex items-center gap-3">
+                    {row.imageUrl ? (
+                      <img
+                        src={row.imageUrl}
+                        alt=""
+                        className="w-12 h-12 rounded-full object-cover border border-[#e6ebf3]"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-[#071b44] text-white grid place-items-center text-sm font-black">
+                        {String(row.name || "?").slice(0, 1).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-sm font-black text-[#071b44] truncate">
+                        {row.name}
+                      </p>
+                      <p className="text-xs font-bold text-[#61708a] truncate">
+                        {[row.company, row.niche].filter(Boolean).join(" - ")}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-sm font-semibold text-[#22304b] leading-relaxed mt-4 line-clamp-4">
+                    "{row.quote}"
+                  </p>
+                  {row.resultLabel && (
+                    <p className="text-xs font-black text-[#ff3217] mt-3">
+                      {row.resultLabel}
+                    </p>
+                  )}
+                </article>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="bg-white rounded-xl border border-[#e6ebf3] shadow-sm overflow-hidden">
