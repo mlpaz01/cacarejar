@@ -84,6 +84,47 @@ export async function createPixPayment(params: { customerId: string; value: numb
   return { id: data.id, status: data.status, value: data.value, invoiceUrl: data.invoiceUrl };
 }
 
+export interface AsaasSubscription {
+  id: string;
+  status: string;
+  value: number;
+}
+
+/** Cria uma assinatura mensal no Asaas. Use somente com flag explicita no servidor. */
+export async function createMonthlySubscription(params: {
+  customerId: string;
+  value: number;
+  description: string;
+  externalReference: string;
+}): Promise<AsaasSubscription> {
+  const body = {
+    customer: params.customerId,
+    billingType: "PIX",
+    value: params.value,
+    nextDueDate: dueDatePlus(1),
+    cycle: "MONTHLY",
+    description: params.description,
+    externalReference: params.externalReference,
+  };
+  const res = await fetch(`${BASE}/subscriptions`, { method: "POST", headers: headers(), body: JSON.stringify(body) });
+  const data = (await res.json()) as any;
+  if (!res.ok || !data?.id) {
+    const msg = data?.errors?.[0]?.description || `Falha ao criar assinatura no Asaas (HTTP ${res.status}).`;
+    throw new Error(msg);
+  }
+  return { id: data.id, status: data.status, value: data.value };
+}
+
+/** Cancela a recorrencia no Asaas e impede novas cobranças futuras. */
+export async function removeSubscription(subscriptionId: string): Promise<void> {
+  const res = await fetch(`${BASE}/subscriptions/${subscriptionId}`, { method: "DELETE", headers: headers() });
+  if (!res.ok) {
+    const data = (await res.json().catch(() => ({}))) as any;
+    const msg = data?.errors?.[0]?.description || `Falha ao cancelar assinatura no Asaas (HTTP ${res.status}).`;
+    throw new Error(msg);
+  }
+}
+
 export interface PixQr {
   payload: string;       // copia-e-cola
   encodedImage: string;  // PNG base64 (sem prefixo data:)

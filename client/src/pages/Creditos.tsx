@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import { Loader2, Copy, CheckCircle2, ArrowLeft } from "lucide-react";
+import { Loader2, Copy, ArrowLeft, CalendarClock } from "lucide-react";
 
 const PKG_ORDER = ["boton", "ninhada", "galinheiro", "granja"] as const;
 
@@ -12,6 +12,8 @@ export default function Creditos() {
   const ledger = trpc.credits.ledger.useQuery();
   const packages = trpc.credits.packages.useQuery();
   const asaasOn = trpc.credits.asaasOn.useQuery();
+  const subscriptionPlans = trpc.credits.subscriptionPlans.useQuery();
+  const subscriptionStatus = trpc.credits.subscriptionStatus.useQuery();
 
   const [cpf, setCpf] = useState("");
   const [pix, setPix] = useState<any>(null);
@@ -37,6 +39,22 @@ export default function Creditos() {
     onError: e => toast.error(e.message || "Erro ao gerar o PIX"),
   });
 
+  const createSubscription = trpc.credits.createSubscription.useMutation({
+    onSuccess: d => {
+      toast.success(`Assinatura ${d.label} criada. Os creditos entram a cada pagamento confirmado.`);
+      utils.credits.subscriptionStatus.invalidate();
+    },
+    onError: e => toast.error(e.message || "Erro ao criar assinatura"),
+  });
+
+  const cancelSubscription = trpc.credits.cancelSubscription.useMutation({
+    onSuccess: () => {
+      toast.success("Assinatura cancelada. Nenhuma nova cobranca sera gerada.");
+      utils.credits.subscriptionStatus.invalidate();
+    },
+    onError: e => toast.error(e.message || "Erro ao cancelar assinatura"),
+  });
+
   const status = trpc.credits.paymentStatus.useQuery(
     { paymentId: pix?.paymentId ?? 0 },
     { enabled: !!pix, refetchInterval: 4000 }
@@ -54,6 +72,9 @@ export default function Creditos() {
   const w = wallet.data;
   const quotaPct = w && w.dailyQuota > 0 ? Math.min(100, Math.round((w.dailyUsed / w.dailyQuota) * 100)) : 0;
   const usePix = !!asaasOn.data;
+  const monthlyPlans = subscriptionPlans.data?.plans ?? {};
+  const subscriptionEnabled = !!subscriptionPlans.data?.enabled;
+  const currentSubscription = subscriptionStatus.data?.subscription;
 
   const fmtBRL = (cents: number) => `R$ ${(cents / 100).toFixed(0)}`;
   const fmtDate = (d: string | Date) =>
@@ -71,6 +92,10 @@ export default function Creditos() {
   function copyPayload() {
     if (!pix?.pixPayload) return;
     navigator.clipboard.writeText(pix.pixPayload).then(() => toast.success("Código PIX copiado!"));
+  }
+
+  function subscribePlan(planKey: "ninhada_mensal" | "galinheiro_mensal" | "granja_mensal") {
+    createSubscription.mutate({ planKey, cpfCnpj: cpf.trim() || undefined });
   }
 
   return (
@@ -162,6 +187,59 @@ export default function Creditos() {
                   ? "💚 Pagamento via PIX. Os créditos entram automaticamente após a confirmação."
                   : "💡 Compra simulada (gateway de pagamento ainda não configurado)."}
               </p>
+              <div className="mt-5 rounded-xl border border-[#e6ebf3] bg-[#f8fafc] p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-white border border-[#e6ebf3] flex items-center justify-center text-[#071b44]">
+                      <CalendarClock className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-black text-[#070b17]">Assinatura mensal</h3>
+                      <p className="text-[11px] text-[#61708a] font-semibold mt-1">
+                        Fundacao preparada para recorrencia via Asaas. So fica acionavel quando a flag do servidor estiver ligada.
+                      </p>
+                    </div>
+                  </div>
+                  <span className={`text-[10px] font-black px-2.5 py-1 rounded-full ${subscriptionEnabled ? "bg-[#e8fff0] text-[#087037]" : "bg-[#fff1ef] text-[#c0200d]"}`}>
+                    {subscriptionEnabled ? "ATIVA" : "EM IMPLANTACAO"}
+                  </span>
+                </div>
+                {currentSubscription && (
+                  <div className="mt-3 rounded-lg bg-white border border-[#e6ebf3] px-3 py-2 flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-black text-[#070b17]">{currentSubscription.label}</p>
+                      <p className="text-[11px] text-[#61708a]">Status: {currentSubscription.status} - {currentSubscription.cc.toLocaleString("pt-BR")} CC/mes</p>
+                    </div>
+                    {currentSubscription.status !== "cancelada" && (
+                      <button
+                        onClick={() => cancelSubscription.mutate()}
+                        disabled={cancelSubscription.isPending}
+                        className="text-[11px] font-black px-3 py-2 rounded-lg border border-[#ffd0c8] text-[#c0200d] disabled:opacity-60"
+                      >
+                        Cancelar
+                      </button>
+                    )}
+                  </div>
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3">
+                  {(["ninhada_mensal", "galinheiro_mensal", "granja_mensal"] as const).map(key => {
+                    const plan = (monthlyPlans as any)[key];
+                    if (!plan) return null;
+                    return (
+                      <button
+                        key={key}
+                        onClick={() => subscribePlan(key)}
+                        disabled={!subscriptionEnabled || createSubscription.isPending || !!currentSubscription}
+                        className="text-left rounded-lg bg-white border border-[#e6ebf3] px-3 py-3 disabled:opacity-60"
+                      >
+                        <span className="block text-xs font-black text-[#070b17]">{plan.label}</span>
+                        <span className="block text-[11px] text-[#61708a] mt-1">{plan.cc.toLocaleString("pt-BR")} CC/mes</span>
+                        <span className="block text-sm font-black text-[#ff3217] mt-2">{fmtBRL(plan.cents)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </>
           ) : (
             <>

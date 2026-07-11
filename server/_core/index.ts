@@ -173,10 +173,11 @@ async function startServer() {
       if (!asaasId) { res.json({ ok: true }); return; }
 
       const { getDb } = await import("../db");
-      const { payments } = await import("../../drizzle/schema");
+      const { payments, subscriptions } = await import("../../drizzle/schema");
       const { eq } = await import("drizzle-orm");
       const credits = await import("../services/credits");
       const asaas = await import("../services/asaas");
+      const subscriptionService = await import("../services/subscriptions");
 
       const db = await getDb();
       if (!db) { res.json({ ok: true }); return; }
@@ -185,7 +186,31 @@ async function startServer() {
       if (!paid) { res.json({ ok: true }); return; }
 
       const rows = await db.select().from(payments).where(eq(payments.externalId, asaasId)).limit(1);
-      const row: any = rows[0];
+      let row: any = rows[0];
+      if (!row && pay.subscription) {
+        const sub = await subscriptionService.getSubscriptionByExternalId(String(pay.subscription));
+        const plan = subscriptionService.getSubscriptionPlan(sub?.planKey);
+        if (sub && plan) {
+          const ins = await db.insert(payments).values({
+            organizationId: sub.organizationId,
+            kind: "assinatura",
+            provider: "asaas",
+            amountCents: plan.cents,
+            ccAmount: plan.cc,
+            status: "pendente",
+            externalId: asaasId,
+            webhookRaw: body,
+            paidAt: new Date(),
+          });
+          const paymentId = credits.insertIdOf(ins);
+          row = { id: paymentId, organizationId: sub.organizationId, ccAmount: plan.cc, externalId: asaasId, status: "pendente" };
+          const periodEnd = pay.dueDate ? new Date(pay.dueDate) : null;
+          await db
+            .update(subscriptions)
+            .set({ status: "ativa", currentPeriodEnd: periodEnd && !Number.isNaN(periodEnd.getTime()) ? periodEnd : undefined })
+            .where(eq(subscriptions.id, sub.id));
+        }
+      }
       if (!row || row.status === "pago") { res.json({ ok: true }); return; }
 
       await db.update(payments).set({ status: "pago", paidAt: new Date(), webhookRaw: body }).where(eq(payments.id, row.id));

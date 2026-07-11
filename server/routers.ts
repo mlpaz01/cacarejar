@@ -54,10 +54,12 @@ import {
   organizations,
   orgProfile,
   payments,
+  subscriptions,
   users,
 } from "../drizzle/schema";
 import * as creditsService from "./services/credits";
 import * as asaasService from "./services/asaas";
+import * as subscriptionService from "./services/subscriptions";
 import * as studioService from "./services/studio";
 import * as approvalsService from "./services/approvals";
 import * as notifService from "./services/notifications";
@@ -944,6 +946,100 @@ const creditsRouter = router({
 
   // Asaas está configurado? (UI escolhe PIX real vs compra simulada)
   asaasOn: publicProcedure.query(() => asaasService.asaasEnabled()),
+
+  subscriptionPlans: publicProcedure.query(() => ({
+    enabled: subscriptionService.subscriptionFeatureEnabled() && asaasService.asaasEnabled(),
+    plans: subscriptionService.SUBSCRIPTION_PLANS,
+  })),
+
+  subscriptionStatus: protectedProcedure.query(async ({ ctx }) => {
+    const orgId = ctx.user.organizationId;
+    if (!orgId) return { enabled: false, subscription: null };
+    const current = await subscriptionService.getCurrentSubscription(orgId);
+    const plan = subscriptionService.getSubscriptionPlan(current?.planKey);
+    return {
+      enabled: subscriptionService.subscriptionFeatureEnabled() && asaasService.asaasEnabled(),
+      subscription: current
+        ? {
+            id: current.id,
+            planKey: current.planKey,
+            label: plan?.label ?? current.planKey,
+            cc: plan?.cc ?? 0,
+            cents: plan?.cents ?? 0,
+            status: current.status,
+            currentPeriodEnd: current.currentPeriodEnd,
+          }
+        : null,
+    };
+  }),
+
+  createSubscription: protectedProcedure
+    .input(z.object({ planKey: z.enum(["ninhada_mensal", "galinheiro_mensal", "granja_mensal"]), cpfCnpj: z.string().optional() }))
+    .mutation(async ({ ctx, input }) => {
+      const orgId = ctx.user.organizationId;
+      if (!orgId) throw new Error("Organizacao nao encontrada");
+      if (!subscriptionService.subscriptionFeatureEnabled()) throw new Error("Assinatura mensal ainda esta em implantacao.");
+      if (!asaasService.asaasEnabled()) throw new Error("Pagamento ainda nao configurado. Tente novamente em instantes.");
+      const plan = subscriptionService.getSubscriptionPlan(input.planKey);
+      if (!plan) throw new Error("Plano de assinatura invalido.");
+      const db = await getDb();
+      if (!db) throw new Error("Banco indisponivel");
+      await subscriptionService.ensureSubscriptionsTable();
+
+      const current = await subscriptionService.getCurrentSubscription(orgId);
+      if (current?.status === "ativa" || current?.status === "trial") {
+        throw new Error("Esta organizacao ja tem uma assinatura ativa ou em ativacao.");
+      }
+
+      const customerId = await asaasService.ensureCustomer({
+        orgId,
+        name: ctx.user.name || ctx.user.email || `Org ${orgId}`,
+        email: ctx.user.email || undefined,
+        cpfCnpj: input.cpfCnpj,
+      });
+
+      const ins = await db.insert(subscriptions).values({
+        organizationId: orgId,
+        planKey: input.planKey,
+        status: "trial",
+        provider: "asaas",
+      });
+      const subscriptionId = creditsService.insertIdOf(ins);
+      const external = await asaasService.createMonthlySubscription({
+        customerId,
+        value: plan.cents / 100,
+        description: `Cacarejar - ${plan.label} (${plan.cc} CC por mes)`,
+        externalReference: `subscription:${subscriptionId}`,
+      });
+
+      await db
+        .update(subscriptions)
+        .set({ externalId: external.id, status: external.status === "ACTIVE" ? "ativa" : "trial" })
+        .where(eq(subscriptions.id, subscriptionId));
+
+      return {
+        id: subscriptionId,
+        asaasId: external.id,
+        status: external.status,
+        label: plan.label,
+        cc: plan.cc,
+        cents: plan.cents,
+      };
+    }),
+
+  cancelSubscription: protectedProcedure.mutation(async ({ ctx }) => {
+    const orgId = ctx.user.organizationId;
+    if (!orgId) throw new Error("Organizacao nao encontrada");
+    const db = await getDb();
+    if (!db) throw new Error("Banco indisponivel");
+    const current = await subscriptionService.getCurrentSubscription(orgId);
+    if (!current || current.status === "cancelada") return { success: true };
+    if (current.externalId && asaasService.asaasEnabled()) {
+      await asaasService.removeSubscription(current.externalId);
+    }
+    await db.update(subscriptions).set({ status: "cancelada" }).where(eq(subscriptions.id, current.id));
+    return { success: true };
+  }),
 
   // Cria cobrança PIX real (Asaas) para um pacote. Devolve QR + copia-e-cola.
   createTopupPix: protectedProcedure
