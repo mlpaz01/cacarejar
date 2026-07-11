@@ -80,6 +80,8 @@ export function serveStatic(app: Express) {
     "/":        "landing.html",
     "/precos":  "precos.html",
     "/empresa": "empresa.html",
+    "/termos": "termos.html",
+    "/privacidade": "privacidade.html",
     "/ferramentas": "ferramentas.html",
     "/ferramentas/engajamento": "ferramentas-engajamento.html",
     "/ferramentas/gerador-de-legenda": "ferramentas-legenda.html",

@@ -1,228 +1,79 @@
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BrandLogo } from "@/components/BrandLogo";
-import {
-  BarChart3,
-  Megaphone,
-  ImageIcon,
-  Zap,
-  Globe,
-  BrainCircuit,
-  Check,
-  ArrowRight,
-} from "lucide-react";
+import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { useLocation } from "wouter";
 
-const FEATURES = [
-  {
-    icon: Megaphone,
-    title: "Gestão de Campanhas",
-    desc: "Crie, agende e monitore campanhas em múltiplos canais de uma só plataforma.",
-  },
-  {
-    icon: ImageIcon,
-    title: "Biblioteca de Criativos",
-    desc: "Organize imagens, copy e assets. Vincule criativos às campanhas com um clique.",
-  },
-  {
-    icon: BarChart3,
-    title: "Métricas em Tempo Real",
-    desc: "ROI, CTR, CPC e conversões em dashboards visuais. Tome decisões com dados.",
-  },
-  {
-    icon: BrainCircuit,
-    title: "Recalibração com Agentes",
-    desc: "Análise automática de desempenho com sugestões práticas geradas pelos Agentes.",
-  },
-  {
-    icon: Globe,
-    title: "Multi-canal",
-    desc: "LinkedIn, Instagram, TikTok e Google Ads conectados em um só lugar.",
-  },
-  {
-    icon: Zap,
-    title: "Disparo Automático",
-    desc: "Programe campanhas para dispararem no melhor horário, sem intervenção manual.",
-  },
-];
-
-const PLANS = [
-  {
-    name: "Free",
-    price: "R$ 0",
-    period: "/mês",
-    highlight: false,
-    features: [
-      "1 campanha ativa",
-      "50 criativos",
-      "Métricas básicas",
-      "Suporte por e-mail",
-    ],
-    cta: "Começar grátis",
-  },
-  {
-    name: "Starter",
-    price: "R$ 97",
-    period: "/mês",
-    highlight: true,
-    features: [
-      "5 campanhas ativas",
-      "500 criativos",
-      "Métricas avançadas",
-      "Recalibração com Agentes",
-      "Suporte prioritário",
-    ],
-    cta: "Assinar Starter",
-  },
-  {
-    name: "Pro",
-    price: "R$ 297",
-    period: "/mês",
-    highlight: false,
-    features: [
-      "Campanhas ilimitadas",
-      "Criativos ilimitados",
-      "Todos os módulos",
-      "API de integração",
-      "Suporte dedicado",
-    ],
-    cta: "Assinar Pro",
-  },
+const benefits = [
+  "Diagnostico gratuito do perfil ativo",
+  "Radar de mercado antes da criacao",
+  "Estudio para editar posts, imagens e videos",
+  "Publicacao assistida com registro de resultado",
+  "Creditos avulsos via PIX, sem assinatura obrigatoria",
 ];
 
 export default function Landing() {
   const [, setLocation] = useLocation();
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      {/* Nav */}
-      <nav className="border-b border-border/40 sticky top-0 z-50 bg-background/80 backdrop-blur">
-        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <BrandLogo size="sm" theme="light" />
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setLocation("/login")}
-            >
-              Entrar
-            </Button>
-            <Button size="sm" onClick={() => setLocation("/register")}>
-              Começar grátis
-            </Button>
-          </div>
-        </div>
-      </nav>
-
-      {/* Hero */}
-      <section className="max-w-6xl mx-auto px-4 pt-24 pb-20 text-center">
-        <Badge variant="secondary" className="mb-6">
-          Motor de marketing para pequenas e médias empresas
-        </Badge>
-        <h1 className="text-4xl sm:text-6xl font-extrabold leading-tight mb-6">
-          Marketing digital que{" "}
-          <span className="text-primary">realmente funciona</span>
-        </h1>
-        <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-10">
-          Gerencie campanhas, criativos e métricas em múltiplos canais. Com
-          Agentes autônomos para otimizar seu ROI automaticamente.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Button size="lg" onClick={() => setLocation("/register")}>
-            Criar conta grátis <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-          <Button
-            size="lg"
-            variant="outline"
+    <div
+      className="min-h-screen bg-[#f7f9fc] text-[#071b44]"
+      style={{ fontFamily: "Inter, Arial, sans-serif" }}
+    >
+      <header className="max-w-6xl mx-auto px-6 h-20 flex items-center justify-between">
+        <BrandLogo size="md" theme="light" />
+        <div className="flex items-center gap-3">
+          <button
             onClick={() => setLocation("/login")}
+            className="text-sm font-black text-[#071b44]"
           >
-            Já tenho conta
-          </Button>
+            Entrar
+          </button>
+          <button
+            onClick={() => setLocation("/register")}
+            className="rounded-xl bg-[#ff3217] px-4 py-2.5 text-sm font-black text-white"
+          >
+            Ver diagnostico gratis
+          </button>
         </div>
-      </section>
+      </header>
 
-      {/* Features */}
-      <section className="max-w-6xl mx-auto px-4 py-20">
-        <h2 className="text-3xl font-bold text-center mb-12">
-          Tudo que você precisa
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {FEATURES.map(f => (
-            <Card
-              key={f.title}
-              className="border-border/50 hover:border-primary/40 transition-colors"
-            >
-              <CardHeader>
-                <f.icon className="h-8 w-8 text-primary mb-2" />
-                <CardTitle className="text-lg">{f.title}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground text-sm">{f.desc}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
-
-      {/* Pricing */}
-      <section className="max-w-6xl mx-auto px-4 py-20">
-        <h2 className="text-3xl font-bold text-center mb-4">
-          Planos simples e transparentes
-        </h2>
-        <p className="text-center text-muted-foreground mb-12">
-          Comece grátis. Faça upgrade quando precisar de mais.
+      <main className="max-w-5xl mx-auto px-6 py-16 text-center">
+        <p className="text-xs font-black uppercase tracking-widest text-[#ff3217]">
+          Agentes autonomos de marketing
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
-          {PLANS.map(plan => (
-            <Card
-              key={plan.name}
-              className={`relative flex flex-col ${
-                plan.highlight
-                  ? "border-primary shadow-lg shadow-primary/10"
-                  : "border-border/50"
-              }`}
-            >
-              {plan.highlight && (
-                <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 px-4">
-                  Mais popular
-                </Badge>
-              )}
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg">{plan.name}</CardTitle>
-                <div className="mt-2">
-                  <span className="text-3xl font-bold">{plan.price}</span>
-                  <span className="text-muted-foreground text-sm">
-                    {plan.period}
-                  </span>
-                </div>
-              </CardHeader>
-              <CardContent className="flex flex-col flex-1">
-                <ul className="space-y-2 mb-6 flex-1">
-                  {plan.features.map(f => (
-                    <li key={f} className="flex items-center gap-2 text-sm">
-                      <Check className="h-4 w-4 text-primary shrink-0" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <Button
-                  className="w-full"
-                  variant={plan.highlight ? "default" : "outline"}
-                  onClick={() => setLocation("/register")}
-                >
-                  {plan.cta}
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
+        <h1 className="mt-4 text-5xl font-black leading-tight">
+          Diagnostico, Radar e Estudio para publicar com mais clareza.
+        </h1>
+        <p className="mx-auto mt-5 max-w-2xl text-base font-semibold text-[#61708a] leading-relaxed">
+          O Cacarejar le seu perfil, organiza referencias reais e ajuda voce a
+          criar conteudo editavel com toque humano antes de publicar.
+        </p>
+        <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
+          <button
+            onClick={() => setLocation("/register")}
+            className="rounded-xl bg-[#ff3217] px-6 py-3 text-sm font-black text-white inline-flex items-center justify-center gap-2"
+          >
+            Ver raio-X do meu perfil <ArrowRight className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => { window.location.href = "/precos"; }}
+            className="rounded-xl border border-[#dbe3f0] bg-white px-6 py-3 text-sm font-black text-[#071b44]"
+          >
+            Ver creditos
+          </button>
         </div>
-      </section>
 
-      {/* Footer */}
-      <footer className="border-t border-border/40 py-8 text-center text-sm text-muted-foreground">
-        <p>© 2024 cacarejar.com.br — Motor de Marketing Digital</p>
-      </footer>
+        <section className="mt-12 grid grid-cols-1 md:grid-cols-5 gap-3 text-left">
+          {benefits.map(item => (
+            <div
+              key={item}
+              className="rounded-2xl border border-[#e6ebf3] bg-white p-4 shadow-sm"
+            >
+              <CheckCircle2 className="w-5 h-5 text-[#18b85c]" />
+              <p className="mt-3 text-sm font-black text-[#071b44]">{item}</p>
+            </div>
+          ))}
+        </section>
+      </main>
     </div>
   );
 }

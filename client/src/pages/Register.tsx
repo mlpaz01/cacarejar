@@ -7,7 +7,7 @@ import { Loader2, Check } from "lucide-react";
 import { BrandLogo } from "@/components/BrandLogo";
 
 const BENEFITS = [
-  "Diagnóstico gratuito na criação da conta",
+  "Raio-X gratuito do perfil na criação da conta",
   "Créditos avulsos via PIX — sem assinatura",
   "Agentes autônomos para criar, analisar e otimizar",
   "Suporte humano disponível",
@@ -101,10 +101,10 @@ export default function Register() {
 
           <div className="bg-white rounded-xl border border-[#e6ebf3] p-8 shadow-sm">
             <h1 className="text-2xl font-black mb-1" style={{ color: "#070b17" }}>
-              Criar conta grátis
+              Ver diagnóstico grátis
             </h1>
             <p className="text-sm mb-6" style={{ color: "#61708a" }}>
-              Crie sua conta e comece seu diagnóstico agora
+              Crie sua conta e comece pelo raio-X do seu perfil
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -181,7 +181,7 @@ export default function Register() {
                     Criando conta...
                   </>
                 ) : (
-                  "Criar conta grátis"
+                  "Ver meu diagnóstico grátis"
                 )}
               </button>
             </form>
