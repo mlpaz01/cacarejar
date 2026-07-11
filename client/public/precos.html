@@ -354,6 +354,17 @@
 
   </div>
 
+  <section class="testimonials" id="depoimentos-precos" aria-live="polite">
+    <div class="testimonials-head">
+      <div>
+        <p class="testimonials-eyebrow">Prova social</p>
+        <h2>Quem usa o Cacarejar para sair da ideia e executar.</h2>
+      </div>
+      <p class="testimonials-note">Depoimentos publicados no admin aparecem aqui com nome, nicho e evidência quando existir.</p>
+    </div>
+    <div class="testimonial-grid" data-testimonials-grid></div>
+  </section>
+
   <!-- ── COMPARE TABLE ── -->
   <section class="compare-section">
     <h2>Compare os pacotes de créditos</h2>
@@ -551,6 +562,39 @@
     var onScroll = function () { tb.classList.toggle('scrolled', window.scrollY > 8); };
     window.addEventListener('scroll', onScroll, { passive: true });
     onScroll();
+  })();
+
+  (function () {
+    var root = document.getElementById('depoimentos-precos');
+    if (!root) return;
+    var grid = root.querySelector('[data-testimonials-grid]');
+    var escapeHtml = function (value) {
+      return String(value || '').replace(/[&<>"']/g, function (ch) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+      });
+    };
+    var initials = function (name) {
+      return String(name || 'Cacarejar').trim().split(/\s+/).slice(0, 2).map(function (p) { return p[0] || ''; }).join('').toUpperCase();
+    };
+    fetch('/api/depoimentos', { credentials: 'same-origin' })
+      .then(function (res) { return res.ok ? res.json() : { items: [] }; })
+      .then(function (data) {
+        var items = (data.items || []).slice(0, 3);
+        if (!items.length || !grid) return;
+        grid.innerHTML = items.map(function (item) {
+          var img = item.imageUrl ? '<img src="' + escapeHtml(item.imageUrl) + '" alt="">' : escapeHtml(initials(item.name));
+          var meta = [item.company, item.niche].filter(Boolean).map(escapeHtml).join(' · ');
+          return '<article class="testimonial-card">' +
+            (item.resultLabel ? '<span class="testimonial-result">' + escapeHtml(item.resultLabel) + '</span>' : '') +
+            '<p class="testimonial-quote">“' + escapeHtml(item.quote) + '”</p>' +
+            '<div class="testimonial-person"><div class="testimonial-avatar">' + img + '</div><div>' +
+            '<p class="testimonial-name">' + escapeHtml(item.name) + '</p>' +
+            '<p class="testimonial-meta">' + meta + '</p>' +
+            '</div></div></article>';
+        }).join('');
+        root.classList.add('is-visible');
+      })
+      .catch(function () {});
   })();
 </script>
 
