@@ -12,7 +12,6 @@ import AdminSaude from "@/pages/admin/AdminSaude";
 import { Router, Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
-import Dashboard from "./pages/Dashboard";
 import Campanhas from "./pages/Campanhas";
 import CampanhaDetalhe from "./pages/CampanhaDetalhe";
 import Calendario from "./pages/Calendario";
@@ -63,7 +62,12 @@ function AppRouter() {
         }}
       </Route>
       <Route path="/" component={Guia} />
-      <Route path="/dashboard" component={Dashboard} />
+      <Route path="/dashboard">
+        {() => {
+          window.location.href = "/app/guia";
+          return null;
+        }}
+      </Route>
       <Route path="/campanhas" component={Campanhas} />
       <Route path="/campanhas/:id" component={CampanhaDetalhe} />
       <Route path="/calendario" component={Calendario} />

@@ -10,7 +10,6 @@ import {
   BarChart3,
   Zap,
   Library,
-  Settings2,
   LogOut,
   Loader2,
   ChevronRight,
@@ -21,6 +20,8 @@ import {
   Telescope,
   UserCog,
   BookOpen,
+  Send,
+  Bell,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -35,40 +36,31 @@ import { trpc } from "@/lib/trpc";
 
 const navGroups = [
   {
-    title: "Estrategia",
+    title: "Jornada",
     items: [
       { href: "/", icon: BookOpen, label: "Guia" },
       { href: "/diagnostico", icon: MessageSquareHeart, label: "Diagnostico" },
-      { href: "/radar", icon: Telescope, label: "Radar de Mercado" },
-    ],
-  },
-  {
-    title: "Criacao",
-    items: [
+      { href: "/radar", icon: Telescope, label: "Radar" },
       { href: "/criativos", icon: ImageIcon, label: "Estudio" },
-      { href: "/videos", icon: Clapperboard, label: "Videos TikTok" },
-    ],
-  },
-  {
-    title: "Execucao",
-    items: [
       { href: "/aprovacao", icon: CheckSquare, label: "Aprovacao" },
-      { href: "/integracoes", icon: Settings2, label: "Publicacao" },
-      { href: "/campanhas", icon: Megaphone, label: "Campanhas" },
+      { href: "/integracoes", icon: Send, label: "Publicacao" },
+      { href: "/metricas", icon: BarChart3, label: "Metricas" },
+      { href: "/recalibracao", icon: Zap, label: "Aprendizado" },
     ],
   },
   {
-    title: "Resultados",
+    title: "Extras",
     items: [
-      { href: "/metricas", icon: BarChart3, label: "Metricas" },
-      { href: "/recalibracao", icon: Zap, label: "Acompanhamento" },
+      { href: "/videos", icon: Clapperboard, label: "Videos TikTok" },
+      { href: "/campanhas", icon: Megaphone, label: "Campanhas" },
+      { href: "/biblioteca", icon: Library, label: "Biblioteca" },
     ],
   },
   {
     title: "Conta",
     items: [
-      { href: "/biblioteca", icon: Library, label: "Biblioteca" },
       { href: "/creditos", icon: Coins, label: "Creditos" },
+      { href: "/notificacoes", icon: Bell, label: "Avisos" },
       { href: "/configuracoes", icon: UserCog, label: "Configuracoes" },
     ],
   },

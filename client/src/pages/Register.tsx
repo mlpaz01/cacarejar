@@ -45,7 +45,7 @@ export default function Register() {
       }
       toast.success("Conta criada! Vamos montar seu plano 🐓");
       const plano = new URLSearchParams(window.location.search).get("plano");
-      window.location.href = plano ? `/app/creditos?plano=${plano}` : "/app/diagnostico";
+      window.location.href = plano ? `/app/creditos?plano=${plano}` : "/app/guia";
     } catch {
       toast.error("Erro de conexão. Tente novamente.");
     } finally {
