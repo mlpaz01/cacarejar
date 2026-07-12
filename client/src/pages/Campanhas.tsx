@@ -1,4 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
+import { JourneyNextAction } from "@/components/JourneyNextAction";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ChannelBadge } from "@/components/ui/ChannelBadge";
 import { trpc } from "@/lib/trpc";
@@ -41,7 +42,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 
 const CHANNELS = [
   { id: "tiktok", label: "TikTok" },
@@ -78,6 +79,7 @@ function organicScore(item: any) {
 }
 
 export default function Campanhas() {
+  const [, navigate] = useLocation();
   const utils = trpc.useUtils();
   const { data: campaigns, isLoading } = trpc.campaigns.list.useQuery();
   const { data: diagnosis } = trpc.diagnosis.get.useQuery();
@@ -280,6 +282,40 @@ export default function Campanhas() {
     { active: 0, totalBudget: 0, spent: 0 }
   );
   const remaining = Math.max(0, totals.totalBudget - totals.spent);
+  const activeOrDraftCampaigns = (campaigns ?? []).filter(
+    campaign => !["arquivada", "concluida"].includes(campaign.status)
+  );
+  const campaignNextAction = !diagnosis
+    ? {
+        title: "Proxima acao: criar o diagnostico antes da campanha",
+        text: "Campanha assistida precisa de perfil, contexto e plano. Sem isso, a verba fica sem direcao.",
+        label: "Abrir Diagnostico",
+        onClick: () => navigate("/diagnostico"),
+        disabled: false,
+      }
+    : activeOrDraftCampaigns.length > 0
+      ? {
+          title: "Proxima acao: medir campanhas em andamento",
+          text: "A campanha ja existe. Agora acompanhe sinais, registre metricas e evite escalar antes de aprender.",
+          label: "Abrir Metricas",
+          onClick: () => navigate("/metricas"),
+          disabled: false,
+        }
+      : bestOrganic
+        ? {
+            title: "Proxima acao: criar campanha do vencedor organico",
+            text: "Use o post que ja mostrou sinal real como base para uma campanha pequena, com verba controlada e hipotese clara.",
+            label: "Criar campanha",
+            onClick: useWinnerCampaign,
+            disabled: false,
+          }
+        : {
+            title: "Proxima acao: publicar e medir primeiro",
+            text: "Ainda nao ha vencedor organico registrado. Publique pelo menos um conteudo, registre resultado e volte para transformar sinal em campanha.",
+            label: "Abrir Publicacao",
+            onClick: () => navigate("/integracoes"),
+            disabled: false,
+          };
 
   return (
     <AppLayout
@@ -293,6 +329,14 @@ export default function Campanhas() {
         </Button>
       }
     >
+      <JourneyNextAction
+        title={campaignNextAction.title}
+        text={campaignNextAction.text}
+        label={campaignNextAction.label}
+        onClick={campaignNextAction.onClick}
+        disabled={campaignNextAction.disabled}
+      />
+
       {assistedCampaign && (
         <section className="bg-white rounded-3xl border border-[#e6ebf3] p-6 shadow-sm mb-6">
           <div className="flex items-start justify-between gap-4 flex-wrap">

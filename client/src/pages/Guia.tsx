@@ -30,7 +30,7 @@ export default function Guia() {
   ).length;
   const measured = planItems.filter((item: any) => item.resultado).length;
   const activeCampaigns = (campaigns ?? []).filter(
-    (campaign: any) => campaign.status === "ativa"
+    (campaign: any) => !["arquivada", "concluida"].includes(campaign.status)
   ).length;
   const radarFeedbackCount =
     ((radar as any)?.feedback?.likedPostKeys?.length ?? 0) +

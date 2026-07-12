@@ -357,6 +357,15 @@ function numberOrUndefined(value: any) {
   return Number.isFinite(n) && n >= 0 ? n : undefined;
 }
 
+function hasRecordedResult(item: any) {
+  const result = item?.resultado ?? {};
+  return (
+    ["alcance", "visualizacoes", "salvamentos", "cliques", "leads", "vendas", "receita"].some(
+      key => Number(result[key] ?? 0) > 0
+    ) || Boolean(result.observacoes)
+  );
+}
+
 export default function Integracoes() {
   const [, navigate] = useLocation();
   const utils = trpc.useUtils();
@@ -405,6 +414,11 @@ export default function Integracoes() {
         item.resultado
     )
     .slice(0, 8);
+  const measuredQueue = publishQueue.filter(hasRecordedResult);
+  const publishedQueue = publishQueue.filter(
+    (item: any) =>
+      item.publicadoUrl || ["publicado", "medir"].includes(item.status)
+  );
   const manualPackage = [
     "Rotina de publicacao assistida - Cacarejar",
     "",
@@ -479,21 +493,38 @@ export default function Integracoes() {
       },
     });
   }
-  const publicationNextAction = publishQueue.length
+  const publicationNextAction = !publishQueue.length
     ? {
-        title: "Proxima acao: publicar e registrar resultado",
-        text: "Copie o post aprovado, publique no canal certo e registre link/numeros. Isso alimenta Metricas e Aprendizado.",
-        label: "Ir para registro",
-        onClick: () =>
-          document
-            .getElementById("registro")
-            ?.scrollIntoView({ behavior: "smooth", block: "start" }),
-      }
-    : {
         title: "Proxima acao: aprovar os posts finais",
         text: "Publicacao so fica simples quando a fila ja tem conteudos aprovados. Volte para Aprovação e escolha o que realmente pode sair.",
         label: "Abrir Aprovacao",
         onClick: () => navigate("/aprovacao"),
+      }
+    : measuredQueue.length
+      ? {
+          title: "Proxima acao: transformar sinal em campanha",
+          text: "Ja existe resultado registrado. Agora escolha o melhor sinal e monte uma campanha pequena, manual e segura.",
+          label: "Abrir Campanhas",
+          onClick: () => navigate("/campanhas"),
+        }
+      : publishedQueue.length
+        ? {
+            title: "Proxima acao: preencher os primeiros numeros",
+            text: "O conteudo ja saiu. Agora registre alcance, cliques, leads ou vendas para o Cacarejar aprender com resultado real.",
+            label: "Registrar numeros",
+            onClick: () =>
+              document
+                .getElementById("registro")
+                ?.scrollIntoView({ behavior: "smooth", block: "start" }),
+          }
+        : {
+            title: "Proxima acao: publicar e registrar o link",
+            text: "Copie legenda, baixe imagem, publique no canal certo e cole o link. Depois volte para registrar os numeros.",
+            label: "Ir para registro",
+            onClick: () =>
+              document
+                .getElementById("registro")
+                ?.scrollIntoView({ behavior: "smooth", block: "start" }),
       };
 
   return (
