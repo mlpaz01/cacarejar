@@ -1,4 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
+import { JourneyNextAction } from "@/components/JourneyNextAction";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
@@ -30,7 +31,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 
 type Channel = "tiktok" | "instagram" | "google";
 
@@ -357,6 +358,7 @@ function numberOrUndefined(value: any) {
 }
 
 export default function Integracoes() {
+  const [, navigate] = useLocation();
   const utils = trpc.useUtils();
   const { data: integrations, isLoading } = trpc.integrations.list.useQuery();
   const { data: dispatchLogs, isLoading: loadingLogs } =
@@ -477,6 +479,22 @@ export default function Integracoes() {
       },
     });
   }
+  const publicationNextAction = publishQueue.length
+    ? {
+        title: "Proxima acao: publicar e registrar resultado",
+        text: "Copie o post aprovado, publique no canal certo e registre link/numeros. Isso alimenta Metricas e Aprendizado.",
+        label: "Ir para registro",
+        onClick: () =>
+          document
+            .getElementById("registro")
+            ?.scrollIntoView({ behavior: "smooth", block: "start" }),
+      }
+    : {
+        title: "Proxima acao: aprovar os posts finais",
+        text: "Publicacao so fica simples quando a fila ja tem conteudos aprovados. Volte para Aprovação e escolha o que realmente pode sair.",
+        label: "Abrir Aprovacao",
+        onClick: () => navigate("/aprovacao"),
+      };
 
   return (
     <AppLayout
@@ -485,6 +503,12 @@ export default function Integracoes() {
       subtitle="Checklist, calendario, canais e registro de resultado em uma unica etapa."
     >
       <PublicationSubnav />
+      <JourneyNextAction
+        title={publicationNextAction.title}
+        text={publicationNextAction.text}
+        label={publicationNextAction.label}
+        onClick={publicationNextAction.onClick}
+      />
 
       <section
         id="checklist"

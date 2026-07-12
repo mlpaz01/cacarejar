@@ -1,4 +1,5 @@
 import { AppLayout } from "@/components/AppLayout";
+import { JourneyNextAction } from "@/components/JourneyNextAction";
 import { ChannelBadge } from "@/components/ui/ChannelBadge";
 import { trpc } from "@/lib/trpc";
 import { useState, useMemo } from "react";
@@ -254,12 +255,35 @@ export default function Metricas() {
           ? "Os criativos chamam atenção, mas a conversão ainda não apareceu. Revise oferta, página e CTA."
           : "Já existe sinal de conversão. A próxima decisão é proteger o vencedor e reduzir verba dos criativos fracos.";
 
+  const hasAnyResult = totals.impressions > 0 || organicItems.length > 0;
+  const metricsNextAction = hasAnyResult
+    ? {
+        title: "Proxima acao: transformar numero em aprendizado",
+        text: "Use a leitura de performance para decidir o que repetir, ajustar ou abandonar no proximo ciclo.",
+        label: "Abrir Aprendizado",
+        onClick: () => navigate("/recalibracao"),
+      }
+    : {
+        title: "Proxima acao: publicar e registrar os primeiros dados",
+        text: "Ainda falta resultado real. Publique pela etapa Publicacao, registre os numeros e volte para medir.",
+        label: "Abrir Publicacao",
+        onClick: () => navigate("/integracoes"),
+      };
+
   return (
     <AppLayout
       title="Métricas & Resultados"
       journeyActive="metricas"
       subtitle="Análise de performance por canal, campanha e período"
     >
+      <JourneyNextAction
+        title={metricsNextAction.title}
+        text={metricsNextAction.text}
+        label={metricsNextAction.label}
+        onClick={metricsNextAction.onClick}
+        disabled={isLoading}
+      />
+
       {/* Period selector */}
       <div className="flex items-center gap-3 mb-6">
         <div className="flex items-center gap-1.5">

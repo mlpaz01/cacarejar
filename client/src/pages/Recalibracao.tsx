@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { AppLayout } from "@/components/AppLayout";
+import { JourneyNextAction } from "@/components/JourneyNextAction";
 import { trpc } from "@/lib/trpc";
 
 type PlannerItem = { texto: string; status: "done" | "todo" | "late" };
@@ -183,6 +184,31 @@ export default function Recalibracao() {
         "Recalcular o parecer usando o acompanhamento, os itens executados e os resultados de campanha.",
     });
   };
+  const hasLearningSignals =
+    measuredItems.length > 0 || totals.impressions > 0 || totals.conversions > 0;
+  const learningNextAction = !hasLearningSignals
+    ? {
+        title: "Proxima acao: medir antes de aprender",
+        text: "Ainda falta resultado real para fechar o ciclo. Registre os numeros da publicacao e volte para recalibrar com dados.",
+        label: "Abrir Publicacao",
+        onClick: () => navigate("/integracoes"),
+        disabled: false,
+      }
+    : feedback.trim().length === 0
+      ? {
+          title: "Proxima acao: preencher o check-in",
+          text: "Use o resumo dos resultados como base. Depois salve ou recalcule a rota da proxima semana.",
+          label: "Usar resumo",
+          onClick: fillCheckin,
+          disabled: false,
+        }
+      : {
+          title: "Proxima acao: recalcular a proxima rota",
+          text: "Com resultado e contexto humano registrados, os Agentes podem atualizar o diagnostico para o proximo ciclo.",
+          label: recalibrate.isPending ? "Recalculando..." : "Recalcular rota",
+          onClick: recalibrateWithProgress,
+          disabled: !planner || updatePlanner.isPending || recalibrate.isPending,
+        };
 
   if (diagnosis.isLoading) {
     return (
@@ -265,6 +291,14 @@ export default function Recalibracao() {
         </div>
       }
     >
+      <JourneyNextAction
+        title={learningNextAction.title}
+        text={learningNextAction.text}
+        label={learningNextAction.label}
+        onClick={learningNextAction.onClick}
+        disabled={learningNextAction.disabled}
+      />
+
       <section className="bg-white rounded-3xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>

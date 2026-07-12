@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { AppLayout } from "@/components/AppLayout";
+import { JourneyNextAction } from "@/components/JourneyNextAction";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
@@ -100,6 +101,20 @@ export default function Aprovacao() {
     },
     onError: e => toast.error(e.message || "Erro ao aprovar"),
   });
+  const hasApprovalQueue = !!pending.data?.length;
+  const approvalNextAction = hasApprovalQueue
+    ? {
+        title: "Proxima acao: escolher os posts finais",
+        text: "Revise cada criativo, mantenha marcado somente o que realmente pode sair e aprove o pacote. Depois a jornada segue para Publicacao.",
+        label: "Revisar fila",
+        onClick: () => window.scrollTo({ top: 320, behavior: "smooth" }),
+      }
+    : {
+        title: "Proxima acao: criar conteudos no Estudio",
+        text: "Ainda nao existe nada para aprovar neste perfil. Gere ou edite conteudos no Estudio antes de montar a fila final.",
+        label: "Abrir Estudio",
+        onClick: () => navigate("/estudio"),
+      };
 
   return (
     <AppLayout
@@ -109,6 +124,14 @@ export default function Aprovacao() {
         activeLabel ? `Selecione somente os conteudos finais do perfil ativo: ${activeLabel}` : "Crie ou restaure um diagnostico antes de aprovar conteudos."
       }
     >
+      <JourneyNextAction
+        title={approvalNextAction.title}
+        text={approvalNextAction.text}
+        label={approvalNextAction.label}
+        onClick={approvalNextAction.onClick}
+        disabled={pending.isLoading}
+      />
+
       {pending.isLoading ? (
         <p className="text-sm text-[#61708a]">Carregando...</p>
       ) : !pending.data || pending.data.length === 0 ? (

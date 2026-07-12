@@ -202,8 +202,8 @@ export default function Criativos() {
 
   return (
     <AppLayout
-      title="Estudio"
-      subtitle="Biblioteca de criacao: gere, edite e envie somente o que ficou pronto para aprovacao."
+      title="Biblioteca do Estudio"
+      subtitle="Conteudos criados, edicao visual e envio somente do que ficou pronto para aprovacao."
       journeyActive="estudio"
       actions={
         <div className="flex gap-2">

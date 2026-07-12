@@ -41,7 +41,7 @@ const navGroups = [
       { href: "/", icon: BookOpen, label: "Guia" },
       { href: "/diagnostico", icon: MessageSquareHeart, label: "Diagnostico" },
       { href: "/radar", icon: Telescope, label: "Radar" },
-      { href: "/criativos", icon: ImageIcon, label: "Estudio" },
+      { href: "/estudio", icon: ImageIcon, label: "Estudio" },
       { href: "/aprovacao", icon: CheckSquare, label: "Aprovacao" },
       { href: "/integracoes", icon: Send, label: "Publicacao" },
       { href: "/metricas", icon: BarChart3, label: "Metricas" },
@@ -192,7 +192,8 @@ export function AppLayout({
               {group.items.map(({ href, icon: Icon, label }) => {
                 const isActive =
                   location === href ||
-                  (href !== "/" && location.startsWith(href));
+                  (href !== "/" && location.startsWith(href)) ||
+                  (href === "/estudio" && location.startsWith("/criativos"));
                 const hasBadge =
                   href === "/notificacoes" && (unread.data ?? 0) > 0;
                 const item = (

@@ -149,7 +149,7 @@ export default function VideosTikTok() {
           >
             <Copy className="w-4 h-4" /> Copiar pacote
           </button>
-          <Link href="/criativos">
+          <Link href="/estudio">
             <a className="rounded-xl border border-[#e6ebf3] bg-white px-4 py-2.5 text-sm font-black text-[#071b44] hover:bg-[#f8fafc] inline-flex items-center gap-2">
               <Pencil className="w-4 h-4" /> Estudio
             </a>

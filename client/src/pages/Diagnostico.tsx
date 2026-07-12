@@ -595,13 +595,13 @@ export default function Diagnostico() {
           label: "Abrir Estudio",
           title: "Proxima acao: criar e humanizar no Estudio",
           text: "Agora que o perfil e o Radar estao alinhados, use o Estudio como unico lugar para transformar estrategia em conteudo editavel.",
-          run: () => navigate("/criativos"),
+          run: () => navigate("/estudio"),
         }
       : {
           label: "Abrir Estudio",
           title: "Proxima acao: criar os primeiros conteudos",
           text: "O diagnostico ja definiu a direcao. Agora a criacao acontece no Estudio, antes de qualquer aprovacao.",
-          run: () => navigate("/criativos"),
+          run: () => navigate("/estudio"),
         };
 
   return (
@@ -974,7 +974,7 @@ export default function Diagnostico() {
             />
             <button
               type="button"
-              onClick={() => navigate("/criativos")}
+              onClick={() => navigate("/estudio")}
               className="rounded-xl bg-[#071b44] text-white px-5 py-3 text-sm font-black inline-flex items-center justify-center gap-2 hover:bg-[#0b255c]"
             >
               Abrir Estudio <ArrowRight className="w-4 h-4" />

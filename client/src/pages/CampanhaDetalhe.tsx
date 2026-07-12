@@ -262,7 +262,7 @@ export default function CampanhaDetalhe() {
                 Tudo que esta alimentando esta campanha.
               </p>
             </div>
-            <Link href="/criativos">
+            <Link href="/estudio">
               <a className="rounded-xl border border-[#e6ebf3] px-4 py-2 text-xs font-black text-[#071b44] hover:bg-[#f8fafc]">
                 Abrir Estudio
               </a>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { AppLayout } from "@/components/AppLayout";
+import { JourneyNextAction } from "@/components/JourneyNextAction";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import {
@@ -141,6 +142,39 @@ export default function Estudio() {
     setSel(s => ({ ...s, [fk]: s[fk] === vk ? "" : vk }));
 
   const estimate = (az ? 6 : 1) * 15;
+  const recentItems = recent.data ?? [];
+  const studioNextAction = !plan.data
+    ? {
+        title: "Proxima acao: criar o diagnostico do perfil",
+        text: "O Estudio funciona melhor quando ja existe um perfil ativo, um diagnostico e o contexto do Radar. Comece pela base estrategica.",
+        label: "Abrir Diagnostico",
+        onClick: () => navigate("/diagnostico"),
+        disabled: false,
+      }
+    : results.length > 0
+      ? {
+          title: "Proxima acao: revisar e mandar para aprovacao",
+          text: "Abra os conteudos que quiser ajustar, aplique o toque humano e envie somente os melhores para a aprovacao final.",
+          label: sendApproval.isPending ? "Enviando..." : "Enviar para Aprovacao",
+          onClick: () =>
+            sendApproval.mutate({ creativeIds: results.map(r => r.id) }),
+          disabled: sendApproval.isPending,
+        }
+      : recentItems.length > 0
+        ? {
+            title: "Proxima acao: editar antes de aprovar",
+            text: "A biblioteca guarda o que ja foi criado. Abra um conteudo, refine copy/imagem e depois envie para aprovacao.",
+            label: "Abrir Biblioteca",
+            onClick: () => navigate("/criativos"),
+            disabled: false,
+          }
+        : {
+            title: "Proxima acao: gerar a primeira base editavel",
+            text: "Use o diagnostico e os sinais do Radar para os Agentes montarem opcoes. Depois voce edita visualmente antes de aprovar.",
+            label: gen.isPending ? "Gerando..." : "Decida por mim",
+            onClick: decideForMe,
+            disabled: gen.isPending,
+          };
 
   return (
     <AppLayout
@@ -153,7 +187,7 @@ export default function Estudio() {
             onClick={() => navigate("/criativos")}
             className="text-xs font-bold text-[#61708a] hover:text-[#070b17] flex items-center gap-1.5 px-3 py-2"
           >
-            Voltar para Estudio
+            Biblioteca do Estudio
           </button>
           <span className="text-xs font-bold text-[#071b44] bg-[#f6f8fc] border border-[#e6ebf3] rounded-full px-3 py-1.5 flex items-center gap-1.5">
             <Coins className="w-3.5 h-3.5 text-[#ff3217]" />{" "}
@@ -162,6 +196,14 @@ export default function Estudio() {
         </>
       }
     >
+      <JourneyNextAction
+        title={studioNextAction.title}
+        text={studioNextAction.text}
+        label={studioNextAction.label}
+        onClick={studioNextAction.onClick}
+        disabled={studioNextAction.disabled}
+      />
+
       {/* Decida por mim / Diagnóstico */}
       {plan.data ? (
         <div
@@ -388,17 +430,23 @@ export default function Estudio() {
               Enviar para aprovação
             </button>
           </div>
-          <Grid items={results} />
+          <Grid
+            items={results}
+            onEdit={id => navigate(`/criativos/${id}`)}
+          />
         </>
       )}
 
       {/* Recentes */}
-      {results.length === 0 && recent.data && recent.data.length > 0 && (
+      {results.length === 0 && recentItems.length > 0 && (
         <>
           <h3 className="text-sm font-black text-[#070b17] mb-3">
             Criados recentemente
           </h3>
-          <Grid items={recent.data} />
+          <Grid
+            items={recentItems}
+            onEdit={id => navigate(`/criativos/${id}`)}
+          />
         </>
       )}
     </AppLayout>
@@ -429,7 +477,13 @@ function Chip({ children, on, onClick, small }: any) {
   );
 }
 
-function Grid({ items }: { items: any[] }) {
+function Grid({
+  items,
+  onEdit,
+}: {
+  items: any[];
+  onEdit: (id: number) => void;
+}) {
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
       {items.map(c => (
@@ -453,6 +507,13 @@ function Grid({ items }: { items: any[] }) {
                 <Tag>{c.factorValues.img_cor_predominante}</Tag>
               )}
             </div>
+            <button
+              type="button"
+              onClick={() => onEdit(Number(c.id))}
+              className="mt-3 w-full rounded-lg border border-[#e6ebf3] bg-white px-3 py-2 text-[11px] font-black text-[#071b44] hover:bg-[#f8fafc] flex items-center justify-center gap-1.5"
+            >
+              Editar no Estudio <ArrowRight className="w-3 h-3" />
+            </button>
           </div>
         </div>
       ))}

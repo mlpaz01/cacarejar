@@ -159,7 +159,7 @@ export default function Radar() {
       utils.diagnosis.get.invalidate();
       utils.radar.get.invalidate();
       toast.success("Diagnostico atualizado. Abrindo o Estudio.");
-      navigate("/criativos");
+      navigate("/estudio");
     },
     onError: e =>
       toast.error(e.message || "Erro ao usar as ideias no diagnostico"),
@@ -1038,7 +1038,7 @@ export default function Radar() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => navigate("/criativos")}
+                  onClick={() => navigate("/estudio")}
                   className="btn-action-primary text-xs px-4 py-2 flex items-center gap-2"
                 >
                   Abrir Estudio
