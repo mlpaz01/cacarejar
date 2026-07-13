@@ -210,7 +210,13 @@ export default function Metricas() {
   const ctr =
     totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : 0;
   const cpl = totals.conversions > 0 ? totals.spend / totals.conversions : 0;
-  const organicItems = ((diagnosis as any)?.plano7Dias ?? []).filter(
+  const planItems = (((diagnosis as any)?.plano7Dias ?? []) as any[]).map(
+    (item, index) => ({ ...item, index, status: item.status || "ideia" })
+  );
+  const publishedItems = planItems.filter((item: any) =>
+    ["publicado", "medir"].includes(item.status)
+  );
+  const organicItems = planItems.filter(
     (item: any) => item.resultado
   );
   const organicScore = (x: any) => {
@@ -246,6 +252,33 @@ export default function Metricas() {
       : bestOrganic?.resultado?.salvamentos || bestOrganic?.resultado?.cliques
         ? "Criar nova versao do melhor gancho antes de investir."
         : "Publicar mais itens antes de escolher um vencedor.";
+  const cycleStage = !publishedItems.length && !organicItems.length
+    ? {
+        label: "Sem dados reais",
+        title: "Ainda e hora de publicar",
+        text: "A semana ainda nao tem post publicado ou medido. Va para Publicacao, execute um item e registre o primeiro sinal.",
+        tone: "warn",
+      }
+    : publishedItems.length && !organicItems.length
+      ? {
+          label: "Aguardando numeros",
+          title: "Ja publicou, falta medir",
+          text: "Cole alcance, cliques, leads ou vendas nos posts publicados para separar gosto pessoal de resultado real.",
+          tone: "light",
+        }
+      : bestOrganic?.resultado?.leads || bestOrganic?.resultado?.vendas
+        ? {
+            label: "Sinal forte",
+            title: "Existe vencedor para escalar",
+            text: "Ha sinal de conversao. Transforme o melhor post em campanha pequena e acompanhe CPL antes de aumentar verba.",
+            tone: "success",
+          }
+        : {
+            label: "Sinal inicial",
+            title: "Existe aprendizado para repetir",
+            text: "O ciclo ja ensinou algo. Repita o melhor gancho, ajuste a oferta e rode o check-in antes da proxima semana.",
+            tone: "dark",
+          };
   const leitura =
     totals.impressions === 0
       ? "Ainda nao ha volume suficiente. Publique pela etapa Publicacao, registre os primeiros numeros e volte para medir a primeira leitura."
@@ -269,6 +302,26 @@ export default function Metricas() {
         label: "Abrir Publicacao",
         onClick: () => navigate("/integracoes"),
       };
+  const metricsBrief = [
+    `Resumo de metricas - ${((diagnosis as any)?.profile?.handle || (diagnosis as any)?.produto || (diagnosis as any)?.nicho || "perfil ativo")}`,
+    `Estagio: ${cycleStage.label} - ${cycleStage.title}`,
+    `Plano: ${publishedItems.length}/${planItems.length || 7} publicados, ${organicItems.length} medidos.`,
+    `Organico: ${organicTotals.alcance} alcance, ${organicTotals.cliques} cliques, ${organicTotals.leads} leads, ${organicTotals.vendas} vendas, receita ${formatCurrency(organicTotals.receita)}.`,
+    totals.impressions
+      ? `Campanhas: ${formatNumber(totals.impressions)} impressoes, ${formatNumber(totals.clicks)} cliques, ${formatNumber(totals.conversions)} conversoes, CTR ${ctr.toFixed(2)}%, CPL ${formatCurrency(cpl)}.`
+      : "Campanhas: ainda sem metricas registradas.",
+    bestOrganic
+      ? `Melhor post: ${bestOrganic.dia} - ${bestOrganic.canal}: ${bestOrganic.gancho}`
+      : "Melhor post: ainda sem vencedor medido.",
+    `Decisao: ${organicDecision}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  async function copyMetricsBrief() {
+    await navigator.clipboard?.writeText(metricsBrief);
+    toast.success("Resumo de metricas copiado.");
+  }
 
   return (
     <AppLayout
@@ -283,6 +336,73 @@ export default function Metricas() {
         onClick={metricsNextAction.onClick}
         disabled={isLoading}
       />
+
+      <section className="grid grid-cols-1 xl:grid-cols-[1.1fr_.9fr] gap-5 mb-6">
+        <div
+          className={`rounded-3xl p-6 shadow-sm border ${
+            cycleStage.tone === "success"
+              ? "bg-[#eafff1] border-[#bfeccb]"
+              : cycleStage.tone === "warn"
+                ? "bg-[#fff8f6] border-[#ffd5ce]"
+                : cycleStage.tone === "light"
+                  ? "bg-white border-[#e6ebf3]"
+                  : "bg-[#071b44] border-[#071b44] text-white"
+          }`}
+        >
+          <p
+            className={`text-xs font-black uppercase tracking-widest ${
+              cycleStage.tone === "dark" ? "text-white/60" : "text-[#ff3217]"
+            }`}
+          >
+            Fechamento do ciclo
+          </p>
+          <h2
+            className={`text-2xl font-black mt-2 ${
+              cycleStage.tone === "dark" ? "text-white" : "text-[#071b44]"
+            }`}
+          >
+            {cycleStage.title}
+          </h2>
+          <p
+            className={`text-sm leading-relaxed mt-3 ${
+              cycleStage.tone === "dark" ? "text-white/78" : "text-[#61708a]"
+            }`}
+          >
+            {cycleStage.text}
+          </p>
+          <div className="flex flex-wrap gap-2 mt-5">
+            <button
+              type="button"
+              onClick={copyMetricsBrief}
+              className={`rounded-xl px-4 py-2 text-xs font-black inline-flex items-center gap-2 ${
+                cycleStage.tone === "dark"
+                  ? "bg-white text-[#071b44]"
+                  : "bg-[#071b44] text-white"
+              }`}
+            >
+              <Copy className="w-3.5 h-3.5" /> Copiar resumo
+            </button>
+            <Link href={hasAnyResult ? "/recalibracao" : "/integracoes"}>
+              <a
+                className={`rounded-xl border px-4 py-2 text-xs font-black inline-flex items-center gap-2 ${
+                  cycleStage.tone === "dark"
+                    ? "border-white/20 text-white"
+                    : "border-[#e6ebf3] bg-white text-[#071b44]"
+                }`}
+              >
+                {hasAnyResult ? "Abrir aprendizado" : "Abrir publicacao"}{" "}
+                <ArrowRight className="w-3.5 h-3.5" />
+              </a>
+            </Link>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <MiniOrganic label="Publicados" value={publishedItems.length} />
+          <MiniOrganic label="Medidos" value={organicItems.length} />
+          <MiniOrganic label="Melhor score" value={bestOrganic ? Math.round(organicScore(bestOrganic)) : 0} />
+          <MiniOrganic label="Estagio" value={cycleStage.label} />
+        </div>
+      </section>
 
       {/* Period selector */}
       <div className="flex items-center gap-3 mb-6">

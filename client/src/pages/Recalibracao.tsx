@@ -128,6 +128,19 @@ export default function Recalibracao() {
       : "Campanhas: ainda sem conversoes registradas.",
     "Decisao sugerida: manter o que gerou salvamento/comentario, transformar vencedor em nova pauta e evitar escalar verba antes de medir.",
   ].join("\n");
+  const nextWeekText = [
+    `Plano da proxima semana - ${plan?.profile?.handle || plan?.produto || plan?.nicho || "perfil ativo"}`,
+    bestPlanItem
+      ? `Base vencedora: Dia ${bestPlanItem.dia} - ${bestPlanItem.canal}: ${bestPlanItem.gancho || bestPlanItem.ideia}`
+      : "Base vencedora: ainda nao definida, medir pelo menos um post antes de escalar.",
+    `Repetir: ${organicDecisions.repetir}`,
+    `Ajustar: ${organicDecisions.ajustar}`,
+    `Evitar agora: ${organicDecisions.evitar}`,
+    totals.conversions
+      ? `Campanha: proteger o que converteu e comparar CPL antes de aumentar verba. CPL atual ${formatCurrency(totals.cpl)}.`
+      : "Campanha: criar teste pequeno somente depois de sinal organico medido.",
+    "Proxima rotina: Diagnostico atualizado -> Radar validado -> Estudio -> Aprovacao -> Publicacao -> Metricas -> Aprendizado.",
+  ].join("\n");
 
   const fillCheckin = () => {
     setFeedback(checkinText);
@@ -137,6 +150,11 @@ export default function Recalibracao() {
   const copyCheckin = async () => {
     await navigator.clipboard?.writeText(checkinText);
     toast.success("Resumo copiado.");
+  };
+
+  const copyNextWeek = async () => {
+    await navigator.clipboard?.writeText(nextWeekText);
+    toast.success("Plano da proxima semana copiado.");
   };
 
   const setItemStatus = (
@@ -405,6 +423,65 @@ export default function Recalibracao() {
           ) : null}
         </div>
       </section>
+
+      <section className="rounded-3xl bg-[#071b44] text-white p-6 shadow-sm mb-5">
+        <div className="flex items-start justify-between gap-5 flex-wrap">
+          <div className="max-w-4xl">
+            <p className="text-xs font-black text-white/60 uppercase tracking-widest">
+              Proxima semana
+            </p>
+            <h2 className="text-2xl font-black mt-2">
+              O que repetir, ajustar e evitar
+            </h2>
+            <p className="text-sm text-white/78 leading-relaxed mt-3">
+              Este e o fechamento pratico do ciclo: sai do resultado real e
+              vira uma rota objetiva para a proxima semana.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={copyNextWeek}
+            className="rounded-xl bg-white text-[#071b44] px-4 py-2 text-xs font-black inline-flex items-center gap-2"
+          >
+            <Copy className="w-3.5 h-3.5" /> Copiar plano
+          </button>
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mt-5">
+          <DecisionCard
+            label="Repetir"
+            value={organicDecisions.repetir}
+            tone="dark"
+          />
+          <DecisionCard
+            label="Ajustar"
+            value={organicDecisions.ajustar}
+            tone="light"
+          />
+          <DecisionCard
+            label="Evitar agora"
+            value={organicDecisions.evitar}
+            tone="warn"
+          />
+        </div>
+        <div className="flex flex-wrap gap-2 mt-5">
+          <button
+            type="button"
+            onClick={() => navigate("/diagnostico")}
+            className="rounded-xl bg-white text-[#071b44] px-4 py-2 text-xs font-black inline-flex items-center gap-2"
+          >
+            Atualizar diagnostico <RefreshCcw className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate(bestPlanItem ? "/estudio" : "/integracoes")}
+            className="rounded-xl border border-white/20 text-white px-4 py-2 text-xs font-black inline-flex items-center gap-2"
+          >
+            {bestPlanItem ? "Criar nova variacao" : "Medir primeiro"}{" "}
+            <Sparkles className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </section>
+
       <section className="grid grid-cols-1 xl:grid-cols-[.85fr_1.15fr] gap-5 mb-5">
         <div className="rounded-3xl bg-[#071b44] text-white p-6 shadow-sm">
           <p className="text-xs font-black text-white/60 uppercase tracking-widest">

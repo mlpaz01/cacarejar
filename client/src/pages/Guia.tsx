@@ -29,6 +29,10 @@ export default function Guia() {
     ["publicado", "medir"].includes(item.status)
   ).length;
   const measured = planItems.filter((item: any) => item.resultado).length;
+  const learningDone =
+    !!(diagnosis as any)?.aprendizadoSemanal ||
+    (((diagnosis as any)?.acompanhamento?.feedbacks ?? []) as any[]).length >
+      0;
   const activeCampaigns = (campaigns ?? []).filter(
     (campaign: any) => !["arquivada", "concluida"].includes(campaign.status)
   ).length;
@@ -119,7 +123,7 @@ export default function Guia() {
       action:
         "Rode o check-in e transforme resultado em aprendizado da proxima semana.",
       text: "A jornada fecha quando o que aconteceu vira prescricao melhor para o proximo ciclo.",
-      done: !!(diagnosis as any)?.aprendizadoSemanal && measured > 0,
+      done: learningDone && measured > 0,
       success: "Aprendizado pronto para repetir o ciclo.",
     },
   ];

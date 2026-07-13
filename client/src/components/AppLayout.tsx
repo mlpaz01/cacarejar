@@ -22,6 +22,7 @@ import {
   BookOpen,
   Send,
   Bell,
+  BadgeDollarSign,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -54,6 +55,7 @@ const navGroups = [
       { href: "/videos", icon: Clapperboard, label: "Videos TikTok" },
       { href: "/campanhas", icon: Megaphone, label: "Campanhas" },
       { href: "/biblioteca", icon: Library, label: "Biblioteca" },
+      { href: "/produto", icon: BadgeDollarSign, label: "Produto" },
     ],
   },
   {
