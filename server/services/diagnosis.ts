@@ -1214,8 +1214,109 @@ function buildPlanner(plan: Partial<CacaPlan>): CacaPlan["acompanhamento"] {
   };
 }
 
+function buildTopPostAnalyses(plan: Partial<CacaPlan>): string[] {
+  const existing = Array.isArray(plan.analiseTopPosts) ? plan.analiseTopPosts.filter(Boolean) : [];
+  const posts = (plan.profile?.topPosts ?? []).slice(0, 3);
+  if (!posts.length) return existing;
+  return posts.map((post, index) => {
+    const saved = existing[index];
+    if (saved && saved.length > 40) return saved;
+    const caption = truncate(post.caption || "post visual com bom sinal", 120);
+    const total = (Number(post.likes) || 0) + (Number(post.comments) || 0);
+    const signal = total > 0
+      ? `${nf(post.likes)} curtidas e ${nf(post.comments)} comentarios`
+      : "bom sinal visual para a marca";
+    return `Post ${index + 1}: ${signal}. Funciona porque entrega uma pista real do que a audiencia ja reconhece: ${caption}. Reaproveite o mecanismo, nao a copia literal.`;
+  });
+}
+
+function buildLegacySituation(plan: Partial<CacaPlan>, radar?: any): CacaPlan["situacao"] {
+  const profile = plan.profile;
+  const existing = Array.isArray(plan.situacao) ? plan.situacao.filter((x: any) => x?.fator && x?.analise) : [];
+  if (existing.length >= 5) return existing as CacaPlan["situacao"];
+  const bestPost = profile?.topPosts?.[0];
+  const bestSignal = bestPost
+    ? `${nf(bestPost.likes)} curtidas, ${nf(bestPost.comments)} comentarios e uma legenda que aponta para "${truncate(bestPost.caption || "um tema visual forte", 95)}"`
+    : "ainda sem posts campeoes lidos automaticamente";
+  return [
+    {
+      fator: "Perfil",
+      analise: profile?.handle
+        ? `@${profile.handle} ja tem base real (${nf(profile.followers)} seguidores, ${nf(profile.postsCount)} posts) e precisa transformar atencao em caminho de compra.`
+        : `A leitura partiu do briefing, site e canais informados para organizar a promessa de ${plan.produto || plan.nicho || "negocio"}.`,
+    },
+    {
+      fator: "Engajamento",
+      analise: profile?.engajamentoPct
+        ? `Engajamento aproximado de ${profile.engajamentoPct}%. O melhor conteudo recente trouxe ${bestSignal}, que deve orientar a criacao antes de qualquer escala.`
+        : "Sem engajamento automatico suficiente; o primeiro ciclo deve priorizar publicacao manual, coleta de sinais e check-in.",
+    },
+    {
+      fator: "Ponto forte",
+      analise: plan.brandDNA?.resumoVisual
+        ? `Existe uma identidade visual reconhecivel: ${plan.brandDNA.resumoVisual}`
+        : "Ha uma base de posicionamento para transformar em conteudo com prova, bastidor e CTA direto.",
+    },
+    {
+      fator: "Desafio",
+      analise: "O risco principal e virar apenas gerador de posts. A vantagem do Cacarejar e usar agentes para acelerar a base e manter criterio humano antes de publicar.",
+    },
+    {
+      fator: "Oportunidade",
+      analise: radar?.marketSummary
+        ? `O Radar ja trouxe sinal vivo de mercado: ${truncate(radar.marketSummary, 220)}`
+        : "Rodar Radar com concorrentes e criadores de inspiracao antes do Estudio para evitar conteudo bonito, mas sem aderencia ao mercado.",
+    },
+  ];
+}
+
+function buildLegacyPillars(plan: Partial<CacaPlan>, radar?: any): CacaPlan["pilaresEstrategicos"] {
+  const existing = Array.isArray(plan.pilaresEstrategicos) ? plan.pilaresEstrategicos.filter((x: any) => x?.titulo) : [];
+  if (existing.length >= 3) return existing as CacaPlan["pilaresEstrategicos"];
+  const produto = plan.produto || plan.nicho || "a oferta";
+  return [
+    {
+      titulo: "Autoridade com prova",
+      objetivo: `Fazer ${produto} parecer confiavel antes de pedir venda.`,
+      acoes: [
+        { acao: "Post campeao como referencia", detalhe: "Partir dos posts com mais engajamento e explicar o mecanismo: dor, desejo, prova ou bastidor." },
+        { acao: "Prova semanal", detalhe: "Toda semana precisa ter evidencia real: print, bastidor, caso, antes/depois ou comentario de cliente." },
+      ],
+    },
+    {
+      titulo: "Radar antes da criacao",
+      objetivo: "Usar concorrentes e criadores de inspiracao como pesquisa, nao como copia.",
+      acoes: [
+        { acao: "Marcar Gostei/Nao gostei", detalhe: "O usuario ensina quais referencias combinam com o negocio antes dos agentes criarem." },
+        { acao: "Extrair mecanismo", detalhe: radar?.marketSummary ? truncate(radar.marketSummary, 170) : "Transformar padroes de mercado em angulos proprios." },
+      ],
+    },
+    {
+      titulo: "Toque humano antes de publicar",
+      objetivo: "Evitar cara de conteudo automatico e preservar criterio editorial.",
+      acoes: [
+        { acao: "Editar no Estudio", detalhe: "Ajustar texto, imagem, direcao de arte e detalhes reais antes da aprovacao." },
+        { acao: "Medir e repetir", detalhe: "O que tiver salvamento, comentario, DM ou venda entra no proximo ciclo como aprendizado." },
+      ],
+    },
+  ];
+}
+
+function buildLegacyConclusion(plan: Partial<CacaPlan>, radar?: any): string {
+  if (plan.conclusao && plan.conclusao.length > 80) return plan.conclusao;
+  const profile = plan.profile?.handle ? `@${plan.profile.handle}` : plan.produto || plan.nicho || "este negocio";
+  const radarLine = radar?.hits?.length
+    ? ` O Radar ja mostrou ${radar.hits.length} referencias visuais para filtrar e adaptar.`
+    : " O proximo salto depende de validar referencias reais no Radar.";
+  return `A leitura aponta que ${profile} nao precisa de mais posts soltos; precisa de um ciclo simples: diagnostico, Radar, Estudio, aprovacao, publicacao e aprendizado. Os agentes aceleram pesquisa e primeira versao, mas o resultado vem do criterio humano: escolher o que combina, editar o que parece generico e medir o que realmente move conversa, lead ou venda.${radarLine}`;
+}
+
 export function enhancePlanV2(plan: CacaPlan, redes: Record<string, string> = {}, radar?: any): CacaPlan {
   const next: CacaPlan = { ...plan, redes: { ...(plan.redes ?? {}), ...redes } };
+  next.analiseTopPosts = buildTopPostAnalyses(next);
+  next.situacao = buildLegacySituation(next, radar);
+  next.pilaresEstrategicos = buildLegacyPillars(next, radar);
+  next.conclusao = buildLegacyConclusion(next, radar);
   next.interessesPosts = inferPostInterests(next, next.profile, radar);
   next.fontesUsadas = next.fontesUsadas?.length ? next.fontesUsadas : buildSources(next, next.redes, radar);
   next.canais360 = next.canais360?.canais?.length ? next.canais360 : buildCanais360(next, next.redes, radar);
@@ -1468,6 +1569,13 @@ TRECHO DA LANDING: ${(site.excerpt ?? "").slice(0, 800)}${linkedinTxt}`
 
 DNA VISUAL DA MARCA (já extraído dos posts campeões — RESPEITE em todo visualPrompt):
 ${JSON.stringify(dna)}
+
+ESTILO DO RELATORIO:
+- Escreva como o antigo "Estudo do seu negocio": resumo executivo, DNA visual, analise da situacao, pilares estrategicos, melhores posts, mercado e conclusao.
+- Nao entregue frases rasas como "criar conteudo de valor". Diga o que observar, por que importa e qual movimento fazer.
+- Os agentes autonomos criam a base, mas o humano precisa editar, escolher e dar verdade antes de publicar.
+- Quando houver posts campeoes, explique o mecanismo de sucesso: emocao, prova, bastidor, contraste, quebra de crenca, desejo ou utilidade.
+- Quando faltar dado, seja honesto e transforme em proxima acao de coleta, sem fingir que viu algo.
 
 Retorne SOMENTE JSON válido com EXATAMENTE estas chaves:
 {

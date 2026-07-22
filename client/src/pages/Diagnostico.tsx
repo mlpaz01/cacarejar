@@ -13,6 +13,7 @@ import {
   FileDown,
   Flame,
   Globe2,
+  Heart,
   History,
   Instagram,
   Loader2,
@@ -59,6 +60,22 @@ const hitKey = (h: any) =>
       h?.img ||
       `${h?.ownerUsername || ""}:${String(h?.caption || "").slice(0, 80)}`
   );
+const pickPostImage = (item: any) =>
+  String(
+    item?.imageUrl ||
+      item?.img ||
+      item?.thumbnail ||
+      item?.thumbnailUrl ||
+      item?.displayUrl ||
+      item?.mediaUrl ||
+      item?.coverUrl ||
+      item?.fonteImg ||
+      ""
+  );
+const shortText = (value: any, max = 220) => {
+  const text = String(value || "").trim();
+  return text.length > max ? `${text.slice(0, max - 1)}...` : text;
+};
 const channelIcon = (canal?: string) => {
   const c = String(canal || "").toLowerCase();
   if (c.includes("google") || c.includes("busca")) return Globe2;
@@ -543,6 +560,18 @@ export default function Diagnostico() {
   const motorOrganico = shown.motorOrganico;
   const campanhaAssistida = shown.campanhaAssistida;
   const brandDNA = shown.brandDNA;
+  const topPosts = ((prof?.topPosts ?? []) as any[])
+    .filter((post: any) => pickPostImage(post))
+    .slice(0, 3);
+  const topPostAnalyses = ((shown.analiseTopPosts ?? []) as string[]).filter(
+    Boolean
+  );
+  const situacao = ((shown.situacao ?? []) as any[]).filter(
+    item => item?.fator && item?.analise
+  );
+  const pilaresEstrategicos = ((shown.pilaresEstrategicos ?? []) as any[]).filter(
+    item => item?.titulo
+  );
   const dataQuality = (shown as any).dataQuality;
   const organicPackageText = motorOrganico
     ? [
@@ -687,6 +716,17 @@ export default function Diagnostico() {
       <ProfileHero plan={shown} />
 
       {brandDNA && <BrandDNASection dna={brandDNA} />}
+
+      {topPosts.length > 0 && (
+        <TopPostsSection posts={topPosts} analyses={topPostAnalyses} />
+      )}
+
+      {(situacao.length > 0 || pilaresEstrategicos.length > 0) && (
+        <StrategicStudySection
+          situacao={situacao}
+          pilares={pilaresEstrategicos}
+        />
+      )}
 
       {motorOrganico && (
         <section className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
@@ -1915,6 +1955,149 @@ function BrandDNASection({ dna }: { dna: any }) {
           )}
         </div>
       </div>
+    </section>
+  );
+}
+
+function TopPostsSection({
+  posts,
+  analyses,
+}: {
+  posts: any[];
+  analyses: string[];
+}) {
+  return (
+    <section className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
+      <HeaderLine
+        icon={Flame}
+        title="Posts campeoes que orientam a criacao"
+        subtitle="As sugestoes devem partir do que ja funcionou no perfil: imagem real, engajamento e mecanismo criativo. O Estudio adapta, nao copia."
+      />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-5">
+        {posts.map((post: any, index: number) => (
+          <article
+            key={`${post.url || post.img || index}`}
+            className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] overflow-hidden flex flex-col"
+          >
+            <img
+              src={pickPostImage(post)}
+              alt=""
+              className="w-full aspect-[4/3] object-cover bg-[#f8fafc]"
+              referrerPolicy="no-referrer"
+            />
+            <div className="p-4 flex flex-col flex-1">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-black text-[#ff3217] uppercase">
+                  Post {index + 1}
+                </p>
+                <div className="flex items-center gap-2 text-[10px] font-black text-[#61708a]">
+                  <span className="inline-flex items-center gap-1">
+                    <Heart className="w-3 h-3 text-[#ff3217]" />
+                    {nf(post.likes)}
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <MessageSquareText className="w-3 h-3" />
+                    {nf(post.comments)}
+                  </span>
+                </div>
+              </div>
+              <p className="text-sm font-bold text-[#071b44] leading-relaxed mt-3">
+                {analyses[index] ||
+                  `Este post virou referencia porque juntou imagem forte, tema reconhecivel e resposta real da audiencia: ${shortText(post.caption, 170)}`}
+              </p>
+              {post.caption && (
+                <p className="text-xs text-[#61708a] leading-relaxed mt-3 line-clamp-4">
+                  {shortText(post.caption, 220)}
+                </p>
+              )}
+              {post.url && (
+                <a
+                  href={absUrl(post.url)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 text-[11px] font-black text-[#61708a] hover:text-[#071b44] inline-flex items-center gap-1"
+                >
+                  Abrir post original <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function StrategicStudySection({
+  situacao,
+  pilares,
+}: {
+  situacao: any[];
+  pilares: any[];
+}) {
+  return (
+    <section className="grid grid-cols-1 xl:grid-cols-[.95fr_1.05fr] gap-5 mb-5">
+      {situacao.length > 0 && (
+        <div className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm">
+          <HeaderLine
+            icon={Search}
+            title="Analise da situacao"
+            subtitle="O que o perfil mostra agora e o que isso muda na decisao."
+          />
+          <div className="space-y-3 mt-5">
+            {situacao.slice(0, 5).map((item: any, index: number) => (
+              <div
+                key={`${item.fator}-${index}`}
+                className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-4"
+              >
+                <p className="text-[10px] font-black text-[#ff3217] uppercase tracking-wide">
+                  {item.fator}
+                </p>
+                <p className="text-sm font-semibold text-[#22304b] leading-relaxed mt-1">
+                  {item.analise}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {pilares.length > 0 && (
+        <div className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm">
+          <HeaderLine
+            icon={Target}
+            title="Pilares estrategicos"
+            subtitle="Os movimentos que devem guiar Radar, Estudio, aprovacao e publicacao."
+          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
+            {pilares.slice(0, 4).map((pilar: any, index: number) => (
+              <article
+                key={`${pilar.titulo}-${index}`}
+                className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-4"
+              >
+                <span className="rounded-full bg-[#071b44] text-white text-[10px] font-black px-3 py-1">
+                  Pilar {index + 1}
+                </span>
+                <h3 className="text-base font-black text-[#071b44] mt-3">
+                  {pilar.titulo}
+                </h3>
+                <p className="text-xs text-[#61708a] leading-relaxed mt-2">
+                  {pilar.objetivo}
+                </p>
+                <div className="space-y-2 mt-3">
+                  {(pilar.acoes ?? []).slice(0, 3).map((acao: any, i: number) => (
+                    <p
+                      key={`${acao.acao}-${i}`}
+                      className="text-xs text-[#22304b] leading-relaxed"
+                    >
+                      <b>{acao.acao}:</b> {acao.detalhe}
+                    </p>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      )}
     </section>
   );
 }

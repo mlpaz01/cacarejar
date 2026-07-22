@@ -411,7 +411,7 @@ export default function Radar() {
       <div className="flex items-center gap-2 mb-2">
         <Telescope className="w-4 h-4 text-[#ff3217]" />
         <h3 className="text-sm font-black text-[#070b17]">
-          Pesquisar o que está bombando no seu setor
+          Encontrar concorrentes e criadores de inspiracao
         </h3>
       </div>
       {selectedContext.label ? (
@@ -439,8 +439,8 @@ export default function Radar() {
       ) : (
         <div className="mb-3 rounded-xl border border-[#ffd5ce] bg-[#fff8f6] px-3 py-2 flex items-center justify-between gap-3 flex-wrap">
           <p className="text-xs font-bold text-[#8f2014]">
-            Nenhum perfil de diagnostico selecionado. Informe @ inspiradores
-            abaixo ou crie/restaure um diagnostico antes de iniciar o Radar.
+            Nenhum perfil de diagnostico selecionado. Informe @ concorrentes
+            ou criadores de inspiracao abaixo, ou crie/restaure um diagnostico.
           </p>
           <button
             onClick={() => navigate("/diagnostico")}
@@ -460,8 +460,8 @@ export default function Radar() {
       )}
       <p className="text-[11px] text-[#61708a] mb-3">
         {hasDiagnosisContext
-          ? "Deixe em branco para o Agente usar o diagnostico selecionado, ou informe @ inspiradores para comparar perfis especificos."
-          : "Sem diagnostico selecionado, o Radar so inicia com @ inspiradores informados manualmente."}
+          ? "Deixe em branco para o Agente sugerir perfis pelo diagnostico, ou informe @ concorrentes/criadores que voce quer comparar."
+          : "Sem diagnostico selecionado, informe @ concorrentes ou criadores de inspiracao para iniciar o Radar."}
       </p>
       <div className="flex flex-col sm:flex-row gap-2">
         <input
@@ -510,7 +510,7 @@ export default function Radar() {
       </div>
       {hasDiagnosisContext && !!suggestedSources.data?.hashtags?.length && (
         <p className="mt-3 text-[11px] text-[#61708a]">
-          Sinais preparados pelo Agente:{" "}
+          Hashtags preparadas pelo Agente:{" "}
           {(suggestedSources.data.hashtags as string[])
             .slice(0, 8)
             .map(h => `#${h}`)
@@ -828,18 +828,18 @@ export default function Radar() {
             )}
           </div>
 
-          {/* Cita a pesquisa */}
+          {/* Posts de referencia */}
           <div className="bg-white rounded-xl border border-[#e6ebf3] p-5 shadow-sm mb-5">
             <div className="flex items-center justify-between flex-wrap gap-2 mb-1">
               <div>
                 <h3 className="text-sm font-black text-[#070b17] flex items-center gap-2">
-                  <Search className="w-4 h-4 text-[#ff3217]" /> Pesquisa de
-                  mercado
+                  <Search className="w-4 h-4 text-[#ff3217]" /> Posts de
+                  concorrentes e criadores
                 </h3>
                 <p className="text-[11px] text-[#61708a] mt-1">
-                  Abra o post para analisar e marque Gostei ou Não gostei direto
-                  no card. Os gostei viram referencia; os não gostei saem da
-                  proxima rodada.
+                  Abra cada post real, veja a imagem e marque Gostei ou Nao
+                  gostei. Os gostei viram referencia; os rejeitados saem da
+                  proxima pesquisa.
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
