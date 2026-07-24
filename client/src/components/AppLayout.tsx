@@ -336,12 +336,6 @@ export function AppLayout({
           collapsed ? "ml-[72px]" : "ml-60"
         )}
       >
-        {journeyActive && (
-          <div className="px-5 lg:px-6 xl:px-8 pt-5 lg:pt-6 xl:pt-8 pb-0">
-            <JourneyGuide active={journeyActive} />
-          </div>
-        )}
-
         {(title || actions) && (
           <header className="min-h-[72px] border-b border-border bg-white sticky top-0 z-30 px-5 lg:px-8 py-3 shadow-sm">
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
@@ -366,6 +360,12 @@ export function AppLayout({
               )}
             </div>
           </header>
+        )}
+
+        {journeyActive && (
+          <div className="px-5 lg:px-6 xl:px-8 pt-4 pb-0">
+            <JourneyGuide active={journeyActive} />
+          </div>
         )}
 
         <main className="flex-1 p-5 lg:p-6 xl:p-8">{children}</main>
