@@ -105,7 +105,8 @@ export default function DiagnosticoPrint() {
     .filter(hit => pickImage(hit))
     .slice(0, 8);
   const postIdeas = ((shown.postIdeas ?? []) as any[]).slice(0, 4);
-  const timeline = ((shown.cronograma ?? shown.cronogramaMulticanal ?? []) as any[]).slice(0, 4);
+  const timeline = ((shown.cronogramaMulticanal ?? shown.cronograma ?? []) as any[]).slice(0, 4);
+  const acompanhamento = shown.acompanhamento;
   const today = new Date().toLocaleDateString("pt-BR", {
     day: "2-digit",
     month: "long",
@@ -157,6 +158,8 @@ export default function DiagnosticoPrint() {
         .post-square { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 10px; background: #eef2f7; display: block; }
         .quote { border-left: 3px solid #ff3217; padding-left: 10px; font-size: 11px; font-weight: 800; color: #071b44; }
         .line { height: 3px; width: 46px; border-radius: 999px; background: #ff3217; margin: 10px 0; }
+        .bar { height: 4px; border-radius: 999px; background: #e8edf5; overflow: hidden; margin-top: 4px; }
+        .bar span { display: block; height: 100%; border-radius: 999px; background: #ff3217; }
       `}</style>
 
       <div className="no-print" style={{ position: "sticky", top: 0, zIndex: 10, background: "#071b44", color: "#fff", padding: 10, display: "flex", justifyContent: "flex-end", gap: 10 }}>
@@ -339,18 +342,53 @@ export default function DiagnosticoPrint() {
 
         {!!timeline.length && (
           <section className="section">
-            <p className="kicker">Cronograma</p>
+            <p className="kicker">Cronograma multicanal</p>
+            <h2 className="heading">O plano vira execucao semanal por canal</h2>
             <div className="grid2">
               {timeline.map((item: any, i: number) => (
                 <article key={i} className="mini">
                   <span className="pill" style={{ background: "#071b44", color: "#fff", borderColor: "#071b44" }}>{item.periodo || item.semana || `Etapa ${i + 1}`}</span>
                   <h3 style={{ color: "#071b44", fontSize: 12.5, fontWeight: 950, marginTop: 7 }}>{item.foco || item.tema}</h3>
-                  {(item.canais ?? []).slice(0, 3).map((c: any, j: number) => (
-                    <p key={j} className="small" style={{ marginTop: 4 }}><b>{c.canal}:</b> {c.acao}</p>
+                  {(item.canais ?? []).slice(0, 4).map((c: any, j: number) => (
+                    <p key={j} className="small" style={{ marginTop: 4 }}><b>{c.canal}:</b> {c.acao}{c.objetivo ? ` (${c.objetivo})` : ""}</p>
                   ))}
                   {item.meta && <p style={{ color: "#18a34a", fontSize: 9.8, fontWeight: 900, marginTop: 6 }}>{item.meta}</p>}
                 </article>
               ))}
+            </div>
+          </section>
+        )}
+
+        {acompanhamento && (
+          <section className="section">
+            <p className="kicker">Acompanhamento</p>
+            <h2 className="heading">Foto inicial, check-in e proximo ciclo</h2>
+            <div className="grid2" style={{ marginTop: 9 }}>
+              <div className="mini" style={{ background: "#071b44", borderColor: "#071b44", color: "#fff" }}>
+                <p style={{ fontSize: 9, color: "rgba(255,255,255,.6)", fontWeight: 950, textTransform: "uppercase" }}>{acompanhamento.ciclo || "Ciclo de 30 dias"}</p>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "end", gap: 12, marginTop: 12 }}>
+                  <p style={{ color: "rgba(255,255,255,.72)", fontSize: 11, fontWeight: 800 }}>Progresso</p>
+                  <p style={{ color: "#fff", fontSize: 28, fontWeight: 950 }}>{acompanhamento.progresso ?? 0}%</p>
+                </div>
+                <div style={{ height: 6, borderRadius: 999, background: "rgba(255,255,255,.16)", overflow: "hidden", marginTop: 6 }}>
+                  <span style={{ display: "block", height: "100%", width: `${Math.min(100, acompanhamento.progresso ?? 0)}%`, background: "#ff3217" }} />
+                </div>
+                <p style={{ color: "#fff", fontSize: 11.5, fontWeight: 900, marginTop: 12 }}>Proximo foco: {acompanhamento.proximoFoco || "Executar Semana 1"}</p>
+                <p style={{ color: "rgba(255,255,255,.76)", fontSize: 9.5, fontWeight: 650, marginTop: 5 }}>{acompanhamento.novaPrescricao || "Registrar resultados para o Agente comparar a evolucao."}</p>
+              </div>
+              <div className="grid2">
+                {(acompanhamento.snapshots ?? []).slice(0, 4).map((snap: any, i: number) => (
+                  <article key={`${snap.label || "snapshot"}-${i}`} className="mini">
+                    <h3 style={{ color: "#071b44", fontSize: 11.5, fontWeight: 950 }}>{snap.label || `Check-in ${i + 1}`}</h3>
+                    <p className="small" style={{ marginTop: 4 }}>{truncate(snap.resumo, 150)}</p>
+                    <div style={{ display: "grid", gap: 6, marginTop: 7 }}>
+                      {(snap.scores ?? []).slice(0, 3).map((score: any) => (
+                        <ScoreMini key={score.nome} label={score.nome} value={score.valor} />
+                      ))}
+                    </div>
+                  </article>
+                ))}
+              </div>
             </div>
           </section>
         )}
@@ -379,6 +417,21 @@ function Info({ title, text }: { title: string; text?: string }) {
     <div className="mini">
       <p style={{ fontSize: 10.5, color: "#071b44", fontWeight: 950 }}>{title}</p>
       <p className="small" style={{ marginTop: 4 }}>{text || "-"}</p>
+    </div>
+  );
+}
+
+function ScoreMini({ label, value }: { label: string; value?: number }) {
+  const pct = Math.max(0, Math.min(100, Number(value) || 0));
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+        <p style={{ color: "#61708a", fontSize: 8.5, fontWeight: 900 }}>{label}</p>
+        <p style={{ color: "#071b44", fontSize: 8.5, fontWeight: 950 }}>{pct}/100</p>
+      </div>
+      <div className="bar">
+        <span style={{ width: `${pct}%` }} />
+      </div>
     </div>
   );
 }
