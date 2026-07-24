@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   commercialSignals,
   fallbackProfileAssessment,
+  qualifiesProfileAssessment,
 } from "./services/radar";
 import type { SocialProfile } from "./services/profileProvider";
 
@@ -66,6 +67,84 @@ describe("Radar competitive intelligence", () => {
     );
     expect(result?.fitScore).toBeGreaterThanOrEqual(60);
     expect(result?.evidence.length).toBeGreaterThan(0);
+  });
+
+  it("rejects a polished fashion profile even when the model cites audience size and personal brand", () => {
+    expect(
+      qualifiesProfileAssessment(
+        {
+          decision: "inspiracao",
+          fitScore: 62,
+          confidence: "media",
+          dimensions: {
+            audience: 72,
+            offer: 18,
+            subject: 15,
+            formatTone: 22,
+            visualDNA: 12,
+          },
+          reason:
+            "Criadora de moda com porte de audiencia comparavel e identidade pessoal forte.",
+          evidence: [
+            "37 mil seguidores",
+            "Marca pessoal centralizada na criadora",
+          ],
+        },
+        { hasVisualSample: true }
+      )
+    ).toBe(false);
+  });
+
+  it("accepts an editorial inspiration only when subject, format, tone and visual DNA all align", () => {
+    expect(
+      qualifiesProfileAssessment(
+        {
+          decision: "inspiracao",
+          fitScore: 86,
+          confidence: "alta",
+          dimensions: {
+            audience: 68,
+            offer: 45,
+            subject: 91,
+            formatTone: 88,
+            visualDNA: 84,
+          },
+          reason:
+            "Criacao audiovisual autoral com humor, processo aparente e linguagem raw.",
+          evidence: [
+            "Bastidores do processo artistico aparecem nos videos",
+            "Humor e expressao facial conduzem os ganchos",
+          ],
+        },
+        { hasVisualSample: true }
+      )
+    ).toBe(true);
+  });
+
+  it("accepts a direct competitor through audience, offer and subject even with a different visual treatment", () => {
+    expect(
+      qualifiesProfileAssessment(
+        {
+          decision: "concorrente_direto",
+          fitScore: 82,
+          confidence: "alta",
+          dimensions: {
+            audience: 84,
+            offer: 79,
+            subject: 88,
+            formatTone: 58,
+            visualDNA: 42,
+          },
+          reason:
+            "Atende marcas que procuram videos autorais com humor e sustentabilidade.",
+          evidence: [
+            "Oferta de producao audiovisual para marcas",
+            "Conteudo recorrente sobre humor e sustentabilidade",
+          ],
+        },
+        { hasVisualSample: true }
+      )
+    ).toBe(true);
   });
 
   it("only treats a brand mention as commercial when the post carries a public partnership signal", () => {

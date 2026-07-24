@@ -222,7 +222,7 @@ const buildRadarPreview = (hits: any[], plan: any) => {
     if (
       hasEnoughContext &&
       score < 3 &&
-      Number(hit?.profileFitScore ?? 0) < 60
+      Number(hit?.profileFitScore ?? 0) < 75
     ) {
       hiddenCount += 1;
       continue;
@@ -370,7 +370,7 @@ export default function Diagnostico() {
     if (!shown || forceForm || showHistory) return;
     if (autoRadarStarted || scanRadar.isPending) return;
     if (
-      rd?.engineVersion === 2 &&
+      rd?.engineVersion === 3 &&
       (rd?.scannedAt || ((rd?.hits ?? []) as any[]).length > 0)
     ) return;
     const hasContext = Boolean(
@@ -778,7 +778,7 @@ export default function Diagnostico() {
   const timeline = shown.cronogramaMulticanal ?? [];
   const acompanhamento = shown.acompanhamento;
   const interests = shown.interessesPosts ?? [];
-  const rawRadarHits = (rd?.engineVersion === 2
+  const rawRadarHits = (rd?.engineVersion === 3
     ? ((rd?.hits ?? []) as any[])
     : []
   )

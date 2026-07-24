@@ -249,7 +249,7 @@ function filterRadarHitsForBrand(hits: any[], plan: any) {
     if (
       hasEnoughContext &&
       score < 3 &&
-      Number(hit?.profileFitScore ?? 0) < 60
+      Number(hit?.profileFitScore ?? 0) < 75
     ) {
       hidden += 1;
       continue;
@@ -337,7 +337,7 @@ export default function Radar() {
   });
 
   const data = radar.data as any;
-  const dataIsLegacy = !!data && data?.engineVersion !== 2;
+  const dataIsLegacy = !!data && data?.engineVersion !== 3;
   const channelData =
     dataIsLegacy
       ? null

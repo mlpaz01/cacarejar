@@ -251,7 +251,7 @@ function genericRelevanceScore(plan: any, hit: RadarHit) {
 function isRelevantHitForPlan(plan: any, hit: RadarHit, opts: { relaxed?: boolean } = {}) {
   if (!isBrandSafeRadarHit(hit)) return false;
   if (
-    Number(hit.profileFitScore ?? 0) >= 60 &&
+    Number(hit.profileFitScore ?? 0) >= 75 &&
     hit.profileConfidence !== "baixa"
   ) return true;
   if (isOccupationalHealthPlan(plan)) return occupationalRelevanceScore(hit) >= 6;
@@ -381,6 +381,15 @@ export interface RadarProfileMatch {
   offerOverlap: string;
   contentOpportunity: string;
   evidence: string[];
+  dimensions?: RadarFitDimensions;
+}
+
+export interface RadarFitDimensions {
+  audience: number;
+  offer: number;
+  subject: number;
+  formatTone: number;
+  visualDNA: number;
 }
 
 export interface RadarBrandProspect {
@@ -547,7 +556,10 @@ Retorne SOMENTE JSON:
 
 Regras:
 - Um concorrente direto atende publico parecido com oferta comparavel.
-- Uma inspiracao pode ter outra oferta, mas precisa compartilhar publico, linguagem ou mecanismo de conteudo aplicavel.
+- Uma inspiracao pode ter outra oferta, mas precisa compartilhar assunto, linguagem, tom, formato ou mecanismo de conteudo concretamente aplicavel.
+- Procure em tres trilhas, nesta ordem: concorrentes da mesma atividade; pares editoriais com o mesmo tipo de criacao; inspiracoes adjacentes com o mesmo mecanismo e DNA.
+- Use o DNA da marca e os posts campeoes como consulta de busca. Porte de audiencia, genero, rosto humano e "marca pessoal" nao sao criterios.
+- Para criadores autorais, diferencie claramente arte/processo/humor de moda, beleza, turismo e lifestyle.
 - Nao confunda aparencia, genero, cor, roupa, popularidade ou tema ocasional com aderencia de negocio.
 - Priorize brasileiros e perfis nichados. Evite celebridades, agregadores, noticias, sorteios e perfis genericos.
 - Sugira no maximo 8 perfis por canal. Se nao souber um handle real, deixe a lista vazia.
@@ -565,6 +577,12 @@ Publico, oferta e posicionamento: ${JSON.stringify({
   bio: plan?.profile?.bio,
   categoria: plan?.profile?.category,
   dna: plan?.brandDNA,
+  postsCampeoes: (plan?.profile?.topPosts ?? [])
+    .slice(0, 6)
+    .map((post: any) => ({
+      texto: String(post?.caption || "").slice(0, 420),
+      formato: post?.type,
+    })),
 })}
 Canais do cliente: ${JSON.stringify(redes)}
 Nao inclua o proprio perfil do cliente nas sugestoes.`,
@@ -617,6 +635,117 @@ function profileEvidence(profile: SocialProfile) {
   ].filter(Boolean).join(" ");
 }
 
+const COMPETITIVE_VERTICALS: Record<string, string[]> = {
+  arte_audiovisual: [
+    "arte", "artistico", "artistica", "audiovisual", "video", "criacao",
+    "processo criativo", "sustentavel", "sustentabilidade", "humor", "comedia",
+  ],
+  moda_beleza: [
+    "moda", "fashion", "look", "looks", "roupa", "vestido", "maquiagem",
+    "makeup", "beleza", "skincare", "cosmetico", "cabelo",
+  ],
+  fitness: [
+    "fitness", "academia", "treino", "musculacao", "personal trainer",
+    "emagrecimento", "nutricao esportiva",
+  ],
+  gastronomia: [
+    "receita", "culinaria", "gastronomia", "restaurante", "comida",
+    "confeitaria", "chef",
+  ],
+  educacao: [
+    "educacao", "ensino", "aprendizagem", "escola", "professor", "pedagogia",
+    "curso", "aula",
+  ],
+  saude: [
+    "saude", "medicina", "psicologia", "terapia", "clinica", "bem estar",
+    "bem-estar",
+  ],
+  tecnologia: [
+    "tecnologia", "software", "saas", "automacao", "programacao", "startup",
+    "inteligencia artificial",
+  ],
+};
+
+function dominantVerticals(text: string) {
+  const normalized = lowerPlain(text);
+  return Object.entries(COMPETITIVE_VERTICALS)
+    .map(([vertical, terms]) => ({
+      vertical,
+      score: terms.reduce(
+        (total, term) => total + (normalized.includes(term) ? 1 : 0),
+        0
+      ),
+    }))
+    .filter(item => item.score >= 2)
+    .sort((a, b) => b.score - a.score);
+}
+
+function hasContradictoryVertical(plan: any, profile: SocialProfile) {
+  const planVerticals = new Set(
+    dominantVerticals(sourceSeed(plan)).map(item => item.vertical)
+  );
+  const profileVerticals = dominantVerticals(profileEvidence(profile));
+  return profileVerticals.some(
+    item => item.score >= 3 && !planVerticals.has(item.vertical)
+  );
+}
+
+function normalizeDimensions(raw: any): RadarFitDimensions {
+  const source = raw?.dimensions ?? raw ?? {};
+  return {
+    audience: clamp(Number(source.audience) || 0, 0, 100),
+    offer: clamp(Number(source.offer) || 0, 0, 100),
+    subject: clamp(Number(source.subject) || 0, 0, 100),
+    formatTone: clamp(
+      Number(source.formatTone ?? source.format_tone) || 0,
+      0,
+      100
+    ),
+    visualDNA: clamp(
+      Number(source.visualDNA ?? source.visual_dna) || 0,
+      0,
+      100
+    ),
+  };
+}
+
+export function qualifiesProfileAssessment(
+  item: any,
+  options: { manual?: boolean; hasVisualSample?: boolean } = {}
+) {
+  const decision = String(item?.decision || "");
+  if (!["concorrente_direto", "inspiracao"].includes(decision)) return false;
+  if (item?.confidence === "baixa") return false;
+
+  const manual = options.manual === true;
+  const fitScore = clamp(Number(item?.fitScore) || 0, 0, 100);
+  const dimensions = normalizeDimensions(item);
+  const evidenceCount = Array.isArray(item?.evidence)
+    ? item.evidence.map(String).filter(Boolean).length
+    : 0;
+  const minimumEvidence = manual ? 1 : 2;
+  if (evidenceCount < minimumEvidence) return false;
+
+  if (decision === "concorrente_direto") {
+    return (
+      fitScore >= (manual ? 65 : 78) &&
+      dimensions.audience >= (manual ? 58 : 72) &&
+      dimensions.offer >= (manual ? 55 : 68) &&
+      dimensions.subject >= (manual ? 55 : 65)
+    );
+  }
+
+  const visualGate = options.hasVisualSample
+    ? dimensions.visualDNA >= (manual ? 52 : 65)
+    : dimensions.formatTone >= (manual ? 68 : 82);
+  return (
+    fitScore >= (manual ? 65 : 78) &&
+    dimensions.subject >= (manual ? 58 : 70) &&
+    dimensions.formatTone >= (manual ? 62 : 74) &&
+    visualGate
+  );
+}
+
 export function fallbackProfileAssessment(
   plan: any,
   profile: SocialProfile,
@@ -633,16 +762,39 @@ export function fallbackProfileAssessment(
   ].filter(Boolean).join(" "));
   if (RADAR_BLOCKLIST_TERMS.some(term => text.includes(term))) return null;
   const matched = terms.filter(term => text.includes(term));
+  const evidenceFields = [
+    profile.bio,
+    profile.category,
+    ...profile.posts.slice(0, 8).map(post => post.caption),
+  ].map(value => lowerPlain(String(value || "")));
+  const matchedFields = evidenceFields.filter(field =>
+    matched.some(term => field.includes(term))
+  ).length;
+  if (
+    !isManual &&
+    (matched.length < 4 ||
+      matchedFields < 2 ||
+      hasContradictoryVertical(plan, profile))
+  ) {
+    return null;
+  }
   const fitScore = clamp(
-    18 +
-      matched.length * 9 +
-      (profile.bio ? 8 : 0) +
-      (profile.category ? 5 : 0) +
+    8 +
+      matched.length * 8 +
+      Math.min(matchedFields, 4) * 5 +
+      (profile.bio ? 4 : 0) +
       (isManual ? 8 : 0),
     0,
     100
   );
-  if (fitScore < (isManual ? 48 : 58)) return null;
+  if (fitScore < (isManual ? 60 : 72)) return null;
+  const dimensions: RadarFitDimensions = {
+    audience: clamp(35 + matched.length * 7, 0, 88),
+    offer: clamp(30 + matched.length * 7, 0, 88),
+    subject: clamp(35 + matched.length * 9, 0, 94),
+    formatTone: clamp(30 + matchedFields * 10, 0, 80),
+    visualDNA: 0,
+  };
   return {
     channel,
     handle: cleanChannelHandle(profile.handle, channel),
@@ -650,9 +802,9 @@ export function fallbackProfileAssessment(
     bio: profile.bio,
     followers: profile.followers,
     profilePic: profile.profilePic,
-    role: fitScore >= 76 ? "concorrente_direto" : "inspiracao",
+    role: fitScore >= 82 ? "concorrente_direto" : "inspiracao",
     fitScore,
-    confidence: matched.length >= 5 ? "alta" : matched.length >= 3 ? "media" : "baixa",
+    confidence: matched.length >= 6 ? "alta" : "media",
     reason: matched.length
       ? `Aderencia comprovada por ${matched.slice(0, 5).join(", ")}.`
       : "Perfil informado manualmente para comparacao.",
@@ -660,6 +812,7 @@ export function fallbackProfileAssessment(
     offerOverlap: fitScore >= 76 ? "Oferta ou problema atendido parecem comparaveis." : "Oferta diferente; util como inspiracao.",
     contentOpportunity: "Observar os formatos fora da curva e adaptar o mecanismo ao DNA da marca.",
     evidence: matched.slice(0, 6),
+    dimensions,
   };
 }
 
@@ -667,7 +820,8 @@ async function assessMarketProfiles(
   plan: any,
   profiles: SocialProfile[],
   channel: RadarChannel,
-  manualHandles: string[]
+  manualHandles: string[],
+  ownProfile?: SocialProfile
 ): Promise<RadarProfileMatch[]> {
   if (!profiles.length) return [];
   const manual = new Set(manualHandles.map(handle => cleanChannelHandle(handle, channel)));
@@ -691,6 +845,7 @@ async function assessMarketProfiles(
       categoria: profile.category,
       seguidores: profile.followers,
       informadoPeloUsuario: manual.has(cleanChannelHandle(profile.handle, channel)),
+      temAmostraVisual: profile.posts.some(post => Boolean(post.img)),
       amostraPublicacoes: profile.posts.slice(0, 6).map(post => ({
         texto: (post.caption || "").slice(0, 420),
         curtidas: post.likes,
@@ -699,6 +854,58 @@ async function assessMarketProfiles(
         visualizacoes: post.views,
       })),
     }));
+    const prompt = `MARCA ANALISADA
+${JSON.stringify({
+  produto: plan?.produto,
+  nicho: plan?.nicho,
+  resumo: plan?.resumoDiagnostico || plan?.resumo,
+  sumario: plan?.sumarioExecutivo,
+  objetivo: plan?.objetivoPrincipal,
+  perfil: {
+    handle: plan?.profile?.handle,
+    nome: plan?.profile?.fullName,
+    bio: plan?.profile?.bio,
+    categoria: plan?.profile?.category,
+  },
+  dna: plan?.brandDNA,
+  postsCampeoes: (plan?.profile?.topPosts ?? [])
+    .slice(0, 5)
+    .map((post: any) => String(post?.caption || "").slice(0, 420)),
+})}
+
+CANAL: ${channel}
+CANDIDATOS COLETADOS:
+${JSON.stringify(candidates)}
+
+As imagens seguintes estao identificadas pelo handle. Compare composicao, acabamento,
+cenario, expressao, uso de texto, energia, processo e linguagem visual com o DNA descrito.
+Uma foto bonita, um rosto humano ou porte de audiencia semelhante NAO constituem aderencia.`;
+    const visualParts: ContentPart[] = [{ type: "text", text: prompt }];
+    const ownImages = [
+      ...(ownProfile?.topPosts ?? []),
+      ...(ownProfile?.posts ?? []),
+      ...(plan?.profile?.topPosts ?? []),
+    ]
+      .map((post: any) => post?.img)
+      .filter(Boolean)
+      .slice(0, 2);
+    ownImages.forEach((img: string, index: number) => {
+      visualParts.push({
+        type: "text",
+        text: `REFERENCIA VISUAL DA MARCA ANALISADA ${index + 1}:`,
+      });
+      visualParts.push({ type: "image_url", image_url: { url: img } });
+    });
+    for (const profile of profiles.slice(0, 12)) {
+      const sample = profile.posts.find(post => Boolean(post.img))?.img;
+      if (!sample) continue;
+      visualParts.push({
+        type: "text",
+        text: `AMOSTRA VISUAL DO CANDIDATO @${cleanChannelHandle(profile.handle, channel)}:`,
+      });
+      visualParts.push({ type: "image_url", image_url: { url: sample } });
+    }
+
     const content = await openRouterChat([
       {
         role: "system",
@@ -716,6 +923,7 @@ Retorne SOMENTE JSON:
   "decision":"concorrente_direto|inspiracao|rejeitar",
   "fitScore":0,
   "confidence":"alta|media|baixa",
+  "dimensions":{"audience":0,"offer":0,"subject":0,"formatTone":0,"visualDNA":0},
   "reason":"por que este perfil serve ou nao serve",
   "audienceOverlap":"publico compartilhado",
   "offerOverlap":"relacao entre ofertas",
@@ -724,34 +932,22 @@ Retorne SOMENTE JSON:
 }]}
 
 Regras duras:
-- Nota 80+ exige oferta/problema e publico claramente comparaveis.
-- Inspiracao precisa de nota minima 60 e evidencia editorial aplicavel.
+- concorrente_direto exige publico, problema, oferta e assunto comparaveis.
+- inspiracao exige assunto, mecanismo editorial, tom/formato e DNA visual realmente aplicaveis.
+- Nota alta nunca pode nascer apenas de audiencia numericamente parecida, marca pessoal, rosto humano ou popularidade.
+- Se o perfil analisado usa linguagem raw, humor, bastidores e processo autoral, fotografia polida de moda/lifestyle nao e inspiracao.
+- Se oferta e assunto forem de outro setor, audience e visualDNA nao podem compensar sozinhos.
+- Quando houver imagem, compare acabamento, cenario, expressao, texto na tela, energia e processo. Quando nao houver imagem, visualDNA nao pode passar de 55.
+- fitScore deve refletir as cinco dimensoes, e nao uma impressao geral generica.
 - Aparencia, genero, roupa, cor, popularidade ou uma palavra solta nao provam aderencia.
 - Perfis de crime, violencia, sensualizacao, noticias, sorteios e engajamento forcado devem ser rejeitados, salvo quando forem o proprio campo profissional do cliente.
 - Nao invente informacao. Quando a evidencia for insuficiente, rejeite.
+- Cada perfil aceito precisa ter ao menos duas evidencias concretas retiradas da bio, publicacoes ou imagem.
 - Avalie todos os handles e nunca altere seus nomes.`,
       },
       {
         role: "user",
-        content: `MARCA ANALISADA
-${JSON.stringify({
-  produto: plan?.produto,
-  nicho: plan?.nicho,
-  resumo: plan?.resumoDiagnostico || plan?.resumo,
-  sumario: plan?.sumarioExecutivo,
-  objetivo: plan?.objetivoPrincipal,
-  perfil: {
-    handle: plan?.profile?.handle,
-    nome: plan?.profile?.fullName,
-    bio: plan?.profile?.bio,
-    categoria: plan?.profile?.category,
-  },
-  dna: plan?.brandDNA,
-})}
-
-CANAL: ${channel}
-CANDIDATOS COLETADOS:
-${JSON.stringify(candidates)}`,
+        content: visualParts,
       },
     ], { model: BRAIN, temperature: 0.15, maxTokens: 5200 });
     const parsed = parseJson<{ assessments?: any[] }>(content);
@@ -767,8 +963,16 @@ ${JSON.stringify(candidates)}`,
       const profile = byHandle.get(handle);
       if (!profile || item?.decision === "rejeitar") continue;
       const fitScore = clamp(Number(item?.fitScore) || 0, 0, 100);
-      const threshold = manual.has(handle) ? 50 : 60;
-      if (fitScore < threshold || item?.confidence === "baixa") continue;
+      const hasVisualSample = profile.posts.some(post => Boolean(post.img));
+      if (
+        !qualifiesProfileAssessment(item, {
+          manual: manual.has(handle),
+          hasVisualSample,
+        })
+      ) {
+        continue;
+      }
+      const dimensions = normalizeDimensions(item);
       accepted.push({
         channel,
         handle,
@@ -788,6 +992,7 @@ ${JSON.stringify(candidates)}`,
         evidence: Array.isArray(item?.evidence)
           ? item.evidence.map(String).filter(Boolean).slice(0, 4)
           : [],
+        dimensions,
       });
     }
     return accepted
@@ -1134,8 +1339,9 @@ export async function scan(
   );
   let hashtagPosts: HotPost[] = [];
   let relatedHandles: string[] = [];
+  let ownProfile: SocialProfile | undefined;
   if (!handles.length && channel === "instagram" && ownHandle) {
-    const [ownProfile] = await fetchInstagramProfilesBatch([ownHandle]);
+    [ownProfile] = await fetchInstagramProfilesBatch([ownHandle]);
     relatedHandles = (ownProfile?.relatedProfiles ?? [])
       .map(profile => cleanChannelHandle(profile.handle, "instagram"))
       .filter(handle => handle && handle !== ownHandle && !exclude.has(handle));
@@ -1147,14 +1353,14 @@ export async function scan(
       .map(p => cleanChannelHandle(p.ownerUsername || "", "instagram"))
       .filter(Boolean);
     handles = [...new Set([
-      ...relatedHandles,
       ...channelSuggestion.profiles,
       ...owners,
+      ...relatedHandles,
     ])].filter(handle => handle && handle !== ownHandle && !exclude.has(handle));
   } else if (!handles.length) {
     handles = channelSuggestion.profiles.filter(handle => !exclude.has(handle));
   }
-  handles = handles.slice(0, 12);
+  handles = handles.slice(0, 18);
 
   const profiles = channel === "instagram"
     ? await fetchInstagramProfilesBatch(handles)
@@ -1165,7 +1371,8 @@ export async function scan(
     plan,
     profiles,
     channel,
-    manualHandles
+    manualHandles,
+    ownProfile
   );
   const acceptedHandles = new Set(profileMatches.map(match => match.handle));
   const acceptedProfiles = profiles.filter(profile =>
@@ -1476,31 +1683,8 @@ Regras:
   const brandProspects = await brandProspectsPromise;
   const scannedAt = Date.now();
   const current = await getRadar(orgId);
-  const legacyInstagram =
-    current?.engineVersion === 2 &&
-    !current.channels &&
-    channel !== "instagram"
-    ? {
-        scannedAt: current.scannedAt,
-        marketSummary: current.marketSummary,
-        sources: current.sources ?? [],
-        hashtags: current.hashtags ?? [],
-        hits: (current.hits ?? []).map(hit => ({
-          ...hit,
-          channel: hit.channel ?? "instagram",
-        })) as RadarHit[],
-        profileMatches: current.profileMatches ?? [],
-        brandProspects: current.brandProspects ?? [],
-        patterns: current.patterns,
-        opportunities: current.opportunities,
-        ideas: current.ideas,
-        quality: current.quality,
-        dataQuality: current.dataQuality,
-      }
-    : undefined;
   const channels: NonNullable<RadarResult["channels"]> = {
-    ...(legacyInstagram ? { instagram: legacyInstagram } : {}),
-    ...(current?.channels ?? {}),
+    ...(current?.engineVersion === 3 ? current.channels ?? {} : {}),
     [channel]: {
       scannedAt,
       marketSummary,
@@ -1526,7 +1710,7 @@ Regras:
   );
   const result: RadarResult = {
     scannedAt,
-    engineVersion: 2,
+    engineVersion: 3,
     activeChannel: channel,
     nicho,
     baseHandle: ownHandle || undefined,
