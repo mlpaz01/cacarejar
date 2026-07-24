@@ -782,6 +782,13 @@ export default function Diagnostico() {
 
       {brandDNA && <BrandDNASection dna={brandDNA} />}
 
+      {(situacao.length > 0 || pilaresEstrategicos.length > 0) && (
+        <StrategicStudySection
+          situacao={situacao}
+          pilares={pilaresEstrategicos}
+        />
+      )}
+
       {topPosts.length > 0 && (
         <TopPostsSection posts={topPosts} analyses={topPostAnalyses} />
       )}
@@ -828,13 +835,6 @@ export default function Diagnostico() {
           </span>
         </summary>
         <div className="px-5 pb-5">
-
-      {(situacao.length > 0 || pilaresEstrategicos.length > 0) && (
-        <StrategicStudySection
-          situacao={situacao}
-          pilares={pilaresEstrategicos}
-        />
-      )}
 
       {motorOrganico && (
         <section className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
