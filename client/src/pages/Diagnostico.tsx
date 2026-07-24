@@ -8,6 +8,7 @@ import {
   BookOpen,
   CalendarDays,
   CheckCircle2,
+  ChevronDown,
   Copy,
   ExternalLink,
   FileDown,
@@ -817,8 +818,11 @@ export default function Diagnostico() {
               Metodo, motor organico, anuncios, Google, cronograma completo e acompanhamento ficam aqui para nao pesar a jornada.
             </p>
           </div>
-          <span className="rounded-xl border border-[#e6ebf3] px-4 py-2 text-xs font-black text-[#071b44] group-open:bg-[#071b44] group-open:text-white">
-            Abrir
+          <span
+            className="w-9 h-9 rounded-full border border-[#e6ebf3] bg-white text-[#071b44] grid place-items-center group-open:bg-[#071b44] group-open:text-white transition-colors"
+            aria-label="Mostrar ou ocultar detalhes avancados"
+          >
+            <ChevronDown className="w-4 h-4 transition-transform group-open:rotate-180" />
           </span>
         </summary>
         <div className="px-5 pb-5">
