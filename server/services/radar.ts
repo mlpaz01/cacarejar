@@ -253,6 +253,12 @@ function genericRelevanceScore(plan: any, hit: RadarHit) {
 function isRelevantHitForPlan(plan: any, hit: RadarHit, opts: { relaxed?: boolean } = {}) {
   if (!isBrandSafeRadarHit(hit)) return false;
   if (
+    hit.sourceType === "profile" &&
+    hit.profileMatchScope === "componente_editorial" &&
+    Number(hit.profileFitScore ?? 0) >= 65 &&
+    hit.profileConfidence === "alta"
+  ) return true;
+  if (
     Number(hit.profileFitScore ?? 0) >= 75 &&
     hit.profileConfidence !== "baixa"
   ) return true;
@@ -388,6 +394,7 @@ export interface RadarProfileMatch {
   contentOpportunity: string;
   evidence: string[];
   dimensions?: RadarFitDimensions;
+  relevantPostIndexes?: number[];
 }
 
 export interface RadarFitDimensions {
@@ -835,20 +842,22 @@ export function qualifiesProfileAssessment(
           ? dimensions.formatTone
           : component === "dna_visual"
             ? dimensions.visualDNA
-            : Math.max(
-                dimensions.subject,
-                dimensions.formatTone,
-                dimensions.visualDNA
-              );
+            : fitScore;
     const supportingScores = [
       dimensions.subject,
       dimensions.formatTone,
       dimensions.visualDNA,
     ].sort((a, b) => b - a);
+    const minimumComponent = component === "mecanismo"
+      ? (manual ? 62 : 65)
+      : (manual ? 68 : 72);
+    const hasSupport = component === "mecanismo"
+      ? (supportingScores[0] ?? 0) >= (manual ? 50 : 55)
+      : (supportingScores[1] ?? 0) >= (manual ? 45 : 48);
     return (
-      fitScore >= (manual ? 62 : 68) &&
-      componentScore >= (manual ? 68 : 72) &&
-      (supportingScores[1] ?? 0) >= (manual ? 45 : 48)
+      fitScore >= (manual ? 62 : 65) &&
+      componentScore >= minimumComponent &&
+      hasSupport
     );
   }
 
@@ -1053,6 +1062,12 @@ async function assessMarketProfiles(
 
   try {
     const publicResearch = await researchMarketProfiles(plan, profiles, channel);
+    const assessmentPostsByHandle = new Map(
+      profiles.map(profile => [
+        cleanChannelHandle(profile.handle, channel),
+        assessmentPosts(profile, 8),
+      ])
+    );
     const candidates = profiles.map(profile => ({
       handle: cleanChannelHandle(profile.handle, channel),
       nome: profile.fullName,
@@ -1061,7 +1076,12 @@ async function assessMarketProfiles(
       seguidores: profile.followers,
       informadoPeloUsuario: manual.has(cleanChannelHandle(profile.handle, channel)),
       temAmostraVisual: assessmentPosts(profile).some(post => Boolean(post.img)),
-      amostraPublicacoes: assessmentPosts(profile).map((post, index) => ({
+      amostraPublicacoes: (
+        assessmentPostsByHandle.get(
+          cleanChannelHandle(profile.handle, channel)
+        ) ?? []
+      ).map((post, index) => ({
+        index,
         prioridade: index < (profile.topPosts?.length ?? 0)
           ? "post_campeao"
           : "post_recente",
@@ -1119,7 +1139,11 @@ mecanismo e fontes concretas. Em caso de conflito, explique a divergencia nas ev
       visualParts.push({ type: "image_url", image_url: { url: img } });
     });
     for (const profile of profiles.slice(0, 12)) {
-      const samples = assessmentPosts(profile, 8)
+      const samples = (
+        assessmentPostsByHandle.get(
+          cleanChannelHandle(profile.handle, channel)
+        ) ?? []
+      )
         .filter(post => Boolean(post.img))
         .slice(0, 4);
       samples.forEach((sample, index) => {
@@ -1160,7 +1184,8 @@ Retorne SOMENTE JSON:
   "audienceOverlap":"publico compartilhado",
   "offerOverlap":"relacao entre ofertas",
   "contentOpportunity":"o que observar sem copiar",
-  "evidence":["evidencia concreta 1","evidencia concreta 2"]
+  "evidence":["evidencia concreta 1","evidencia concreta 2"],
+  "relevantPostIndexes":[0,3]
 }]}
 
 Regras duras:
@@ -1179,6 +1204,8 @@ Regras duras:
 - Perfis de crime, violencia, sensualizacao, noticias, sorteios e engajamento forcado devem ser rejeitados, salvo quando forem o proprio campo profissional do cliente.
 - Nao invente informacao. Quando a evidencia for insuficiente, rejeite.
 - Cada perfil aceito precisa ter ao menos duas evidencias concretas retiradas da bio, publicacoes ou imagem.
+- relevantPostIndexes deve conter somente indices recebidos que comprovem a classificacao. Exclua fotos de evento, imprensa, publicidade ocasional e posts sem relacao com o motivo da recomendacao.
+- Um perfil sem ao menos um post concreto e util na amostra deve ser rejeitado, mesmo que a pesquisa publica descreva uma obra aderente.
 - Avalie todos os handles e nunca altere seus nomes.`,
       },
       {
@@ -1213,11 +1240,24 @@ Regras duras:
         continue;
       }
       const hasVisualSample = profile.posts.some(post => Boolean(post.img));
+      const assessedPosts = assessmentPostsByHandle.get(handle) ?? [];
+      const relevantPostIndexes: number[] = Array.isArray(item?.relevantPostIndexes)
+        ? Array.from(new Set<number>(
+            item.relevantPostIndexes
+              .map((index: unknown) => Number(index))
+              .filter((index: number) =>
+                Number.isInteger(index) &&
+                index >= 0 &&
+                index < assessedPosts.length
+              )
+          )).slice(0, 6)
+        : [];
       if (
         !qualifiesProfileAssessment(item, {
           manual: manual.has(handle),
           hasVisualSample,
-        })
+        }) ||
+        !relevantPostIndexes.length
       ) {
         console.info("[radar-qualification]", JSON.stringify({
           event: "profile_rejected",
@@ -1260,6 +1300,7 @@ Regras duras:
           ? item.evidence.map(String).filter(Boolean).slice(0, 4)
           : [],
         dimensions,
+        relevantPostIndexes,
       });
     }
     return accepted
@@ -1687,7 +1728,13 @@ export async function scan(
     const profileMatch = profileMatches.find(
       match => match.handle === cleanChannelHandle(p.handle, channel)
     );
-    const posts = (p.posts ?? []).filter(
+    const assessedPosts = assessmentPosts(p, 8);
+    const selectedPosts = profileMatch?.relevantPostIndexes?.length
+      ? profileMatch.relevantPostIndexes
+          .map(index => assessedPosts[index])
+          .filter((post): post is SocialPost => Boolean(post))
+      : p.posts ?? [];
+    const posts = selectedPosts.filter(
       (post: SocialPost) => channel === "facebook" || post.img
     );
     const avg = posts.length ? posts.reduce((s, post) => s + engagement(post.likes, post.comments), 0) / posts.length : 0;
@@ -1772,7 +1819,11 @@ export async function scan(
         (channel === "instagram" && h.ownerUsername === ownHandle) ||
         exclude.has(owner)
       ) return false;
-      if (!isRelevantHitForPlan(plan, h, { relaxed: !!opts.handles?.length })) {
+      if (
+        !isRelevantHitForPlan(plan, h, {
+          relaxed: !!opts.handles?.length && !opts.strictQualification,
+        })
+      ) {
         filteredOutByRelevance += 1;
         return false;
       }

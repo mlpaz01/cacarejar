@@ -197,6 +197,31 @@ describe("Radar competitive intelligence", () => {
     ).toBe(true);
   });
 
+  it("accepts a strong mechanism with one concrete supporting dimension", () => {
+    expect(
+      qualifiesProfileAssessment(
+        {
+          decision: "inspiracao_de_componente",
+          inspirationDimension: "mecanismo",
+          fitScore: 70,
+          confidence: "alta",
+          dimensions: {
+            audience: 45,
+            offer: 30,
+            subject: 75,
+            formatTone: 30,
+            visualDNA: 25,
+          },
+          evidence: [
+            "Transforma embalagem descartada em objeto artistico",
+            "Organiza o processo em uma serie recorrente",
+          ],
+        },
+        { hasVisualSample: true }
+      )
+    ).toBe(true);
+  });
+
   it("does not accept audience size as a component inspiration", () => {
     expect(
       qualifiesProfileAssessment(
