@@ -19,6 +19,7 @@ import {
   Loader2,
   Megaphone,
   MessageSquareText,
+  MoreHorizontal,
   Palette,
   Pencil,
   Radar,
@@ -34,7 +35,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { AppLayout } from "@/components/AppLayout";
-import { JourneyNextAction } from "@/components/JourneyNextAction";
 import {
   AnalysisProgress,
   pickDiagnosisSteps,
@@ -689,24 +689,14 @@ export default function Diagnostico() {
 
   return (
     <AppLayout
-      title="Parecer estrategico"
-      subtitle="Diagnostico multicanal com prescricao, Radar e acompanhamento."
+      title="Diagnostico"
+      subtitle="Perfil ativo, referencias e plano da semana."
       journeyActive="diagnostico"
       actions={
-        <div className="flex gap-2 flex-wrap justify-end">
-          <span className="hidden md:flex text-xs font-black text-[#087a32] bg-[#eafff1] border border-[#bfeccb] rounded-xl items-center gap-1.5 px-3 py-2">
-            <BadgeCheck className="w-3.5 h-3.5" /> Salvo automaticamente
+        <div className="flex gap-2 flex-wrap justify-end items-center">
+          <span className="hidden lg:flex text-xs font-black text-[#087a32] bg-[#eafff1] border border-[#bfeccb] rounded-xl items-center gap-1.5 px-3 py-2">
+            <BadgeCheck className="w-3.5 h-3.5" /> Salvo
           </span>
-          <button onClick={() => setShowHistory(true)} className="btn-quiet">
-            <History className="w-4 h-4" /> Ver Historico
-          </button>
-          <button
-            onClick={refreshCurrentDiagnosis}
-            disabled={analyze.isPending}
-            className="btn-quiet disabled:opacity-50"
-          >
-            <RotateCcw className="w-4 h-4" /> Atualizar
-          </button>
           <button
             onClick={journeyAction.run}
             className="btn-action-primary px-5 py-2.5 text-sm flex items-center gap-2"
@@ -715,26 +705,39 @@ export default function Diagnostico() {
           </button>
           <button
             onClick={openBlankDiagnosis}
-            className="rounded-xl border border-[#e6ebf3] bg-white px-5 py-2.5 text-sm font-black text-[#071b44] hover:bg-[#f8fafc] flex items-center gap-2"
-          >
-            <Pencil className="w-4 h-4" /> Criar novo diagnostico
-          </button>
-          <button
-            onClick={exportPdf}
             className="rounded-xl border border-[#e6ebf3] bg-white px-4 py-2.5 text-sm font-black text-[#071b44] hover:bg-[#f8fafc] flex items-center gap-2"
           >
-            <FileDown className="w-4 h-4" /> Exportar PDF
+            <Pencil className="w-4 h-4" /> Novo diagnostico
           </button>
+          <details className="relative group">
+            <summary className="list-none cursor-pointer rounded-xl border border-[#e6ebf3] bg-white px-3 py-2.5 text-sm font-black text-[#071b44] hover:bg-[#f8fafc] flex items-center gap-2">
+              <MoreHorizontal className="w-4 h-4" /> Mais
+            </summary>
+            <div className="absolute right-0 top-[calc(100%+8px)] z-50 w-56 rounded-2xl border border-[#e6ebf3] bg-white p-2 shadow-xl">
+              <button
+                onClick={() => setShowHistory(true)}
+                className="w-full rounded-xl px-3 py-2 text-left text-xs font-black text-[#071b44] hover:bg-[#f8fafc] flex items-center gap-2"
+              >
+                <History className="w-4 h-4" /> Ver historico
+              </button>
+              <button
+                onClick={refreshCurrentDiagnosis}
+                disabled={analyze.isPending}
+                className="w-full rounded-xl px-3 py-2 text-left text-xs font-black text-[#071b44] hover:bg-[#f8fafc] disabled:opacity-50 flex items-center gap-2"
+              >
+                <RotateCcw className="w-4 h-4" /> Atualizar dados
+              </button>
+              <button
+                onClick={exportPdf}
+                className="w-full rounded-xl px-3 py-2 text-left text-xs font-black text-[#071b44] hover:bg-[#f8fafc] flex items-center gap-2"
+              >
+                <FileDown className="w-4 h-4" /> Exportar PDF
+              </button>
+            </div>
+          </details>
         </div>
       }
     >
-      <JourneyNextAction
-        title={journeyAction.title}
-        text={journeyAction.text}
-        label={journeyAction.label}
-        onClick={journeyAction.run}
-      />
-
       {scanRadar.isPending && (
         <div className="max-w-3xl mx-auto mb-5">
           <AnalysisProgress

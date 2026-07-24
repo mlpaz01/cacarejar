@@ -79,13 +79,13 @@ export function JourneyGuide({
   const activeIndex = journeySteps.findIndex(step => step.id === normalizedActive);
 
   return (
-    <section className="bg-white border border-[#e6ebf3] rounded-2xl p-4 shadow-sm mb-5">
-      <div className="flex items-start justify-between gap-3 flex-wrap mb-4">
+    <section className="bg-white border border-[#e6ebf3] rounded-2xl p-3 shadow-sm mb-4">
+      <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
         <div>
           <p className="text-xs font-black text-[#ff3217] uppercase tracking-wide">
             Jornada guiada
           </p>
-          <h2 className="text-lg font-black text-[#071b44]">
+          <h2 className="text-base font-black text-[#071b44]">
             O proximo clique certo
           </h2>
         </div>
@@ -105,11 +105,11 @@ export function JourneyGuide({
           return (
             <Link key={step.id} href={step.href}>
               <a
-                className={`rounded-xl border p-3 transition-all block ${isActive ? "border-[#ff3217] bg-[#fff1ef]" : done ? "border-[#bfeccb] bg-[#eafff1]" : "border-[#e6ebf3] bg-[#fbfcff] hover:bg-white"}`}
+                className={`rounded-xl border p-2.5 transition-all block ${isActive ? "border-[#ff3217] bg-[#fff1ef]" : done ? "border-[#bfeccb] bg-[#eafff1]" : "border-[#e6ebf3] bg-[#fbfcff] hover:bg-white"}`}
               >
                 <div className="flex items-center gap-2">
                   <div
-                    className={`w-8 h-8 rounded-lg flex items-center justify-center ${isActive ? "bg-[#ff3217] text-white" : done ? "bg-[#18b85c] text-white" : "bg-white text-[#61708a] border border-[#e6ebf3]"}`}
+                    className={`w-7 h-7 rounded-lg flex items-center justify-center ${isActive ? "bg-[#ff3217] text-white" : done ? "bg-[#18b85c] text-white" : "bg-white text-[#61708a] border border-[#e6ebf3]"}`}
                   >
                     {done ? (
                       <CheckCircle2 className="w-4 h-4" />
