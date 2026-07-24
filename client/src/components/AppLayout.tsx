@@ -23,6 +23,8 @@ import {
   Send,
   Bell,
   BadgeDollarSign,
+  Menu,
+  X,
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -34,6 +36,7 @@ import { BrandLogo } from "@/components/BrandLogo";
 import { JourneyGuide } from "@/components/JourneyGuide";
 import type { JourneyStepId } from "@/components/JourneyGuide";
 import { trpc } from "@/lib/trpc";
+import { useIsMobile } from "@/hooks/useMobile";
 
 const navGroups = [
   {
@@ -87,6 +90,8 @@ export function AppLayout({
 }: AppLayoutProps) {
   const { user, loading, isAuthenticated, logout } = useAuth();
   const [location] = useLocation();
+  const isMobile = useIsMobile();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const unread = trpc.notifications.unreadCount.useQuery(undefined, {
     enabled: isAuthenticated,
     refetchInterval: 60000,
@@ -109,6 +114,10 @@ export function AppLayout({
     if (title) document.title = `${title} | Cacarejar`;
     else document.title = "Cacarejar | Plataforma de Marketing com Agentes";
   }, [title]);
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location]);
 
   if (loading) {
     return (
@@ -134,28 +143,58 @@ export function AppLayout({
         .join("")
         .toUpperCase()
     : "U";
+  const sidebarCollapsed = !isMobile && collapsed;
 
   return (
-    <div className="min-h-screen bg-[#f7f9fc] flex">
+    <div className="min-h-screen bg-[#f7f9fc] flex overflow-x-hidden">
+      <button
+        type="button"
+        onClick={() => setMobileMenuOpen(open => !open)}
+        aria-label={mobileMenuOpen ? "Fechar menu" : "Abrir menu"}
+        aria-expanded={mobileMenuOpen}
+        className="fixed left-3 top-4 z-50 grid h-9 w-9 place-items-center rounded-lg bg-[#071b44] text-white shadow-lg md:hidden"
+      >
+        {mobileMenuOpen ? (
+          <X className="h-4 w-4" />
+        ) : (
+          <Menu className="h-4 w-4" />
+        )}
+      </button>
+
+      {mobileMenuOpen && (
+        <button
+          type="button"
+          aria-label="Fechar menu"
+          onClick={() => setMobileMenuOpen(false)}
+          className="fixed inset-0 z-30 bg-[#071b44]/35 md:hidden"
+        />
+      )}
+
       <aside
         className={cn(
-          "bg-sidebar flex flex-col fixed inset-y-0 left-0 z-40 shadow-xl transition-[width] duration-200 ease-out",
-          collapsed ? "w-[72px]" : "w-60"
+          "bg-sidebar flex flex-col fixed inset-y-0 left-0 z-40 w-60 shadow-xl transition-[width,transform] duration-200 ease-out",
+          isMobile
+            ? mobileMenuOpen
+              ? "translate-x-0"
+              : "-translate-x-full"
+            : sidebarCollapsed
+              ? "w-[72px] translate-x-0"
+              : "w-60 translate-x-0"
         )}
       >
         <div
           className={cn(
             "h-24 flex items-center border-b border-sidebar-border relative",
-            collapsed ? "justify-center px-2" : "px-3"
+            sidebarCollapsed ? "justify-center px-2" : "px-3"
           )}
         >
           <div
             className={cn(
               "min-w-0 overflow-hidden flex items-center",
-              collapsed ? "w-14 justify-center" : "w-full"
+              sidebarCollapsed ? "w-14 justify-center" : "w-full"
             )}
           >
-            {collapsed ? (
+            {sidebarCollapsed ? (
               <BrandLogo size="sm" theme="dark" variant="icon" />
             ) : (
               <BrandLogo size="sidebar" theme="dark" />
@@ -164,10 +203,10 @@ export function AppLayout({
 
           <button
             onClick={() => setCollapsed(v => !v)}
-            aria-label={collapsed ? "Expandir menu" : "Colapsar menu"}
-            className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-sidebar border border-sidebar-border text-white/70 hover:text-white hover:bg-primary hover:border-primary flex items-center justify-center shadow-md transition-colors z-10"
+            aria-label={sidebarCollapsed ? "Expandir menu" : "Colapsar menu"}
+            className="absolute -right-3 top-1/2 hidden -translate-y-1/2 w-6 h-6 rounded-full bg-sidebar border border-sidebar-border text-white/70 hover:text-white hover:bg-primary hover:border-primary md:flex items-center justify-center shadow-md transition-colors z-10"
           >
-            {collapsed ? (
+            {sidebarCollapsed ? (
               <ChevronRight className="w-3.5 h-3.5" />
             ) : (
               <ChevronLeft className="w-3.5 h-3.5" />
@@ -178,12 +217,12 @@ export function AppLayout({
         <nav
           className={cn(
             "flex-1 py-4 overflow-y-auto overflow-x-hidden",
-            collapsed ? "px-2 space-y-3" : "px-3 space-y-4"
+            sidebarCollapsed ? "px-2 space-y-3" : "px-3 space-y-4"
           )}
         >
           {navGroups.map(group => (
             <div key={group.title} className="space-y-0.5">
-              {collapsed ? (
+              {sidebarCollapsed ? (
                 <div className="border-t border-white/5 mx-2 mb-2" />
               ) : (
                 <p className="text-[9px] font-black text-white/30 uppercase tracking-widest px-3 mb-2">
@@ -203,7 +242,7 @@ export function AppLayout({
                     <a
                       className={cn(
                         "flex items-center rounded-lg text-sm font-semibold transition-all duration-150 group relative",
-                        collapsed
+                        sidebarCollapsed
                           ? "justify-center h-10 w-full"
                           : "gap-3 px-3 py-2.5",
                         isActive
@@ -219,7 +258,7 @@ export function AppLayout({
                             : "text-white/50 group-hover:text-white"
                         )}
                       />
-                      {!collapsed && (
+                      {!sidebarCollapsed && (
                         <>
                           <span className="truncate">{label}</span>
                           {hasBadge && (
@@ -232,14 +271,14 @@ export function AppLayout({
                           )}
                         </>
                       )}
-                      {collapsed && hasBadge && (
+                      {sidebarCollapsed && hasBadge && (
                         <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary border border-sidebar" />
                       )}
                     </a>
                   </Link>
                 );
 
-                if (!collapsed) return item;
+                if (!sidebarCollapsed) return item;
                 return (
                   <Tooltip key={href}>
                     <TooltipTrigger asChild>
@@ -263,10 +302,10 @@ export function AppLayout({
         <div
           className={cn(
             "border-t border-sidebar-border",
-            collapsed ? "p-2" : "p-3"
+            sidebarCollapsed ? "p-2" : "p-3"
           )}
         >
-          {collapsed ? (
+          {sidebarCollapsed ? (
             <div className="flex flex-col items-center gap-2">
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -333,11 +372,15 @@ export function AppLayout({
       <div
         className={cn(
           "flex-1 flex flex-col min-h-screen transition-[margin] duration-200 ease-out",
-          collapsed ? "ml-[72px]" : "ml-60"
+          isMobile
+            ? "ml-0 min-w-0 w-full"
+            : sidebarCollapsed
+              ? "ml-[72px]"
+              : "ml-60"
         )}
       >
         {(title || actions) && (
-          <header className="min-h-[72px] border-b border-border bg-white sticky top-0 z-30 px-5 lg:px-8 py-3 shadow-sm">
+          <header className="min-h-[72px] border-b border-border bg-white sticky top-0 z-30 pl-14 pr-3 sm:px-5 lg:px-8 py-3 shadow-sm">
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
               <div className="min-w-0 flex-1">
                 {title && (
@@ -363,12 +406,14 @@ export function AppLayout({
         )}
 
         {journeyActive && (
-          <div className="px-5 lg:px-6 xl:px-8 pt-4 pb-0">
+          <div className="px-3 sm:px-5 lg:px-6 xl:px-8 pt-4 pb-0">
             <JourneyGuide active={journeyActive} />
           </div>
         )}
 
-        <main className="flex-1 p-5 lg:p-6 xl:p-8">{children}</main>
+        <main className="flex-1 min-w-0 p-3 sm:p-5 lg:p-6 xl:p-8">
+          {children}
+        </main>
       </div>
     </div>
   );

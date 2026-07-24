@@ -34,10 +34,10 @@ export const journeySteps: Array<{
   },
   {
     id: "radar",
-    label: "Referencias",
+    label: "Radar de mercado",
     href: "/diagnostico",
     icon: Radar,
-    detail: "gostei ou nao gostei",
+    detail: "concorrentes e marcas",
   },
   {
     id: "estudio",
