@@ -316,6 +316,77 @@ export async function fetchInstagramProfilesBatch(handles: string[]): Promise<So
 
 /** Localiza (baixa) uma imagem remota e devolve URL do nosso domínio. Reuso para o Radar. */
 /** TikTok em lote. Limitamos a seis perfis para manter custo e tempo previsiveis. */
+/** Busca uma janela ampliada de posts para os poucos perfis que chegaram a
+ * qualificacao. O Profile Scraper sozinho traz apenas publicacoes recentes. */
+export async function fetchInstagramPostHistoryBatch(
+  handles: string[],
+  limitPerProfile = 30
+): Promise<Record<string, SocialPost[]>> {
+  const token = process.env.APIFY_TOKEN;
+  if (!token) {
+    warnDataQuality("apify_missing_token", { network: "instagram_post_history" });
+    return {};
+  }
+  const users = [...new Set(handles.map(cleanHandle).filter(Boolean))].slice(0, 6);
+  if (!users.length) return {};
+  try {
+    const res = await fetch(
+      `https://api.apify.com/v2/acts/apify~instagram-scraper/run-sync-get-dataset-items?token=${token}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          directUrls: users.map(user => `https://www.instagram.com/${user}/`),
+          resultsType: "posts",
+          resultsLimit: Math.max(12, Math.min(limitPerProfile, 40)),
+          skipPinnedPosts: true,
+        }),
+      }
+    );
+    if (!res.ok) {
+      warnDataQuality("apify_post_history_http_error", {
+        handles: users,
+        status: res.status,
+      });
+      return {};
+    }
+    const items = (await res.json()) as any[];
+    if (!Array.isArray(items)) {
+      warnDataQuality("apify_post_history_invalid_response", { handles: users });
+      return {};
+    }
+    const allowed = new Set(users);
+    const grouped: Record<string, SocialPost[]> = {};
+    for (const item of items) {
+      const owner = cleanHandle(item?.ownerUsername ?? item?.username ?? "");
+      if (!allowed.has(owner)) continue;
+      const post: SocialPost = {
+        caption: item?.caption ?? "",
+        likes: item?.likesCount ?? 0,
+        comments: item?.commentsCount ?? 0,
+        shares: item?.sharesCount ?? item?.reshareCount ?? undefined,
+        views:
+          item?.videoViewCount ??
+          item?.videoPlayCount ??
+          item?.viewCount ??
+          undefined,
+        img: item?.displayUrl ?? item?.images?.[0] ?? undefined,
+        url: item?.url ?? undefined,
+        timestamp: item?.timestamp ?? undefined,
+        type: item?.type ?? item?.productType ?? undefined,
+      };
+      (grouped[owner] ??= []).push(post);
+    }
+    return grouped;
+  } catch (e) {
+    warnDataQuality("apify_post_history_exception", {
+      handles: users,
+      message: (e as any)?.message,
+    });
+    return {};
+  }
+}
+
 export async function fetchTikTokProfilesBatch(handles: string[]): Promise<SocialProfile[]> {
   const users = [...new Set(handles.map(cleanTikTokHandle).filter(Boolean))].slice(0, 6);
   if (!users.length) return [];

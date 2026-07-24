@@ -15,6 +15,7 @@ import { getPlan } from "./diagnosis";
 import * as credits from "./credits";
 import {
   fetchInstagramProfilesBatch,
+  fetchInstagramPostHistoryBatch,
   fetchTikTokProfilesBatch,
   fetchFacebookPagesBatch,
   fetchHotPostsByHashtag,
@@ -652,6 +653,38 @@ function assessmentPosts(profile: SocialProfile, limit = 6) {
       return true;
     })
     .slice(0, limit);
+}
+
+function postPerformance(post: SocialPost) {
+  return (
+    (post.likes || 0) +
+    (post.comments || 0) * 4 +
+    (post.shares || 0) * 8 +
+    (post.views || 0) * 0.04
+  );
+}
+
+function mergeProfileHistory(
+  profile: SocialProfile,
+  history: SocialPost[]
+) {
+  if (!history.length) return profile;
+  const seen = new Set<string>();
+  const posts = [...history, ...(profile.posts ?? [])].filter(post => {
+    const key = String(
+      post.url ||
+      post.img ||
+      `${post.timestamp || ""}:${(post.caption || "").slice(0, 120)}`
+    );
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  profile.posts = posts;
+  profile.topPosts = [...posts]
+    .sort((a, b) => postPerformance(b) - postPerformance(a))
+    .slice(0, 6);
+  return profile;
 }
 
 function profileEvidence(profile: SocialProfile) {
@@ -1585,6 +1618,19 @@ export async function scan(
     : channel === "tiktok"
       ? await fetchTikTokProfilesBatch(handles)
       : await fetchFacebookPagesBatch(handles);
+  if (channel === "instagram" && profiles.length) {
+    const deepProfiles = profiles.slice(0, 6);
+    const history = await fetchInstagramPostHistoryBatch(
+      deepProfiles.map(profile => profile.handle),
+      30
+    );
+    deepProfiles.forEach(profile => {
+      mergeProfileHistory(
+        profile,
+        history[cleanChannelHandle(profile.handle, "instagram")] ?? []
+      );
+    });
+  }
   const profileMatches = await assessMarketProfiles(
     plan,
     profiles,
