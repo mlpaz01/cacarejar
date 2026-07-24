@@ -885,6 +885,103 @@ export function fallbackProfileAssessment(
   };
 }
 
+interface PublicProfileResearch {
+  handle: string;
+  positioning?: string;
+  signatureMechanisms?: string[];
+  compatibilityClues?: string[];
+  incompatibilityClues?: string[];
+  sources?: string[];
+}
+
+async function researchMarketProfiles(
+  plan: any,
+  profiles: SocialProfile[],
+  channel: RadarChannel
+) {
+  const empty = new Map<string, PublicProfileResearch>();
+  if (!process.env.OPENROUTER_API_KEY || !profiles.length) return empty;
+  try {
+    const content = await openRouterChat([
+      {
+        role: "system",
+        content: `Voce e o pesquisador publico do Agente de Inteligencia Competitiva da Cacarejar.
+Pesquise o posicionamento e os mecanismos editoriais dos perfis REAIS recebidos.
+Esta pesquisa complementa uma janela limitada de posts recentes; nao substitui as evidencias coletadas.
+
+Retorne SOMENTE JSON:
+{"profiles":[{
+  "handle":"exatamente um handle recebido",
+  "positioning":"atividade e proposta editorial comprovadas",
+  "signatureMechanisms":["mecanismo recorrente comprovado"],
+  "compatibilityClues":["evidencia que pode aproximar da marca analisada"],
+  "incompatibilityClues":["evidencia que afasta da marca analisada"],
+  "sources":["URL publica consultada"]
+}]}
+
+Regras:
+- Pesquise cada handle exatamente como recebido e nao troque por homonimos.
+- Prefira site oficial, entrevistas, imprensa reconhecida e descricoes publicas do proprio criador.
+- Procure recorrencia: obra, processo, humor, formato, acabamento, bastidor e relacao com o publico.
+- Popularidade, genero, aparencia e tamanho de audiencia nao sao mecanismos editoriais.
+- Nao invente. Se nao houver evidencia publica suficiente, deixe os campos vazios.
+- Registre no maximo tres fontes por perfil.`,
+      },
+      {
+        role: "user",
+        content: `MARCA ANALISADA
+${JSON.stringify({
+  produto: plan?.produto,
+  perfil: {
+    handle: plan?.profile?.handle,
+    bio: plan?.profile?.bio,
+  },
+  dna: plan?.brandDNA,
+  postsCampeoes: (plan?.profile?.topPosts ?? [])
+    .slice(0, 5)
+    .map((post: any) => String(post?.caption || "").slice(0, 360)),
+})}
+
+CANAL: ${channel}
+PERFIS VERIFICADOS PARA PESQUISA:
+${JSON.stringify(profiles.map(profile => ({
+  handle: cleanChannelHandle(profile.handle, channel),
+  nome: profile.fullName,
+  bio: profile.bio,
+})))}`,
+      },
+    ], { model: DISCOVERY_BRAIN, temperature: 0.1, maxTokens: 3200 });
+    const parsed = parseJson<{ profiles?: PublicProfileResearch[] }>(content);
+    const allowed = new Set(
+      profiles.map(profile => cleanChannelHandle(profile.handle, channel))
+    );
+    const result = new Map<string, PublicProfileResearch>();
+    for (const item of parsed?.profiles ?? []) {
+      const handle = cleanChannelHandle(item?.handle || "", channel);
+      if (!allowed.has(handle)) continue;
+      result.set(handle, {
+        handle,
+        positioning: String(item?.positioning || "").slice(0, 700),
+        signatureMechanisms: Array.isArray(item?.signatureMechanisms)
+          ? item.signatureMechanisms.map(String).filter(Boolean).slice(0, 5)
+          : [],
+        compatibilityClues: Array.isArray(item?.compatibilityClues)
+          ? item.compatibilityClues.map(String).filter(Boolean).slice(0, 5)
+          : [],
+        incompatibilityClues: Array.isArray(item?.incompatibilityClues)
+          ? item.incompatibilityClues.map(String).filter(Boolean).slice(0, 5)
+          : [],
+        sources: Array.isArray(item?.sources)
+          ? item.sources.map(String).filter(Boolean).slice(0, 3)
+          : [],
+      });
+    }
+    return result;
+  } catch {
+    return empty;
+  }
+}
+
 async function assessMarketProfiles(
   plan: any,
   profiles: SocialProfile[],
@@ -907,6 +1004,7 @@ async function assessMarketProfiles(
   if (!process.env.OPENROUTER_API_KEY) return fallback;
 
   try {
+    const publicResearch = await researchMarketProfiles(plan, profiles, channel);
     const candidates = profiles.map(profile => ({
       handle: cleanChannelHandle(profile.handle, channel),
       nome: profile.fullName,
@@ -925,6 +1023,8 @@ async function assessMarketProfiles(
         compartilhamentos: post.shares,
         visualizacoes: post.views,
       })),
+      pesquisaPublica:
+        publicResearch.get(cleanChannelHandle(profile.handle, channel)) ?? null,
     }));
     const prompt = `MARCA ANALISADA
 ${JSON.stringify({
@@ -951,7 +1051,9 @@ ${JSON.stringify(candidates)}
 
 As imagens seguintes estao identificadas pelo handle. Compare composicao, acabamento,
 cenario, expressao, uso de texto, energia, processo e linguagem visual com o DNA descrito.
-Uma foto bonita, um rosto humano ou porte de audiencia semelhante NAO constituem aderencia.`;
+Uma foto bonita, um rosto humano ou porte de audiencia semelhante NAO constituem aderencia.
+A pesquisa publica complementa a janela recente de posts, mas so vale quando traz posicionamento,
+mecanismo e fontes concretas. Em caso de conflito, explique a divergencia nas evidencias.`;
     const visualParts: ContentPart[] = [{ type: "text", text: prompt }];
     const ownImages = [
       ...(ownProfile?.topPosts ?? []),
