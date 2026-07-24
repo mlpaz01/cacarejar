@@ -157,9 +157,82 @@ function occupationalRelevanceScore(hit: Pick<RadarHit, "ownerUsername" | "owner
   return score;
 }
 
-function isRelevantHitForPlan(plan: any, hit: RadarHit) {
-  if (!isOccupationalHealthPlan(plan)) return true;
-  return occupationalRelevanceScore(hit) >= 6;
+const GENERIC_RADAR_STOPWORDS = new Set([
+  "para", "pela", "pelo", "com", "sem", "que", "uma", "umas", "uns", "dos", "das",
+  "nas", "nos", "esse", "essa", "isso", "este", "esta", "voce", "cliente", "clientes",
+  "conteudo", "conteudos", "post", "posts", "instagram", "reels", "tiktok", "redes",
+  "sociais", "marketing", "vender", "vendas", "mais", "fazer", "faco", "perfil", "marca",
+]);
+
+const RADAR_BLOCKLIST_TERMS = [
+  "violencia", "violencia domestica", "policia", "preso", "presa", "prisao", "crime",
+  "denuncia", "denunciada", "agressao", "assassin", "morte", "estupro", "abuso",
+  "nudez", "sensual", "lingerie", "calcinha", "sutia", "onlyfans", "aposta", "cassino",
+  "bet", "sorteio", "premio", "concorra", "ganhe", "marque", "seguir todos",
+  "comente bastante", "engajadas",
+];
+
+function radarHitText(hit: Pick<RadarHit, "ownerUsername" | "ownerFullName" | "caption" | "theme" | "why" | "mechanism">) {
+  return lowerPlain([
+    hit.ownerUsername,
+    hit.ownerFullName,
+    hit.caption,
+    hit.theme,
+    hit.why,
+    hit.mechanism,
+  ].filter(Boolean).join(" "));
+}
+
+function planRelevanceTerms(plan: any) {
+  const seed = lowerPlain([
+    plan?.produto,
+    plan?.nicho,
+    plan?.sumarioExecutivo,
+    plan?.resumo,
+    plan?.objetivoPrincipal,
+    plan?.profile?.handle,
+    plan?.profile?.fullName,
+    plan?.profile?.bio,
+    plan?.profile?.category,
+    plan?.site?.title,
+    plan?.site?.description,
+    plan?.brandDNA ? JSON.stringify(plan.brandDNA) : "",
+  ].filter(Boolean).join(" "));
+  const counts = new Map<string, number>();
+  for (const term of seed.match(/[a-z0-9]{4,}/g) ?? []) {
+    if (GENERIC_RADAR_STOPWORDS.has(term) || /^\d+$/.test(term)) continue;
+    counts.set(term, (counts.get(term) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || b[0].length - a[0].length)
+    .slice(0, 28)
+    .map(([term]) => term);
+}
+
+function isBrandSafeRadarHit(hit: RadarHit) {
+  const text = radarHitText(hit);
+  return !RADAR_BLOCKLIST_TERMS.some(term => text.includes(term));
+}
+
+function genericRelevanceScore(plan: any, hit: RadarHit) {
+  const terms = planRelevanceTerms(plan);
+  const text = radarHitText(hit);
+  const matches = terms.filter(term => text.includes(term));
+  return {
+    termsCount: terms.length,
+    score:
+      matches.length * 2 +
+      (hit.why || hit.theme ? 1 : 0) +
+      (hit.sourceType === "profile" ? 1 : 0),
+  };
+}
+
+function isRelevantHitForPlan(plan: any, hit: RadarHit, opts: { relaxed?: boolean } = {}) {
+  if (!isBrandSafeRadarHit(hit)) return false;
+  if (isOccupationalHealthPlan(plan)) return occupationalRelevanceScore(hit) >= 6;
+  const rel = genericRelevanceScore(plan, hit);
+  if (rel.termsCount < 4) return opts.relaxed ? rel.score >= 0 : rel.score >= 1;
+  return rel.score >= (opts.relaxed ? 1 : 3);
 }
 
 function parseJson<T = any>(content: string): T | null {
@@ -593,13 +666,17 @@ export async function scan(orgId: number, opts: { handles?: string[]; excludeHan
 
   const seen = new Set<string>();
   const owners = new Set<string>();
+  let filteredOutByRelevance = 0;
   const hits = candidates
     .sort((a, b) => (b.hotScore ?? 0) - (a.hotScore ?? 0))
     .filter(h => {
       const key = (h.url || h.img || "") + (h.ownerUsername || "");
       const owner = cleanHandle(h.ownerUsername || "");
       if (!h.img || seen.has(key) || owners.has(owner) || h.ownerUsername === ownHandle || exclude.has(owner)) return false;
-      if (!isRelevantHitForPlan(plan, h)) return false;
+      if (!isRelevantHitForPlan(plan, h, { relaxed: !!opts.handles?.length })) {
+        filteredOutByRelevance += 1;
+        return false;
+      }
       seen.add(key);
       if (owner) owners.add(owner);
       return true;
@@ -758,6 +835,9 @@ Regras:
   };
   if (!hits.length) {
     qualityWarnings.push("O Radar ficou sem evidencias visuais suficientes e usou contexto do diagnostico como apoio.");
+  }
+  if (filteredOutByRelevance > 0) {
+    qualityWarnings.push(`${filteredOutByRelevance} post(s) foram ocultados por baixa aderencia, tema sensivel ou mecanica oportunista.`);
   }
   const dataQuality: RadarResult["dataQuality"] = {
     status: qualityWarnings.length || quality.grade === "fraca" ? "degraded" : "complete",

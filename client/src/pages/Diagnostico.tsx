@@ -78,6 +78,164 @@ const shortText = (value: any, max = 220) => {
   const text = String(value || "").trim();
   return text.length > max ? `${text.slice(0, max - 1)}...` : text;
 };
+const normalizeLoose = (value: any) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+const RADAR_STOPWORDS = new Set([
+  "para",
+  "pela",
+  "pelo",
+  "com",
+  "sem",
+  "que",
+  "uma",
+  "umas",
+  "uns",
+  "dos",
+  "das",
+  "nas",
+  "nos",
+  "esse",
+  "essa",
+  "isso",
+  "este",
+  "esta",
+  "voce",
+  "cliente",
+  "clientes",
+  "conteudo",
+  "conteudos",
+  "post",
+  "posts",
+  "instagram",
+  "reels",
+  "tiktok",
+  "redes",
+  "sociais",
+  "marketing",
+  "vender",
+  "vendas",
+  "mais",
+  "fazer",
+  "faco",
+  "perfil",
+  "marca",
+]);
+const RADAR_BLOCK_TERMS = [
+  "violencia",
+  "violencia domestica",
+  "policia",
+  "preso",
+  "presa",
+  "prisao",
+  "crime",
+  "denuncia",
+  "denunciada",
+  "agressao",
+  "assassin",
+  "morte",
+  "estupro",
+  "abuso",
+  "nudez",
+  "sensual",
+  "lingerie",
+  "calcinha",
+  "sutia",
+  "onlyfans",
+  "aposta",
+  "cassino",
+  "bet",
+  "sorteio",
+  "premio",
+  "concorra",
+  "ganhe",
+  "marque",
+  "seguir todos",
+  "comente bastante",
+  "engajadas",
+];
+const radarHitText = (hit: any) =>
+  normalizeLoose(
+    [
+      hit?.ownerUsername,
+      hit?.ownerFullName,
+      hit?.caption,
+      hit?.theme,
+      hit?.why,
+      hit?.mechanism,
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+const radarContextTerms = (plan: any) => {
+  const dna = plan?.brandDNA ? JSON.stringify(plan.brandDNA) : "";
+  const raw = normalizeLoose(
+    [
+      plan?.produto,
+      plan?.nicho,
+      plan?.sumarioExecutivo,
+      plan?.resumo,
+      plan?.objetivoPrincipal,
+      plan?.profile?.handle,
+      plan?.profile?.fullName,
+      plan?.profile?.bio,
+      plan?.profile?.category,
+      plan?.site?.title,
+      plan?.site?.description,
+      dna,
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+  const counts = new Map<string, number>();
+  for (const term of raw.match(/[a-z0-9]{4,}/g) ?? []) {
+    if (RADAR_STOPWORDS.has(term) || /^\d+$/.test(term)) continue;
+    counts.set(term, (counts.get(term) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || b[0].length - a[0].length)
+    .slice(0, 28)
+    .map(([term]) => term);
+};
+const buildRadarPreview = (hits: any[], plan: any) => {
+  const terms = radarContextTerms(plan);
+  const hasEnoughContext = terms.length >= 4;
+  const accepted: any[] = [];
+  let hiddenCount = 0;
+
+  for (const hit of hits) {
+    const text = radarHitText(hit);
+    if (RADAR_BLOCK_TERMS.some(term => text.includes(term))) {
+      hiddenCount += 1;
+      continue;
+    }
+
+    const matchedTerms = terms.filter(term => text.includes(term));
+    const score =
+      matchedTerms.length * 2 +
+      (hit?.why || hit?.theme ? 1 : 0) +
+      (hit?.sourceType === "profile" ? 1 : 0);
+
+    if (hasEnoughContext && score < 3) {
+      hiddenCount += 1;
+      continue;
+    }
+    accepted.push({ ...hit, fitScore: score, matchedTerms });
+  }
+
+  const sorted = accepted.sort(
+    (a, b) =>
+      (b.fitScore ?? 0) - (a.fitScore ?? 0) ||
+      (b.hotScore ?? 0) - (a.hotScore ?? 0)
+  );
+  return {
+    hits: sorted.slice(0, 4),
+    hiddenCount: hiddenCount + Math.max(0, sorted.length - 4),
+    lowConfidence: hits.length > 0 && sorted.length === 0,
+  };
+};
 const channelIcon = (canal?: string) => {
   const c = String(canal || "").toLowerCase();
   if (c.includes("google") || c.includes("busca")) return Globe2;
@@ -595,10 +753,11 @@ export default function Diagnostico() {
   const timeline = shown.cronogramaMulticanal ?? [];
   const acompanhamento = shown.acompanhamento;
   const interests = shown.interessesPosts ?? [];
-  const hotHits = ((rd?.hits ?? []) as any[])
+  const rawRadarHits = ((rd?.hits ?? []) as any[])
     .slice()
-    .sort((a, b) => (b.hotScore ?? 0) - (a.hotScore ?? 0))
-    .slice(0, 4);
+    .sort((a, b) => (b.hotScore ?? 0) - (a.hotScore ?? 0));
+  const radarPreview = buildRadarPreview(rawRadarHits, shown);
+  const hotHits = radarPreview.hits;
   const radarFreeLeft = Math.max(
     0,
     (rd?.feedback?.freeLimit ?? 3) - (rd?.feedback?.refinementCount ?? 0)
@@ -607,6 +766,7 @@ export default function Diagnostico() {
   const motorOrganico = shown.motorOrganico;
   const campanhaAssistida = shown.campanhaAssistida;
   const brandDNA = shown.brandDNA;
+  const showTechnicalArchive = false;
   const topPosts = ((prof?.topPosts ?? []) as any[])
     .filter((post: any) => pickPostImage(post))
     .slice(0, 3);
@@ -797,6 +957,8 @@ export default function Diagnostico() {
         loading={scanRadar.isPending}
         refining={refineRadar.isPending || recalibrate.isPending}
         hasRadar={!!rd?.scannedAt}
+        filteredOutCount={radarPreview.hiddenCount}
+        lowConfidence={radarPreview.lowConfidence}
       />
 
       {timeline.length > 0 && (
@@ -816,7 +978,7 @@ export default function Diagnostico() {
               Ver detalhes avancados
             </h2>
             <p className="text-sm text-[#61708a] mt-1">
-              Metodo, motor organico, anuncios, Google, cronograma completo e acompanhamento ficam aqui para nao pesar a jornada.
+              Motor organico, fontes, metodo, anuncios e Google ficam aqui para investigar sem pesar o passo a passo.
             </p>
           </div>
           <span
@@ -957,32 +1119,7 @@ export default function Diagnostico() {
         </section>
       )}
 
-      <section className="grid grid-cols-1 xl:grid-cols-[1.2fr_.8fr] gap-5 mb-5">
-        <div className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm">
-          <p className="text-xs font-black text-[#ff3217] uppercase tracking-wide">
-            Parecer estrategico
-          </p>
-          <h2 className="text-2xl font-black text-[#071b44] mt-2">
-            {parecer.titulo || "O que o Agente encontrou"}
-          </h2>
-          <p className="text-base font-semibold text-[#22304b] leading-relaxed mt-3">
-            {parecer.analise || shown.sumarioExecutivo || shown.resumo}
-          </p>
-          <div className="mt-5 rounded-2xl bg-[#071b44] text-white p-4">
-            <p className="text-xs font-black text-white/60 uppercase">
-              Prescricao imediata
-            </p>
-            <p className="text-sm font-bold leading-relaxed mt-1">
-              {parecer.prescricaoImediata || shown.objetivoPrincipal}
-            </p>
-          </div>
-          {parecer.radarImpacto && (
-            <p className="text-sm text-[#61708a] mt-4 leading-relaxed">
-              {parecer.radarImpacto}
-            </p>
-          )}
-        </div>
-
+      <section className="grid grid-cols-1 xl:grid-cols-2 gap-5 mb-5">
         <div className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -1031,42 +1168,37 @@ export default function Diagnostico() {
             ))}
           </div>
         </div>
-      </section>
 
-      {metodo.length > 0 && (
-        <section className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
-          <HeaderLine
-            icon={Search}
-            title="Metodo do diagnostico"
-            subtitle="Como o Agente transformou canais, mercado e briefing em uma prescricao."
-          />
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-5">
-            {metodo.map((m: any) => (
-              <article
-                key={m.etapa}
-                className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-5"
-              >
-                <p className="text-xs font-black text-[#ff3217] uppercase tracking-wide">
-                  {m.etapa}
-                </p>
-                <p className="text-sm font-bold text-[#071b44] leading-relaxed mt-2">
-                  {m.leitura}
-                </p>
-                <div className="mt-3 rounded-xl bg-white border border-[#e6ebf3] p-3">
-                  <p className="text-[10px] font-black text-[#61708a] uppercase">
-                    Decisao
+        {metodo.length > 0 && (
+          <div className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm">
+            <HeaderLine
+              icon={Search}
+              title="Metodo do diagnostico"
+              subtitle="Como os Agentes transformaram canais, mercado e briefing em uma prescricao."
+            />
+            <div className="space-y-3 mt-4">
+              {metodo.slice(0, 3).map((m: any) => (
+                <article
+                  key={m.etapa}
+                  className="rounded-xl border border-[#e6ebf3] bg-[#fbfcff] p-3"
+                >
+                  <p className="text-xs font-black text-[#ff3217] uppercase tracking-wide">
+                    {m.etapa}
                   </p>
-                  <p className="text-xs font-bold text-[#22304b] leading-relaxed mt-1">
+                  <p className="text-xs font-bold text-[#071b44] leading-relaxed mt-1">
+                    {m.leitura}
+                  </p>
+                  <p className="text-[11px] text-[#61708a] leading-relaxed mt-1">
                     {m.decisao}
                   </p>
-                </div>
-              </article>
-            ))}
+                </article>
+              ))}
+            </div>
           </div>
-        </section>
-      )}
+        )}
+      </section>
 
-      {acoesImediatas.length > 0 && (
+      {showTechnicalArchive && acoesImediatas.length > 0 && (
         <section className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
           <HeaderLine
             icon={BadgeCheck}
@@ -1104,7 +1236,7 @@ export default function Diagnostico() {
         </section>
       )}
 
-      {plano7Dias.length > 0 && (
+      {showTechnicalArchive && plano7Dias.length > 0 && (
         <section className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <HeaderLine
@@ -1123,7 +1255,7 @@ export default function Diagnostico() {
         </section>
       )}
 
-      {aprendizado && (
+      {showTechnicalArchive && aprendizado && (
         <section className="rounded-2xl bg-[#071b44] text-white p-6 shadow-sm mb-5">
           <p className="text-xs font-black text-white/60 uppercase tracking-wide">
             Aprendizado semanal
@@ -1173,7 +1305,7 @@ export default function Diagnostico() {
         </section>
       )}
 
-      {campanhaAssistida && (
+      {showTechnicalArchive && campanhaAssistida && (
         <section className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
           <HeaderLine
             icon={Megaphone}
@@ -1243,6 +1375,7 @@ export default function Diagnostico() {
         </section>
       )}
 
+      {showTechnicalArchive && (
       <section className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
         <HeaderLine
           icon={Target}
@@ -1299,8 +1432,9 @@ export default function Diagnostico() {
           })}
         </div>
       </section>
+      )}
 
-      {plan?.canais360?.canais?.length ? (
+      {showTechnicalArchive && plan?.canais360?.canais?.length ? (
         <section className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
           <HeaderLine
             icon={Target}
@@ -1401,6 +1535,7 @@ export default function Diagnostico() {
         </section>
       ) : null}
 
+      {showTechnicalArchive && (
       <section className="grid grid-cols-1 gap-5 mb-5">
         <div className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm">
           <HeaderLine
@@ -1504,6 +1639,7 @@ export default function Diagnostico() {
           )}
         </div>
       </section>
+      )}
 
       {(() => {
         const adData: any =
@@ -1842,6 +1978,7 @@ export default function Diagnostico() {
         );
       })()}
 
+      {showTechnicalArchive && (
       <section className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
         <HeaderLine
           icon={BarChart3}
@@ -1854,7 +1991,9 @@ export default function Diagnostico() {
           ))}
         </div>
       </section>
+      )}
 
+      {showTechnicalArchive && (
       <section className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
         <HeaderLine
           icon={CalendarDays}
@@ -1891,7 +2030,9 @@ export default function Diagnostico() {
           ))}
         </div>
       </section>
+      )}
 
+      {showTechnicalArchive && (
       <section className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm">
         <HeaderLine
           icon={TrendingUp}
@@ -1960,6 +2101,7 @@ export default function Diagnostico() {
           </EmptyText>
         )}
       </section>
+      )}
         </div>
       </details>
     </AppLayout>
@@ -2034,6 +2176,8 @@ function RadarPreviewSection({
   loading,
   refining,
   hasRadar,
+  filteredOutCount,
+  lowConfidence,
 }: {
   hits: any[];
   likedHitKeys: string[];
@@ -2046,6 +2190,8 @@ function RadarPreviewSection({
   loading: boolean;
   refining: boolean;
   hasRadar: boolean;
+  filteredOutCount: number;
+  lowConfidence: boolean;
 }) {
   const feedbackCount = likedHitKeys.length + dislikedHitKeys.length;
   return (
@@ -2094,6 +2240,18 @@ function RadarPreviewSection({
         </div>
       ) : hits.length ? (
         <>
+          {filteredOutCount > 0 && (
+            <div className="rounded-2xl border border-[#ffd6ce] bg-[#fff8f6] p-4 mt-5">
+              <p className="text-xs font-black text-[#9b1c0b] uppercase tracking-wide">
+                Filtro de aderencia ativo
+              </p>
+              <p className="text-sm text-[#22304b] font-semibold leading-relaxed mt-1">
+                {filteredOutCount} referencia(s) ficaram ocultas porque pareciam
+                pouco aderentes, sensiveis ou oportunistas demais para orientar
+                esta marca.
+              </p>
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mt-5">
             {hits.map((hit: any) => {
               const key = hitKey(hit);
@@ -2191,10 +2349,14 @@ function RadarPreviewSection({
       ) : (
         <div className="rounded-2xl border border-[#ffd6ce] bg-[#fff8f6] p-5 mt-5">
           <p className="text-sm font-black text-[#071b44]">
-            Ainda nao ha referencias para validar.
+            {lowConfidence
+              ? "O Radar encontrou sinais, mas nenhum passou no filtro de aderencia."
+              : "Ainda nao ha referencias para validar."}
           </p>
           <p className="text-xs text-[#61708a] mt-1">
-            Clique em Buscar referencias ou use o Radar avancado para informar perfis especificos.
+            {lowConfidence
+              ? "Use o Radar avancado para informar perfis que voce realmente considera comparaveis, ou rebusque com uma direcao mais especifica."
+              : "Clique em Buscar referencias ou use o Radar avancado para informar perfis especificos."}
           </p>
         </div>
       )}
