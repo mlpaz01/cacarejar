@@ -25,6 +25,7 @@ import {
 } from "./profileProvider";
 
 const BRAIN = "anthropic/claude-sonnet-4.6";
+const DISCOVERY_BRAIN = "perplexity/sonar-pro";
 const FREE_REFINES = 3;
 const REFINE_COST_CC = 10;
 export type RadarChannel = "instagram" | "facebook" | "tiktok";
@@ -587,7 +588,7 @@ Publico, oferta e posicionamento: ${JSON.stringify({
 Canais do cliente: ${JSON.stringify(redes)}
 Nao inclua o proprio perfil do cliente nas sugestoes.`,
       },
-    ], { model: BRAIN, temperature: 0.25, maxTokens: 1600 });
+    ], { model: DISCOVERY_BRAIN, temperature: 0.15, maxTokens: 2000 });
     const j = parseJson<any>(content) ?? {};
     const instagramProfiles = (j.instagram?.profiles ?? [])
       .map((h: string) => cleanChannelHandle(h, "instagram"))
@@ -1309,6 +1310,7 @@ export async function scan(
     excludeHandles?: string[];
     feedback?: RadarResult["feedback"];
     channel?: RadarChannel;
+    strictQualification?: boolean;
   } = {}
 ): Promise<RadarResult> {
   const plan: any = await getPlan(orgId);
@@ -1371,7 +1373,7 @@ export async function scan(
     plan,
     profiles,
     channel,
-    manualHandles,
+    opts.strictQualification ? [] : manualHandles,
     ownProfile
   );
   const acceptedHandles = new Set(profileMatches.map(match => match.handle));
