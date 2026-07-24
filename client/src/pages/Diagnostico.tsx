@@ -780,6 +780,8 @@ export default function Diagnostico() {
         radarCount={hotHits.length}
       />
 
+      {brandDNA && <BrandDNASection dna={brandDNA} />}
+
       {topPosts.length > 0 && (
         <TopPostsSection posts={topPosts} analyses={topPostAnalyses} />
       )}
@@ -826,8 +828,6 @@ export default function Diagnostico() {
           </span>
         </summary>
         <div className="px-5 pb-5">
-
-      {brandDNA && <BrandDNASection dna={brandDNA} />}
 
       {(situacao.length > 0 || pilaresEstrategicos.length > 0) && (
         <StrategicStudySection
