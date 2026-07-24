@@ -236,6 +236,13 @@ const buildRadarPreview = (hits: any[], plan: any) => {
     lowConfidence: hits.length > 0 && sorted.length === 0,
   };
 };
+const organicBreakdownMax = (item: any) => {
+  if (typeof item?.max === "number" && item.max > 0) return item.max;
+  const name = normalizeLoose(item?.nome);
+  if (["oferta", "prova", "cta"].includes(name)) return 15;
+  if (["radar", "execucao"].includes(name)) return 10;
+  return 100;
+};
 const channelIcon = (canal?: string) => {
   const c = String(canal || "").toLowerCase();
   if (c.includes("google") || c.includes("busca")) return Globe2;
@@ -1009,9 +1016,14 @@ export default function Diagnostico() {
           <div className="grid grid-cols-1 xl:grid-cols-[260px_1fr_320px] gap-5 mt-5">
             <div className="rounded-3xl bg-[#071b44] text-white p-5">
               <p className="text-xs font-black text-white/60 uppercase">
-                Score organico
+                Nota organica
               </p>
-              <p className="text-5xl font-black mt-2">{motorOrganico.score}</p>
+              <p className="text-5xl font-black mt-2 flex items-end gap-1">
+                <span>{motorOrganico.score}</span>
+                <span className="text-xl font-black text-white/55 mb-1">
+                  /100
+                </span>
+              </p>
               <div className="h-2 rounded-full bg-white/15 mt-4 overflow-hidden">
                 <div
                   className="h-full bg-[#ff3217]"
@@ -1062,33 +1074,42 @@ export default function Diagnostico() {
             </div>
             {motorOrganico.scoreBreakdown?.length > 0 && (
               <div className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-4">
-                <p className="text-[10px] font-black text-[#ff3217] uppercase">
-                  Por que esta nota
-                </p>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[10px] font-black text-[#ff3217] uppercase">
+                    Por que esta nota
+                  </p>
+                  <span className="text-[10px] font-black text-[#071b44] bg-white border border-[#e6ebf3] rounded-full px-2 py-0.5">
+                    {motorOrganico.score}/100
+                  </span>
+                </div>
                 <div className="space-y-3 mt-3">
-                  {motorOrganico.scoreBreakdown.map((item: any) => (
-                    <div key={item.nome}>
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-xs font-black text-[#071b44]">
-                          {item.nome}
+                  {motorOrganico.scoreBreakdown.map((item: any) => {
+                    const max = organicBreakdownMax(item);
+                    const value = Number(item.valor) || 0;
+                    return (
+                      <div key={item.nome}>
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-xs font-black text-[#071b44]">
+                            {item.nome}
+                          </p>
+                          <span className="text-[10px] font-black text-[#61708a]">
+                            {value}/{max} pts
+                          </span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-[#e6ebf3] overflow-hidden mt-1">
+                          <div
+                            className="h-full bg-[#ff3217]"
+                            style={{
+                              width: `${Math.min(100, (value / max) * 100)}%`,
+                            }}
+                          />
+                        </div>
+                        <p className="text-[10px] text-[#61708a] mt-1">
+                          {item.detalhe}
                         </p>
-                        <span className="text-[10px] font-black text-[#61708a]">
-                          {item.valor} pts
-                        </span>
                       </div>
-                      <div className="h-1.5 rounded-full bg-[#e6ebf3] overflow-hidden mt-1">
-                        <div
-                          className="h-full bg-[#ff3217]"
-                          style={{
-                            width: `${Math.min(100, (Number(item.valor) / 15) * 100)}%`,
-                          }}
-                        />
-                      </div>
-                      <p className="text-[10px] text-[#61708a] mt-1">
-                        {item.detalhe}
-                      </p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}

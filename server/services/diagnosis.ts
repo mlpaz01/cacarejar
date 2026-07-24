@@ -236,7 +236,7 @@ export interface CacaPlan {
   motorOrganico?: {
     score: number;
     leitura: string;
-    scoreBreakdown?: { nome: string; valor: number; detalhe: string }[];
+    scoreBreakdown?: { nome: string; valor: number; max?: number; detalhe: string }[];
     ajustesPerfil: string[];
     termosBuscaSocial: string[];
     pilares: string[];
@@ -1084,11 +1084,11 @@ export function buildOrganicEngine(plan: Partial<CacaPlan>, radar?: any): CacaPl
   const hasRadar = !!radar?.hits?.length || !!radar?.ideas?.length;
   const hasPlan = !!plan.plano7Dias?.length;
   const scoreBreakdown = [
-    { nome: "Oferta", valor: hasOffer ? 15 : 4, detalhe: hasOffer ? "Oferta identificada no perfil/contexto." : "Oferta ainda precisa ficar obvia." },
-    { nome: "Prova", valor: hasProof ? 15 : 5, detalhe: hasProof ? "Existe sinal de autoridade ou base social." : "Falta prova social, numero ou bastidor real." },
-    { nome: "CTA", valor: hasCta ? 15 : 3, detalhe: hasCta ? "Ha caminho de conversa/conversao." : "CTA ainda esta fraco ou invisivel." },
-    { nome: "Radar", valor: hasRadar ? 10 : 2, detalhe: hasRadar ? "Mercado ja trouxe sinais externos." : "Radar precisa ser rodado/refinado." },
-    { nome: "Execucao", valor: hasPlan ? 10 : 3, detalhe: hasPlan ? "Plano semanal existe." : "Ainda falta rotina semanal." },
+    { nome: "Oferta", valor: hasOffer ? 15 : 4, max: 15, detalhe: hasOffer ? "Oferta identificada no perfil/contexto." : "Oferta ainda precisa ficar obvia." },
+    { nome: "Prova", valor: hasProof ? 15 : 5, max: 15, detalhe: hasProof ? "Existe sinal de autoridade ou base social." : "Falta prova social, numero ou bastidor real." },
+    { nome: "CTA", valor: hasCta ? 15 : 3, max: 15, detalhe: hasCta ? "Ha caminho de conversa/conversao." : "CTA ainda esta fraco ou invisivel." },
+    { nome: "Radar", valor: hasRadar ? 10 : 2, max: 10, detalhe: hasRadar ? "Mercado ja trouxe sinais externos." : "Radar precisa ser rodado/refinado." },
+    { nome: "Execucao", valor: hasPlan ? 10 : 3, max: 10, detalhe: hasPlan ? "Plano semanal existe." : "Ainda falta rotina semanal." },
   ];
   const score = Math.min(100, 35 + scoreBreakdown.reduce((s, item) => s + item.valor, 0));
   const rawTerms = [
