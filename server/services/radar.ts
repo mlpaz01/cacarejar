@@ -572,15 +572,10 @@ Regras:
       },
       {
         role: "user",
-        content: `Nicho: ${nicho}
-Produto/conta: ${produto}
+        content: `Produto/conta (evidencia principal): ${produto}
 Contexto ativo: ${ctx.label || "sem perfil identificado"} (${ctx.source || "diagnostico"})
-Publico, oferta e posicionamento: ${JSON.stringify({
-  sumario: plan?.sumarioExecutivo,
-  resumo: plan?.resumoDiagnostico || plan?.resumo,
-  objetivo: plan?.objetivoPrincipal,
+Evidencias concretas da marca (use nesta ordem): ${JSON.stringify({
   bio: plan?.profile?.bio,
-  categoria: plan?.profile?.category,
   dna: plan?.brandDNA,
   postsCampeoes: (plan?.profile?.topPosts ?? [])
     .slice(0, 6)
@@ -588,8 +583,16 @@ Publico, oferta e posicionamento: ${JSON.stringify({
       texto: String(post?.caption || "").slice(0, 420),
       formato: post?.type,
     })),
+  objetivo: plan?.objetivoPrincipal,
+})}
+Rotulos automaticos de baixa confianca (ignore quando conflitarem com bio, DNA ou posts): ${JSON.stringify({
+  nicho,
+  categoria: plan?.profile?.category,
+  sumario: plan?.sumarioExecutivo,
+  resumo: plan?.resumoDiagnostico || plan?.resumo,
 })}
 Canais do cliente: ${JSON.stringify(redes)}
+Conteudo real, DNA e posts campeoes sempre vencem os rotulos automaticos do diagnostico.
 Nao inclua o proprio perfil do cliente nas sugestoes.`,
       },
     ], { model: DISCOVERY_BRAIN, temperature: 0.15, maxTokens: 2000 });
@@ -635,11 +638,27 @@ Nao inclua o proprio perfil do cliente nas sugestoes.`,
   }
 }
 
+function assessmentPosts(profile: SocialProfile, limit = 6) {
+  const seen = new Set<string>();
+  return [...(profile.topPosts ?? []), ...(profile.posts ?? [])]
+    .filter(post => {
+      const key = String(
+        post.url ||
+        post.img ||
+        `${post.timestamp || ""}:${(post.caption || "").slice(0, 120)}`
+      );
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, limit);
+}
+
 function profileEvidence(profile: SocialProfile) {
   return [
     profile.bio,
     profile.category,
-    ...profile.posts.slice(0, 6).map(post => post.caption),
+    ...assessmentPosts(profile).map(post => post.caption),
   ].filter(Boolean).join(" ");
 }
 
@@ -808,14 +827,14 @@ export function fallbackProfileAssessment(
     profile.fullName,
     profile.bio,
     profile.category,
-    ...profile.posts.slice(0, 8).map(post => post.caption),
+    ...assessmentPosts(profile, 8).map(post => post.caption),
   ].filter(Boolean).join(" "));
   if (RADAR_BLOCKLIST_TERMS.some(term => text.includes(term))) return null;
   const matched = terms.filter(term => text.includes(term));
   const evidenceFields = [
     profile.bio,
     profile.category,
-    ...profile.posts.slice(0, 8).map(post => post.caption),
+    ...assessmentPosts(profile, 8).map(post => post.caption),
   ].map(value => lowerPlain(String(value || "")));
   const matchedFields = evidenceFields.filter(field =>
     matched.some(term => field.includes(term))
@@ -895,8 +914,11 @@ async function assessMarketProfiles(
       categoria: profile.category,
       seguidores: profile.followers,
       informadoPeloUsuario: manual.has(cleanChannelHandle(profile.handle, channel)),
-      temAmostraVisual: profile.posts.some(post => Boolean(post.img)),
-      amostraPublicacoes: profile.posts.slice(0, 6).map(post => ({
+      temAmostraVisual: assessmentPosts(profile).some(post => Boolean(post.img)),
+      amostraPublicacoes: assessmentPosts(profile).map((post, index) => ({
+        prioridade: index < (profile.topPosts?.length ?? 0)
+          ? "post_campeao"
+          : "post_recente",
         texto: (post.caption || "").slice(0, 420),
         curtidas: post.likes,
         comentarios: post.comments,
@@ -947,13 +969,21 @@ Uma foto bonita, um rosto humano ou porte de audiencia semelhante NAO constituem
       visualParts.push({ type: "image_url", image_url: { url: img } });
     });
     for (const profile of profiles.slice(0, 12)) {
-      const sample = profile.posts.find(post => Boolean(post.img))?.img;
-      if (!sample) continue;
-      visualParts.push({
-        type: "text",
-        text: `AMOSTRA VISUAL DO CANDIDATO @${cleanChannelHandle(profile.handle, channel)}:`,
+      const samples = assessmentPosts(profile)
+        .filter(post => Boolean(post.img))
+        .slice(0, 2);
+      samples.forEach((sample, index) => {
+        visualParts.push({
+          type: "text",
+          text: `POST ${index + 1} DE MELHOR DESEMPENHO DO CANDIDATO @${cleanChannelHandle(profile.handle, channel)}
+Legenda: ${(sample.caption || "").slice(0, 260)}
+Curtidas: ${sample.likes || 0}; comentarios: ${sample.comments || 0}; visualizacoes: ${sample.views || 0}`,
+        });
+        visualParts.push({
+          type: "image_url",
+          image_url: { url: sample.img! },
+        });
       });
-      visualParts.push({ type: "image_url", image_url: { url: sample } });
     }
 
     const content = await openRouterChat([
