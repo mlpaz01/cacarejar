@@ -1681,7 +1681,10 @@ const radarRouter = router({
     return radarService.suggestSources(orgId);
   }),
   scan: protectedProcedure
-    .input(z.object({ handles: z.array(z.string()).optional() }).nullish())
+    .input(z.object({
+      handles: z.array(z.string()).optional(),
+      channel: z.enum(["instagram", "facebook", "tiktok"]).optional(),
+    }).nullish())
     .mutation(async ({ ctx, input }) => {
       const orgId = ctx.user.organizationId;
       if (!orgId) throw new Error("Organização não encontrada");
@@ -1692,7 +1695,10 @@ const radarRouter = router({
         "Radar de mercado e concorrencia"
       );
       try {
-        const result = await radarService.scan(orgId, { handles: input?.handles });
+        const result = await radarService.scan(orgId, {
+          handles: input?.handles,
+          channel: input?.channel,
+        });
         await creditsService.settle(orgId, holdId);
         return result;
       } catch (e) {
@@ -1705,6 +1711,7 @@ const radarRouter = router({
       likedHandles: z.array(z.string()).optional(),
       likedPostKeys: z.array(z.string()).optional(),
       dislikedPostKeys: z.array(z.string()).optional(),
+      channel: z.enum(["instagram", "facebook", "tiktok"]).optional(),
     }))
     .mutation(({ ctx, input }) => {
       const orgId = ctx.user.organizationId;

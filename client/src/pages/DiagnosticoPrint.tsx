@@ -46,7 +46,7 @@ const RADAR_BLOCK_TERMS = [
 
 const radarHitText = (hit: any) =>
   normalizeLoose(
-    [hit?.ownerUsername, hit?.ownerFullName, hit?.caption, hit?.theme, hit?.why, hit?.mechanism]
+    [hit?.ownerUsername, hit?.ownerFullName, hit?.caption, hit?.theme, hit?.why, hit?.mechanism, hit?.profileMatchReason]
       .filter(Boolean)
       .join(" ")
   );
@@ -92,8 +92,15 @@ const filterRadarPosts = (hits: any[], plan: any) => {
         terms.filter(term => text.includes(term)).length * 2 +
         (hit?.why || hit?.theme ? 1 : 0) +
         (hit?.sourceType === "profile" ? 1 : 0);
-      if (hasEnoughContext && score < 3) return null;
-      return { ...hit, fitScore: score };
+      if (
+        hasEnoughContext &&
+        score < 3 &&
+        Number(hit?.profileFitScore ?? 0) < 60
+      ) return null;
+      return {
+        ...hit,
+        fitScore: Math.max(score, Number(hit?.profileFitScore ?? 0)),
+      };
     })
     .filter(Boolean)
     .sort((a: any, b: any) => (b.fitScore ?? 0) - (a.fitScore ?? 0) || (b.hotScore ?? 0) - (a.hotScore ?? 0));

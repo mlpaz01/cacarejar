@@ -165,6 +165,7 @@ const radarHitText = (hit: any) =>
       hit?.theme,
       hit?.why,
       hit?.mechanism,
+      hit?.profileMatchReason,
     ]
       .filter(Boolean)
       .join(" ")
@@ -218,11 +219,19 @@ const buildRadarPreview = (hits: any[], plan: any) => {
       (hit?.why || hit?.theme ? 1 : 0) +
       (hit?.sourceType === "profile" ? 1 : 0);
 
-    if (hasEnoughContext && score < 3) {
+    if (
+      hasEnoughContext &&
+      score < 3 &&
+      Number(hit?.profileFitScore ?? 0) < 60
+    ) {
       hiddenCount += 1;
       continue;
     }
-    accepted.push({ ...hit, fitScore: score, matchedTerms });
+    accepted.push({
+      ...hit,
+      fitScore: Math.max(score, Number(hit?.profileFitScore ?? 0)),
+      matchedTerms,
+    });
   }
 
   const sorted = accepted.sort(
@@ -230,9 +239,14 @@ const buildRadarPreview = (hits: any[], plan: any) => {
       (b.fitScore ?? 0) - (a.fitScore ?? 0) ||
       (b.hotScore ?? 0) - (a.hotScore ?? 0)
   );
+  const previewHits = ["instagram", "facebook", "tiktok"].flatMap(channel =>
+    sorted
+      .filter(hit => (hit?.channel || "instagram") === channel)
+      .slice(0, 4)
+  );
   return {
-    hits: sorted.slice(0, 4),
-    hiddenCount: hiddenCount + Math.max(0, sorted.length - 4),
+    hits: previewHits,
+    hiddenCount: hiddenCount + Math.max(0, sorted.length - previewHits.length),
     lowConfidence: hits.length > 0 && sorted.length === 0,
   };
 };
@@ -355,7 +369,10 @@ export default function Diagnostico() {
   useEffect(() => {
     if (!shown || forceForm || showHistory) return;
     if (autoRadarStarted || scanRadar.isPending) return;
-    if (rd?.scannedAt || ((rd?.hits ?? []) as any[]).length > 0) return;
+    if (
+      rd?.engineVersion === 2 &&
+      (rd?.scannedAt || ((rd?.hits ?? []) as any[]).length > 0)
+    ) return;
     const hasContext = Boolean(
       shown.profile?.handle ||
         shown.redes?.instagram ||
@@ -371,6 +388,7 @@ export default function Diagnostico() {
     forceForm,
     showHistory,
     rd?.scannedAt,
+    rd?.engineVersion,
     rd?.hits?.length,
     scanRadar.isPending,
     shown?.profile?.handle,
@@ -760,7 +778,10 @@ export default function Diagnostico() {
   const timeline = shown.cronogramaMulticanal ?? [];
   const acompanhamento = shown.acompanhamento;
   const interests = shown.interessesPosts ?? [];
-  const rawRadarHits = ((rd?.hits ?? []) as any[])
+  const rawRadarHits = (rd?.engineVersion === 2
+    ? ((rd?.hits ?? []) as any[])
+    : []
+  )
     .slice()
     .sort((a, b) => (b.hotScore ?? 0) - (a.hotScore ?? 0));
   const radarPreview = buildRadarPreview(rawRadarHits, shown);
@@ -2215,6 +2236,20 @@ function RadarPreviewSection({
   lowConfidence: boolean;
 }) {
   const feedbackCount = likedHitKeys.length + dislikedHitKeys.length;
+  const [activeChannel, setActiveChannel] = useState<
+    "instagram" | "facebook" | "tiktok"
+  >("instagram");
+  const channelHits = hits.filter(
+    hit => (hit?.channel || "instagram") === activeChannel
+  );
+  const qualifiedProfiles = new Set(
+    channelHits.map(hit => String(hit?.ownerUsername || "").toLowerCase())
+  ).size;
+  const channels = [
+    { id: "instagram" as const, label: "Instagram" },
+    { id: "facebook" as const, label: "Facebook" },
+    { id: "tiktok" as const, label: "TikTok" },
+  ];
   return (
     <section
       id="radar-previo"
@@ -2223,8 +2258,8 @@ function RadarPreviewSection({
       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
         <HeaderLine
           icon={Radar}
-          title="Referencias encontradas"
-          subtitle="Marque o que combina e o que nao combina. Esse criterio guia os posts no Estudio."
+          title="Radar de mercado"
+          subtitle="O Agente compara publico, oferta e conteudo antes de mostrar concorrentes ou inspiracoes."
         />
         <div className="flex flex-wrap gap-2">
           <button
@@ -2238,16 +2273,41 @@ function RadarPreviewSection({
             ) : (
               <Search className="w-3.5 h-3.5" />
             )}
-            {hasRadar ? "Rebuscar previa" : "Buscar referencias"}
+            {hasRadar ? "Atualizar Radar" : "Buscar no mercado"}
           </button>
           <button
             type="button"
             onClick={onAdvanced}
             className="rounded-xl border border-[#e6ebf3] bg-white px-4 py-2 text-xs font-black text-[#071b44] hover:bg-[#f8fafc]"
           >
-            Radar avancado
+            Abrir Radar completo
           </button>
         </div>
+      </div>
+
+      <div className="mt-5 flex items-center gap-2 border-b border-[#e6ebf3] overflow-x-auto">
+        {channels.map(channel => {
+          const count = hits.filter(
+            hit => (hit?.channel || "instagram") === channel.id
+          ).length;
+          return (
+            <button
+              key={channel.id}
+              type="button"
+              onClick={() => setActiveChannel(channel.id)}
+              className={`px-4 py-3 text-xs font-black border-b-2 whitespace-nowrap transition-colors ${
+                activeChannel === channel.id
+                  ? "border-[#ff3217] text-[#071b44]"
+                  : "border-transparent text-[#61708a] hover:text-[#071b44]"
+              }`}
+            >
+              {channel.label}
+              <span className="ml-2 rounded-full bg-[#f1f4f9] px-2 py-0.5 text-[10px]">
+                {count}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {loading ? (
@@ -2259,7 +2319,7 @@ function RadarPreviewSection({
             A primeira previa fica aqui para voce validar sem sair do Diagnostico.
           </p>
         </div>
-      ) : hits.length ? (
+      ) : channelHits.length ? (
         <>
           {filteredOutCount > 0 && (
             <div className="rounded-2xl border border-[#ffd6ce] bg-[#fff8f6] p-4 mt-5">
@@ -2273,8 +2333,16 @@ function RadarPreviewSection({
               </p>
             </div>
           )}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mt-5">
-            {hits.map((hit: any) => {
+          <div className="flex items-center justify-between gap-3 mt-5">
+            <p className="text-xs font-black text-[#071b44]">
+              {qualifiedProfiles} perfil(is) qualificado(s)
+            </p>
+            <p className="text-[11px] text-[#61708a]">
+              Ate 3 posts fora da curva por perfil
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mt-3">
+            {channelHits.map((hit: any) => {
               const key = hitKey(hit);
               const liked = likedHitKeys.includes(key);
               const disliked = dislikedHitKeys.includes(key);
@@ -2300,12 +2368,30 @@ function RadarPreviewSection({
                       <p className="text-xs font-black text-[#071b44] truncate">
                         @{hit.ownerUsername || "referencia"}
                       </p>
-                      <span className="text-[10px] font-black text-white bg-[#ff3217] rounded-full px-2 py-1">
-                        {hit.hotScore ?? "-"} hot
-                      </span>
+                      <div className="flex items-center gap-1">
+                        {typeof hit.profileFitScore === "number" && (
+                          <span className="text-[10px] font-black text-[#071b44] bg-[#eef2f7] rounded-full px-2 py-1">
+                            {hit.profileFitScore}/100
+                          </span>
+                        )}
+                        <span className="text-[10px] font-black text-white bg-[#ff3217] rounded-full px-2 py-1">
+                          {hit.hotScore ?? "-"} hot
+                        </span>
+                      </div>
                     </div>
+                    {hit.profileRole && (
+                      <p className="text-[10px] font-black text-[#ff3217] uppercase mt-2">
+                        {hit.profileRole === "concorrente_direto"
+                          ? "Concorrente direto"
+                          : "Inspiracao"}
+                      </p>
+                    )}
                     <p className="text-xs text-[#22304b] leading-relaxed mt-2 line-clamp-4 flex-1">
-                      {hit.why || hit.mechanism || hit.caption || hit.theme}
+                      {hit.profileMatchReason ||
+                        hit.why ||
+                        hit.mechanism ||
+                        hit.caption ||
+                        hit.theme}
                     </p>
                     <div className="grid grid-cols-2 gap-2 mt-3">
                       <button
@@ -2370,12 +2456,16 @@ function RadarPreviewSection({
       ) : (
         <div className="rounded-2xl border border-[#ffd6ce] bg-[#fff8f6] p-5 mt-5">
           <p className="text-sm font-black text-[#071b44]">
-            {lowConfidence
+            {activeChannel !== "instagram"
+              ? `Ainda nao ha uma pesquisa de ${activeChannel === "facebook" ? "Facebook" : "TikTok"} para este perfil.`
+              : lowConfidence
               ? "O Radar encontrou sinais, mas nenhum passou no filtro de aderencia."
               : "Ainda nao ha referencias para validar."}
           </p>
           <p className="text-xs text-[#61708a] mt-1">
-            {lowConfidence
+            {activeChannel !== "instagram"
+              ? "Abra o Radar completo para pesquisar este canal e manter os resultados separados."
+              : lowConfidence
               ? "Use o Radar avancado para informar perfis que voce realmente considera comparaveis, ou rebusque com uma direcao mais especifica."
               : "Clique em Buscar referencias ou use o Radar avancado para informar perfis especificos."}
           </p>

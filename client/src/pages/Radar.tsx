@@ -24,6 +24,10 @@ import {
   Network,
   Hash,
   Users,
+  Building2,
+  Handshake,
+  BadgeCheck,
+  Lightbulb,
 } from "lucide-react";
 import { AnalysisProgress, RADAR_STEPS } from "@/components/AnalysisProgress";
 
@@ -46,6 +50,28 @@ const cleanHandle = (h?: string) =>
     .replace(/^https?:\/\/(www\.)?instagram\.com\//i, "")
     .replace(/\/$/, "")
     .toLowerCase();
+type RadarChannel = "instagram" | "facebook" | "tiktok";
+const CHANNELS: { id: RadarChannel; label: string }[] = [
+  { id: "instagram", label: "Instagram" },
+  { id: "facebook", label: "Facebook" },
+  { id: "tiktok", label: "TikTok" },
+];
+const cleanSourceHandle = (raw: string, channel: RadarChannel) => {
+  const value = (raw || "").trim().replace(/^@/, "");
+  if (channel === "tiktok") {
+    return value
+      .replace(/^https?:\/\/(www\.)?tiktok\.com\/@?/i, "")
+      .replace(/[/?#].*$/, "")
+      .toLowerCase();
+  }
+  if (channel === "facebook") {
+    return value
+      .replace(/^https?:\/\/(www\.)?facebook\.com\//i, "")
+      .replace(/[/?#].*$/, "")
+      .toLowerCase();
+  }
+  return cleanHandle(value);
+};
 const siteHost = (raw?: string) => {
   const value = (raw || "").trim();
   if (!value) return "";
@@ -166,6 +192,7 @@ function radarHitText(hit: any) {
       hit?.theme,
       hit?.why,
       hit?.mechanism,
+      hit?.profileMatchReason,
     ]
       .filter(Boolean)
       .join(" ")
@@ -219,11 +246,18 @@ function filterRadarHitsForBrand(hits: any[], plan: any) {
       matchedTerms.length * 2 +
       (hit?.why || hit?.theme ? 1 : 0) +
       (hit?.sourceType === "profile" ? 1 : 0);
-    if (hasEnoughContext && score < 3) {
+    if (
+      hasEnoughContext &&
+      score < 3 &&
+      Number(hit?.profileFitScore ?? 0) < 60
+    ) {
       hidden += 1;
       continue;
     }
-    visible.push({ ...hit, fitScore: score });
+    visible.push({
+      ...hit,
+      fitScore: Math.max(score, Number(hit?.profileFitScore ?? 0)),
+    });
   }
 
   return {
@@ -269,6 +303,9 @@ export default function Radar() {
     enabled: !!diagnosis.data,
   });
   const [handles, setHandles] = useState("");
+  const [activeChannel, setActiveChannel] =
+    useState<RadarChannel>("instagram");
+  const [radarMode, setRadarMode] = useState<"profiles" | "brands">("profiles");
   const [likedHitKeys, setLikedHitKeys] = useState<string[]>([]);
   const [dislikedHitKeys, setDislikedHitKeys] = useState<string[]>([]);
 
@@ -300,6 +337,12 @@ export default function Radar() {
   });
 
   const data = radar.data as any;
+  const dataIsLegacy = !!data && data?.engineVersion !== 2;
+  const channelData =
+    dataIsLegacy
+      ? null
+      : data?.channels?.[activeChannel] ??
+        (!data?.channels && activeChannel === "instagram" ? data : null);
   const plan = diagnosis.data as any;
   const selectedContext = profileContext(plan);
   const selectedHandle = cleanHandle(
@@ -319,7 +362,7 @@ export default function Radar() {
     radarBaseKey !== selectedContext.key;
   const manualHandles = handles
     .split(",")
-    .map(s => cleanHandle(s))
+    .map(s => cleanSourceHandle(s, activeChannel))
     .filter(Boolean);
   const hasDiagnosisContext =
     !!selectedContext.key || !!selectedProduto || !!selectedNicho;
@@ -333,14 +376,16 @@ export default function Radar() {
     0,
     (refineInfo.freeLimit ?? 3) - (refineInfo.refinementCount ?? 0)
   );
-  const rawHits = (data?.hits ?? []) as any[];
+  const rawHits = (channelData?.hits ?? []) as any[];
   const filteredRadar = useMemo(
     () => filterRadarHitsForBrand(rawHits, diagnosis.data),
     [rawHits, diagnosis.data]
   );
   const hits = filteredRadar.hits;
   const hiddenHitsCount = filteredRadar.hidden;
-  const dataQuality = (data as any)?.dataQuality;
+  const dataQuality = channelData?.dataQuality;
+  const profileMatches = (channelData?.profileMatches ?? []) as any[];
+  const brandProspects = (channelData?.brandProspects ?? []) as any[];
   const sourceStats = useMemo(() => {
     const map = new Map<string, any>();
     for (const h of hits) {
@@ -397,10 +442,16 @@ export default function Radar() {
       .slice(0, 5);
   }, [hits]);
   const socialTerms = useMemo(
-    () => topSocialTerms(hits, data?.hashtags ?? []),
-    [hits, data?.hashtags]
+    () => topSocialTerms(hits, channelData?.hashtags ?? []),
+    [hits, channelData?.hashtags]
   );
-  const feedbackCount = likedHitKeys.length + dislikedHitKeys.length;
+  const channelKeys = new Set(rawHits.map(hitKey));
+  const channelLikedHitKeys = likedHitKeys.filter(key => channelKeys.has(key));
+  const channelDislikedHitKeys = dislikedHitKeys.filter(key =>
+    channelKeys.has(key)
+  );
+  const feedbackCount =
+    channelLikedHitKeys.length + channelDislikedHitKeys.length;
 
   useEffect(() => {
     if (!data) return;
@@ -417,7 +468,7 @@ export default function Radar() {
   const parseHandles = () =>
     handles
       .split(",")
-      .map(s => cleanHandle(s))
+      .map(s => cleanSourceHandle(s, activeChannel))
       .filter(Boolean);
   const runScan = () => {
     const parsed = parseHandles();
@@ -427,11 +478,18 @@ export default function Radar() {
       );
       return;
     }
-    scan.mutate(parsed.length ? { handles: parsed } : undefined);
+    scan.mutate({
+      channel: activeChannel,
+      ...(parsed.length ? { handles: parsed } : {}),
+    });
   };
   const useSuggestedProfiles = () => {
-    const profiles = (suggestedSources.data?.profiles ?? [])
-      .map(cleanHandle)
+    const profiles = (
+      suggestedSources.data?.channels?.[activeChannel]?.profiles ??
+      (activeChannel === "instagram" ? suggestedSources.data?.profiles : []) ??
+      []
+    )
+      .map((handle: string) => cleanSourceHandle(handle, activeChannel))
       .filter(Boolean);
     if (!profiles.length) {
       toast.info(
@@ -444,8 +502,9 @@ export default function Radar() {
   };
   const runRefine = () =>
     refine.mutate({
-      likedPostKeys: likedHitKeys,
-      dislikedPostKeys: dislikedHitKeys,
+      likedPostKeys: channelLikedHitKeys,
+      dislikedPostKeys: channelDislikedHitKeys,
+      channel: activeChannel,
     });
   const applyRadarFeedback = () =>
     recalibrate.mutate({
@@ -459,7 +518,7 @@ export default function Radar() {
   const markHitLike = (hit: any) => {
     const key = hitKey(hit);
     const owner = hitOwner(hit);
-    const sameOwnerKeys = ((data?.hits ?? []) as any[])
+    const sameOwnerKeys = ((channelData?.hits ?? []) as any[])
       .filter(h => hitOwner(h) === owner)
       .map(hitKey);
     setLikedHitKeys(prev => [
@@ -494,7 +553,7 @@ export default function Radar() {
       `Radar de Mercado - ${selectedContext.label || selectedProduto || selectedNicho || "perfil ativo"}`,
       "",
       "Resumo:",
-      data.marketSummary || "Sem resumo registrado.",
+      channelData?.marketSummary || "Sem resumo registrado.",
       "",
       "Concorrentes/fontes com mais sinal:",
       ...sourceStats.map(
@@ -514,7 +573,7 @@ export default function Radar() {
     toast.success("Pacote do Radar copiado.");
   };
 
-  const radarNextAction = !data
+  const radarNextAction = !channelData
     ? {
         title: "Proxima acao: iniciar o Radar",
         text: "Use o perfil ativo do diagnostico ou informe perfis inspiradores. O objetivo aqui e encontrar referencias reais antes de criar qualquer conteudo.",
@@ -536,7 +595,7 @@ export default function Radar() {
             text: "Voce ja marcou referencias. Agora refaca a pesquisa com esse criterio para evitar copiar concorrente errado e melhorar o contexto da criacao.",
             label: refine.isPending ? "Refinando..." : "Refinar Radar",
             run: runRefine,
-            disabled: refine.isPending || likedHitKeys.length === 0,
+            disabled: refine.isPending || channelLikedHitKeys.length === 0,
           }
         : {
             title: "Proxima acao: aplicar feedback e abrir o Estudio",
@@ -551,7 +610,8 @@ export default function Radar() {
       <div className="flex items-center gap-2 mb-2">
         <Telescope className="w-4 h-4 text-[#ff3217]" />
         <h3 className="text-sm font-black text-[#070b17]">
-          Encontrar concorrentes e criadores de inspiracao
+          Encontrar concorrentes e inspiracoes no{" "}
+          {CHANNELS.find(channel => channel.id === activeChannel)?.label}
         </h3>
       </div>
       {selectedContext.label ? (
@@ -600,14 +660,18 @@ export default function Radar() {
       )}
       <p className="text-[11px] text-[#61708a] mb-3">
         {hasDiagnosisContext
-          ? "Deixe em branco para o Agente sugerir perfis pelo diagnostico, ou informe @ concorrentes/criadores que voce quer comparar."
-          : "Sem diagnostico selecionado, informe @ concorrentes ou criadores de inspiracao para iniciar o Radar."}
+          ? "Deixe em branco para o Agente descobrir candidatos pelo diagnostico. Todo perfil sera validado por publico, oferta e conteudo antes de aparecer."
+          : "Sem diagnostico selecionado, informe perfis que deseja comparar para iniciar o Radar."}
       </p>
       <div className="flex flex-col sm:flex-row gap-2">
         <input
           value={handles}
           onChange={e => setHandles(e.target.value)}
-          placeholder="@perfil1, @perfil2 (opcional)"
+          placeholder={
+            activeChannel === "facebook"
+              ? "pagina1, facebook.com/pagina2 (opcional)"
+              : "@perfil1, @perfil2 (opcional)"
+          }
           className="flex-1 border border-[#e6ebf3] rounded-lg px-3 py-2.5 text-sm bg-[#f6f8fc] focus:outline-none focus:border-[#ff3217]"
         />
         <button
@@ -627,7 +691,11 @@ export default function Radar() {
           ) : (
             <Search className="w-4 h-4" />
           )}
-          {scan.isPending ? "Pesquisando…" : "Iniciar Radar"}
+          {scan.isPending
+            ? "Pesquisando..."
+            : `Pesquisar ${CHANNELS.find(
+                channel => channel.id === activeChannel
+              )?.label}`}
         </button>
         <button
           onClick={() =>
@@ -648,10 +716,11 @@ export default function Radar() {
             : "Usar Feedbacks do Radar no diagnóstico"}
         </button>
       </div>
-      {hasDiagnosisContext && !!suggestedSources.data?.hashtags?.length && (
+      {hasDiagnosisContext &&
+        !!suggestedSources.data?.channels?.[activeChannel]?.hashtags?.length && (
         <p className="mt-3 text-[11px] text-[#61708a]">
           Hashtags preparadas pelo Agente:{" "}
-          {(suggestedSources.data.hashtags as string[])
+          {(suggestedSources.data.channels[activeChannel].hashtags as string[])
             .slice(0, 8)
             .map(h => `#${h}`)
             .join(" ")}
@@ -663,7 +732,7 @@ export default function Radar() {
   return (
     <AppLayout
       title="Radar de Mercado"
-      subtitle="O Agente Radar pesquisa os hits do seu setor e adapta para a sua marca"
+      subtitle="O Agente qualifica concorrentes, inspiracoes e oportunidades de marca por canal"
       journeyActive="radar"
       actions={
         <button
@@ -682,7 +751,97 @@ export default function Radar() {
         disabled={radarNextAction.disabled}
       />
 
-      {SearchBar}
+      <section className="bg-white border border-[#e6ebf3] rounded-xl px-4 py-3 mb-5 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
+        <div className="flex items-center gap-1 overflow-x-auto">
+          {CHANNELS.map(channel => {
+            const snapshot = data?.channels?.[channel.id];
+            const count =
+              snapshot?.profileMatches?.length ??
+              (channel.id === "instagram" && !data?.channels
+                ? data?.profileMatches?.length ?? 0
+                : 0);
+            return (
+              <button
+                key={channel.id}
+                type="button"
+                onClick={() => {
+                  setActiveChannel(channel.id);
+                  setHandles("");
+                }}
+                className={`h-10 px-4 rounded-lg text-xs font-black whitespace-nowrap transition-colors ${
+                  activeChannel === channel.id
+                    ? "bg-[#071b44] text-white"
+                    : "text-[#61708a] hover:bg-[#f6f8fc]"
+                }`}
+              >
+                {channel.label}
+                {count > 0 && (
+                  <span className="ml-2 opacity-75">{count}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <div className="inline-flex items-center rounded-lg bg-[#f1f4f9] p-1">
+          <button
+            type="button"
+            onClick={() => setRadarMode("profiles")}
+            className={`h-9 px-4 rounded-md text-xs font-black inline-flex items-center gap-2 ${
+              radarMode === "profiles"
+                ? "bg-white text-[#071b44] shadow-sm"
+                : "text-[#61708a]"
+            }`}
+          >
+            <Users className="w-3.5 h-3.5" />
+            Concorrentes e inspiracoes
+          </button>
+          <button
+            type="button"
+            onClick={() => setRadarMode("brands")}
+            className={`h-9 px-4 rounded-md text-xs font-black inline-flex items-center gap-2 ${
+              radarMode === "brands"
+                ? "bg-white text-[#071b44] shadow-sm"
+                : "text-[#61708a]"
+            }`}
+          >
+            <Handshake className="w-3.5 h-3.5" />
+            Marcas interessadas
+          </button>
+        </div>
+      </section>
+
+      {radarMode === "profiles" ? (
+        SearchBar
+      ) : (
+        <section className="bg-white rounded-xl border border-[#e6ebf3] p-5 shadow-sm mb-5 flex flex-col lg:flex-row lg:items-center gap-4">
+          <div className="w-11 h-11 rounded-xl bg-[#fff1ef] text-[#ff3217] grid place-items-center flex-shrink-0">
+            <Building2 className="w-5 h-5" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-sm font-black text-[#071b44]">
+              Marcas que podem se interessar por este perfil
+            </h3>
+            <p className="text-xs text-[#61708a] mt-1 leading-relaxed">
+              O Agente cruza sinais publicos de parceria com afinidade de
+              publico e tema. Hipoteses aparecem claramente separadas de
+              investimentos encontrados.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={runScan}
+            disabled={scan.isPending || !canStartRadar}
+            className="btn-action-navy px-5 py-3 text-xs inline-flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {scan.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Search className="w-4 h-4" />
+            )}
+            Atualizar oportunidades
+          </button>
+        </section>
+      )}
 
       {dataQuality?.status === "degraded" && (
         <section className="rounded-2xl border border-[#ffd5ce] bg-[#fff8f6] p-4 shadow-sm mb-5 flex gap-3">
@@ -716,20 +875,149 @@ export default function Radar() {
         </div>
       )}
 
-      {!scan.isPending && !data && (
+      {!scan.isPending && !channelData && (
         <div className="bg-white rounded-xl border border-[#e6ebf3] p-12 shadow-sm text-center">
           <Telescope className="w-12 h-12 text-[#cfd8e6] mx-auto mb-3" />
           <p className="text-base font-black text-[#22304b]">
-            Descubra o que dá certo no seu mercado
+            {dataIsLegacy
+              ? "Atualize o Radar para usar a nova inteligencia competitiva"
+              : "Descubra o que da certo no seu mercado"}
           </p>
           <p className="text-sm text-[#61708a] mt-1 max-w-md mx-auto">
-            O Agente encontra os posts campeões de perfis inspiradores do seu
-            setor e cria ideias com a SUA identidade visual.
+            {dataIsLegacy
+              ? "A pesquisa anterior nao tinha qualificacao de perfil. O novo Agente valida publico, oferta e conteudo antes de mostrar qualquer nome."
+              : "O Agente encontra perfis comparaveis e mostra os posts que realmente ficaram fora da curva."}
           </p>
         </div>
       )}
 
-      {data && (
+      {radarMode === "brands" && channelData && (
+        <section className="bg-white rounded-xl border border-[#e6ebf3] p-5 shadow-sm">
+          <div className="flex items-start justify-between gap-4 flex-wrap mb-4">
+            <div>
+              <h3 className="text-sm font-black text-[#071b44] flex items-center gap-2">
+                <Handshake className="w-4 h-4 text-[#ff3217]" />
+                Oportunidades de parceria
+              </h3>
+              <p className="text-[11px] text-[#61708a] mt-1">
+                A nota mede afinidade comercial. Interesse e verba so sao
+                confirmados depois de uma conversa com a marca.
+              </p>
+            </div>
+            <span className="text-[10px] font-black text-[#071b44] bg-[#f6f8fc] border border-[#e6ebf3] rounded-full px-3 py-1">
+              {brandProspects.length} marca(s) analisada(s)
+            </span>
+          </div>
+          {brandProspects.length ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              {brandProspects.map((brand: any, index: number) => {
+                const hasInvestmentSignal =
+                  brand.relationship === "investiu_em_perfil_similar";
+                const brandUrl = brand.handle
+                  ? activeChannel === "facebook"
+                    ? `https://facebook.com/${brand.handle}`
+                    : activeChannel === "tiktok"
+                      ? `https://tiktok.com/@${brand.handle}`
+                      : `https://instagram.com/${brand.handle}`
+                  : "";
+                return (
+                  <article
+                    key={`${brand.handle || brand.brand}-${index}`}
+                    className="rounded-xl border border-[#e6ebf3] bg-[#fbfcff] p-4"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-black text-[#071b44] truncate">
+                          {brand.brand}
+                        </p>
+                        <p className="text-[10px] text-[#61708a] font-bold mt-0.5">
+                          {brand.category}
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-[#071b44] text-white px-2.5 py-1 text-[10px] font-black flex-shrink-0">
+                        {brand.fitScore}/100
+                      </span>
+                    </div>
+                    <div
+                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-black mt-3 ${
+                        hasInvestmentSignal
+                          ? "bg-[#eafff1] text-[#087a38] border border-[#bfeccb]"
+                          : "bg-[#fff1ef] text-[#9b1c0b] border border-[#ffd6ce]"
+                      }`}
+                    >
+                      {hasInvestmentSignal ? (
+                        <BadgeCheck className="w-3 h-3" />
+                      ) : (
+                        <Lightbulb className="w-3 h-3" />
+                      )}
+                      {hasInvestmentSignal
+                        ? "Sinal publico de investimento"
+                        : "Oportunidade potencial"}
+                    </div>
+                    <p className="text-xs text-[#22304b] font-semibold leading-relaxed mt-3">
+                      {brand.why}
+                    </p>
+                    {!!brand.interestedThemes?.length && (
+                      <div className="flex flex-wrap gap-1.5 mt-3">
+                        {brand.interestedThemes.map((theme: string) => (
+                          <span
+                            key={theme}
+                            className="rounded-full bg-white border border-[#e6ebf3] px-2 py-1 text-[9px] font-black text-[#61708a]"
+                          >
+                            {theme}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <div className="rounded-lg bg-white border border-[#e6ebf3] p-3 mt-3">
+                      <p className="text-[9px] uppercase font-black text-[#ff3217]">
+                        Como abordar
+                      </p>
+                      <p className="text-[11px] text-[#22304b] leading-relaxed mt-1">
+                        {brand.approach}
+                      </p>
+                    </div>
+                    {hasInvestmentSignal && !!brand.evidence?.length && (
+                      <details className="mt-3">
+                        <summary className="text-[10px] font-black text-[#071b44] cursor-pointer">
+                          Ver evidencia publica
+                        </summary>
+                        <p className="text-[10px] text-[#61708a] leading-relaxed mt-2 break-words">
+                          {brand.evidence[0]}
+                        </p>
+                      </details>
+                    )}
+                    {brandUrl && (
+                      <a
+                        href={brandUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 mt-3 text-[10px] font-black text-[#071b44] hover:text-[#ff3217]"
+                      >
+                        Abrir perfil da marca
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-[#e6ebf3] bg-[#fbfcff] p-8 text-center">
+              <Building2 className="w-8 h-8 text-[#c5cfdd] mx-auto" />
+              <p className="text-sm font-black text-[#071b44] mt-3">
+                Ainda nao ha marca com evidencia suficiente neste canal.
+              </p>
+              <p className="text-xs text-[#61708a] mt-1">
+                Atualize a pesquisa. O Agente prefere uma lista vazia a inventar
+                patrocinadores.
+              </p>
+            </div>
+          )}
+        </section>
+      )}
+
+      {radarMode === "profiles" && channelData && (
         <>
           {/* Inteligencia de audiencia */}
           <div
@@ -747,18 +1035,18 @@ export default function Radar() {
                   vencedores e oportunidades para a sua marca.
                 </p>
               </div>
-              {data.quality && (
+              {channelData.quality && (
                 <span className="text-[10px] font-black text-[#071b44] bg-[#f6f8fc] border border-[#e6ebf3] rounded-full px-3 py-1">
-                  Pesquisa {data.quality.grade} · {hits.length} hits validos
-                  · {data.quality.sourcesCount} fontes
+                  Pesquisa {channelData.quality.grade} · {hits.length} posts
+                  validos · {profileMatches.length} perfis qualificados
                 </span>
               )}
             </div>
 
-            {data.marketSummary && (
+            {channelData.marketSummary && (
               <div className="rounded-xl bg-[#071b44] text-white p-4 mb-4">
                 <p className="text-sm font-semibold leading-relaxed">
-                  {data.marketSummary}
+                  {channelData.marketSummary}
                 </p>
               </div>
             )}
@@ -768,7 +1056,7 @@ export default function Radar() {
                 <div className="flex items-center justify-between gap-2">
                   <h4 className="text-xs font-black text-[#071b44] uppercase tracking-wide flex items-center gap-1.5">
                     <Users className="w-3.5 h-3.5 text-[#ff3217]" /> Biblioteca
-                    de concorrentes
+                    de perfis qualificados
                   </h4>
                   <button
                     onClick={copyRadarPackage}
@@ -778,22 +1066,27 @@ export default function Radar() {
                   </button>
                 </div>
                 <div className="space-y-2 mt-3">
-                  {sourceStats.length ? (
-                    sourceStats.map((s: any) => (
+                  {profileMatches.length ? (
+                    profileMatches.slice(0, 6).map((profile: any) => (
                       <div
-                        key={s.owner}
+                        key={profile.handle}
                         className="rounded-lg bg-white border border-[#e6ebf3] px-3 py-2"
                       >
                         <div className="flex items-center justify-between gap-2">
                           <p className="text-xs font-black text-[#071b44] truncate">
-                            @{s.owner}
+                            @{profile.handle}
                           </p>
                           <span className="text-[9px] font-black text-white bg-[#ff3217] rounded-full px-2 py-0.5">
-                            {s.avgHot} hot
+                            {profile.fitScore}/100
                           </span>
                         </div>
-                        <p className="text-[10px] text-[#61708a] mt-0.5">
-                          {s.count} hit(s) - {s.topMechanism}
+                        <p className="text-[9px] font-black text-[#ff3217] uppercase mt-1">
+                          {profile.role === "concorrente_direto"
+                            ? "Concorrente direto"
+                            : "Inspiracao"}
+                        </p>
+                        <p className="text-[10px] text-[#61708a] mt-1 line-clamp-3">
+                          {profile.reason}
                         </p>
                       </div>
                     ))
@@ -865,14 +1158,16 @@ export default function Radar() {
               </div>
             </div>
 
-            {data.patterns?.length > 0 && (
+            {channelData.patterns?.length > 0 && (
               <div className="mb-5">
                 <h4 className="text-xs font-black text-[#ff3217] uppercase tracking-wide mb-2 flex items-center gap-1.5">
                   <BarChart3 className="w-3.5 h-3.5" /> Padroes vencedores
                   detectados
                 </h4>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                  {data.patterns.slice(0, 4).map((p: any, i: number) => (
+                  {channelData.patterns
+                    .slice(0, 4)
+                    .map((p: any, i: number) => (
                     <div
                       key={i}
                       className="rounded-xl border border-[#e6ebf3] p-4 bg-[#fbfcff]"
@@ -924,13 +1219,15 @@ export default function Radar() {
               </div>
             )}
 
-            {data.opportunities?.length > 0 && (
+            {channelData.opportunities?.length > 0 && (
               <div>
                 <h4 className="text-xs font-black text-[#ff3217] uppercase tracking-wide mb-2 flex items-center gap-1.5">
                   <Target className="w-3.5 h-3.5" /> Oportunidades para apostar
                 </h4>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                  {data.opportunities.slice(0, 4).map((o: any, i: number) => (
+                  {channelData.opportunities
+                    .slice(0, 4)
+                    .map((o: any, i: number) => (
                     <div
                       key={i}
                       className="rounded-xl border border-[#e6ebf3] p-4 bg-white"
@@ -984,8 +1281,8 @@ export default function Radar() {
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[10px] font-black text-[#071b44] bg-[#f6f8fc] border border-[#e6ebf3] rounded-full px-3 py-1">
-                  {likedHitKeys.length} gostei / {dislikedHitKeys.length} não
-                  gostei
+                  {channelLikedHitKeys.length} gostei /{" "}
+                  {channelDislikedHitKeys.length} não gostei
                 </span>
                 <span className="text-[10px] font-black text-[#071b44] bg-[#f6f8fc] border border-[#e6ebf3] rounded-full px-3 py-1">
                   {freeLeft > 0
@@ -1002,7 +1299,9 @@ export default function Radar() {
                 )}
                 <button
                   onClick={runRefine}
-                  disabled={refine.isPending || likedHitKeys.length === 0}
+                  disabled={
+                    refine.isPending || channelLikedHitKeys.length === 0
+                  }
                   className="btn-action-primary text-xs px-4 py-2 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {refine.isPending ? (
@@ -1018,15 +1317,17 @@ export default function Radar() {
             </div>
             <p className="text-[11px] text-[#61708a] mb-3">
               Perfis analisados:{" "}
-              {(data.sources ?? []).map((s: string) => (
+              {(channelData.sources ?? []).map((s: string) => (
                 <span key={s} className="font-bold text-[#071b44]">
                   @{s}{" "}
                 </span>
               ))}
-              {data.hashtags?.length > 0 && (
+              {channelData.hashtags?.length > 0 && (
                 <span className="text-[#9aa7bd]">
                   · hashtags:{" "}
-                  {data.hashtags.map((h: string) => "#" + h).join(" ")}
+                  {channelData.hashtags
+                    .map((h: string) => "#" + h)
+                    .join(" ")}
                 </span>
               )}
             </p>
@@ -1107,6 +1408,11 @@ export default function Radar() {
                         </span>
                       </div>
                       <div className="flex flex-wrap gap-1 mt-1.5">
+                        {typeof h.profileFitScore === "number" && (
+                          <span className="text-[9px] font-black text-[#071b44] bg-[#eef2f7] border border-[#dce3ed] rounded px-1.5 py-0.5">
+                            perfil {h.profileFitScore}/100
+                          </span>
+                        )}
                         {typeof h.hotScore === "number" && (
                           <span className="text-[9px] font-black text-white bg-[#ff3217] rounded px-1.5 py-0.5">
                             {h.hotScore} hot
@@ -1124,6 +1430,18 @@ export default function Radar() {
                             </span>
                           )}
                       </div>
+                      {h.profileRole && (
+                        <p className="text-[9px] text-[#ff3217] font-black uppercase tracking-wide mt-1">
+                          {h.profileRole === "concorrente_direto"
+                            ? "Concorrente direto"
+                            : "Inspiracao"}
+                        </p>
+                      )}
+                      {h.profileMatchReason && (
+                        <p className="text-[10px] text-[#61708a] leading-snug mt-1 line-clamp-2">
+                          {h.profileMatchReason}
+                        </p>
+                      )}
                       {h.mechanism && (
                         <p className="text-[9px] text-[#ff3217] font-black uppercase tracking-wide mt-1">
                           {h.mechanism}
@@ -1165,7 +1483,7 @@ export default function Radar() {
                 especifica.
               </p>
             )}
-            {hits.length > 0 && likedHitKeys.length === 0 && (
+            {hits.length > 0 && channelLikedHitKeys.length === 0 && (
               <p className="text-[11px] text-[#61708a] font-semibold mt-3 rounded-xl bg-[#fbfcff] border border-[#e6ebf3] p-3">
                 Marque Gostei em pelo menos um post compatível para refazer a
                 pesquisa. Se gostar de mais de um post do mesmo perfil, o Radar
@@ -1185,7 +1503,7 @@ export default function Radar() {
             )}
           </div>
 
-          {data.ideas?.length > 0 && (
+          {channelData.ideas?.length > 0 && (
             <div className="bg-white rounded-xl border border-[#e6ebf3] p-5 shadow-sm">
               <div className="flex items-start justify-between gap-4 flex-wrap">
                 <div>

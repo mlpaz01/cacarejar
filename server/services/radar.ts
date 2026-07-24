@@ -15,16 +15,36 @@ import { getPlan } from "./diagnosis";
 import * as credits from "./credits";
 import {
   fetchInstagramProfilesBatch,
+  fetchTikTokProfilesBatch,
+  fetchFacebookPagesBatch,
   fetchHotPostsByHashtag,
   localizeRemoteImage,
   HotPost,
   SocialPost,
+  SocialProfile,
 } from "./profileProvider";
 
 const BRAIN = "anthropic/claude-sonnet-4.6";
 const FREE_REFINES = 3;
 const REFINE_COST_CC = 10;
+export type RadarChannel = "instagram" | "facebook" | "tiktok";
 const cleanHandle = (h: string) => (h || "").trim().replace(/^@/, "").replace(/^https?:\/\/(www\.)?instagram\.com\//i, "").replace(/\/$/, "").toLowerCase();
+const cleanChannelHandle = (raw: string, channel: RadarChannel) => {
+  const value = (raw || "").trim().replace(/^@/, "");
+  if (channel === "tiktok") {
+    return value
+      .replace(/^https?:\/\/(www\.)?tiktok\.com\/@?/i, "")
+      .replace(/[/?#].*$/, "")
+      .toLowerCase();
+  }
+  if (channel === "facebook") {
+    return value
+      .replace(/^https?:\/\/(www\.)?facebook\.com\//i, "")
+      .replace(/[/?#].*$/, "")
+      .toLowerCase();
+  }
+  return cleanHandle(value);
+};
 const nf = (n?: number) => (typeof n === "number" ? n.toLocaleString("pt-BR") : "-");
 const stripAccents = (s: string) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 const lowerPlain = (s: string) => stripAccents(s).toLowerCase();
@@ -172,7 +192,7 @@ const RADAR_BLOCKLIST_TERMS = [
   "comente bastante", "engajadas",
 ];
 
-function radarHitText(hit: Pick<RadarHit, "ownerUsername" | "ownerFullName" | "caption" | "theme" | "why" | "mechanism">) {
+function radarHitText(hit: Pick<RadarHit, "ownerUsername" | "ownerFullName" | "caption" | "theme" | "why" | "mechanism" | "profileMatchReason">) {
   return lowerPlain([
     hit.ownerUsername,
     hit.ownerFullName,
@@ -180,6 +200,7 @@ function radarHitText(hit: Pick<RadarHit, "ownerUsername" | "ownerFullName" | "c
     hit.theme,
     hit.why,
     hit.mechanism,
+    hit.profileMatchReason,
   ].filter(Boolean).join(" "));
 }
 
@@ -229,6 +250,10 @@ function genericRelevanceScore(plan: any, hit: RadarHit) {
 
 function isRelevantHitForPlan(plan: any, hit: RadarHit, opts: { relaxed?: boolean } = {}) {
   if (!isBrandSafeRadarHit(hit)) return false;
+  if (
+    Number(hit.profileFitScore ?? 0) >= 60 &&
+    hit.profileConfidence !== "baixa"
+  ) return true;
   if (isOccupationalHealthPlan(plan)) return occupationalRelevanceScore(hit) >= 6;
   const rel = genericRelevanceScore(plan, hit);
   if (rel.termsCount < 4) return opts.relaxed ? rel.score >= 0 : rel.score >= 1;
@@ -313,6 +338,7 @@ function calcHotScore(input: {
 }
 
 export interface RadarHit {
+  channel?: RadarChannel;
   ownerUsername?: string;
   ownerFullName?: string;
   followers?: number;
@@ -334,6 +360,41 @@ export interface RadarHit {
   outlierScore?: number;
   recencyScore?: number;
   hotScore?: number;
+  profileRole?: "concorrente_direto" | "inspiracao";
+  profileFitScore?: number;
+  profileConfidence?: "alta" | "media" | "baixa";
+  profileMatchReason?: string;
+}
+
+export interface RadarProfileMatch {
+  channel: RadarChannel;
+  handle: string;
+  fullName?: string;
+  bio?: string;
+  followers?: number;
+  profilePic?: string;
+  role: "concorrente_direto" | "inspiracao";
+  fitScore: number;
+  confidence: "alta" | "media" | "baixa";
+  reason: string;
+  audienceOverlap: string;
+  offerOverlap: string;
+  contentOpportunity: string;
+  evidence: string[];
+}
+
+export interface RadarBrandProspect {
+  channel: RadarChannel;
+  brand: string;
+  handle?: string;
+  category: string;
+  relationship: "investiu_em_perfil_similar" | "aderencia_potencial";
+  evidenceLevel: "confirmada" | "sinal_publico" | "hipotese";
+  fitScore: number;
+  why: string;
+  interestedThemes: string[];
+  evidence: string[];
+  approach: string;
 }
 
 export interface MarketPattern {
@@ -385,6 +446,8 @@ export interface RadarIdea {
 
 export interface RadarResult {
   scannedAt: number;
+  engineVersion?: number;
+  activeChannel?: RadarChannel;
   nicho?: string;
   baseHandle?: string;
   baseKey?: string;
@@ -395,6 +458,22 @@ export interface RadarResult {
   sources: string[];
   hashtags: string[];
   hits: RadarHit[];
+  profileMatches?: RadarProfileMatch[];
+  brandProspects?: RadarBrandProspect[];
+  channels?: Partial<Record<RadarChannel, {
+    scannedAt: number;
+    marketSummary?: string;
+    sources: string[];
+    hashtags: string[];
+    hits: RadarHit[];
+    profileMatches: RadarProfileMatch[];
+    brandProspects: RadarBrandProspect[];
+    patterns?: MarketPattern[];
+    opportunities?: MarketOpportunity[];
+    ideas?: RadarIdea[];
+    quality?: RadarResult["quality"];
+    dataQuality?: RadarResult["dataQuality"];
+  }>>;
   patterns?: MarketPattern[];
   opportunities?: MarketOpportunity[];
   ideas: RadarIdea[];
@@ -426,43 +505,488 @@ function hitKey(h: Pick<RadarHit, "url" | "img" | "ownerUsername" | "caption">) 
   return String(h.url || h.img || `${h.ownerUsername || ""}:${(h.caption || "").slice(0, 80)}`);
 }
 
-export async function suggestSources(orgId: number): Promise<{ profiles: string[]; hashtags: string[] }> {
+export interface RadarSourceSuggestions {
+  profiles: string[];
+  hashtags: string[];
+  channels: Record<RadarChannel, {
+    profiles: string[];
+    hashtags: string[];
+    searchRationale?: string;
+  }>;
+}
+
+export async function suggestSources(orgId: number): Promise<RadarSourceSuggestions> {
   const plan: any = await getPlan(orgId);
   const produto = plan?.produto || "";
   const nicho = plan?.nicho || "";
   const ctx = baseContext(plan);
   const ownHandle = ctx.ownHandle;
   const fallback = fallbackSources(plan);
-  if (!process.env.OPENROUTER_API_KEY) return fallback;
+  const redes = planRedes(plan);
+  const emptyChannels: RadarSourceSuggestions["channels"] = {
+    instagram: { profiles: fallback.profiles, hashtags: fallback.hashtags },
+    facebook: { profiles: [], hashtags: [] },
+    tiktok: { profiles: [], hashtags: fallback.hashtags.slice(0, 6) },
+  };
+  if (!process.env.OPENROUTER_API_KEY) {
+    return { profiles: fallback.profiles, hashtags: fallback.hashtags, channels: emptyChannels };
+  }
   try {
     const content = await openRouterChat([
       {
         role: "system",
-        content: `Voce e o Agente de Audiencia da Cacarejar. Sugira fontes brasileiras para mapear o que esta quente no Instagram.
-Retorne SOMENTE JSON {"profiles":[handles sem @, 8-12],"hashtags":[8-10 sem #]}.
-Misture: concorrentes diretos, criadores de nicho, perfis aspiracionais, microcomunidades e hashtags de dor/desejo/solucao. Evite celebridades genericas.`,
+        content: `Voce e o Agente de Inteligencia Competitiva da Cacarejar.
+Sua tarefa e descobrir candidatos reais para uma pesquisa de mercado, separados por canal.
+
+Retorne SOMENTE JSON:
+{
+  "instagram":{"profiles":["handle sem @"],"hashtags":["sem #"],"searchRationale":"criterio usado"},
+  "facebook":{"profiles":["handle ou pagina"],"hashtags":[],"searchRationale":"criterio usado"},
+  "tiktok":{"profiles":["handle sem @"],"hashtags":["sem #"],"searchRationale":"criterio usado"}
+}
+
+Regras:
+- Um concorrente direto atende publico parecido com oferta comparavel.
+- Uma inspiracao pode ter outra oferta, mas precisa compartilhar publico, linguagem ou mecanismo de conteudo aplicavel.
+- Nao confunda aparencia, genero, cor, roupa, popularidade ou tema ocasional com aderencia de negocio.
+- Priorize brasileiros e perfis nichados. Evite celebridades, agregadores, noticias, sorteios e perfis genericos.
+- Sugira no maximo 8 perfis por canal. Se nao souber um handle real, deixe a lista vazia.
+- Nao invente nomes para completar quantidade. A etapa seguinte validara cada perfil em dados publicos.`,
       },
       {
         role: "user",
         content: `Nicho: ${nicho}
 Produto/conta: ${produto}
 Contexto ativo: ${ctx.label || "sem perfil identificado"} (${ctx.source || "diagnostico"})
-LinkedIn/site/briefing disponiveis: ${JSON.stringify(planRedes(plan))}
-Se nao souber perfis confiaveis, retorne profiles vazio e hashtags fortes do nicho. Nao invente perfis aleatorios.`,
+Publico, oferta e posicionamento: ${JSON.stringify({
+  sumario: plan?.sumarioExecutivo,
+  resumo: plan?.resumoDiagnostico || plan?.resumo,
+  objetivo: plan?.objetivoPrincipal,
+  bio: plan?.profile?.bio,
+  categoria: plan?.profile?.category,
+  dna: plan?.brandDNA,
+})}
+Canais do cliente: ${JSON.stringify(redes)}
+Nao inclua o proprio perfil do cliente nas sugestoes.`,
       },
-    ], { model: BRAIN, temperature: 0.55, maxTokens: 700 });
-    const j = parseJson<{ profiles: string[]; hashtags: string[] }>(content) ?? { profiles: [], hashtags: [] };
-    const profiles = (j.profiles ?? []).map(cleanHandle).filter(h => h && h !== ownHandle);
-    const hashtags = (j.hashtags ?? []).map(cleanTag).filter(Boolean);
+    ], { model: BRAIN, temperature: 0.25, maxTokens: 1600 });
+    const j = parseJson<any>(content) ?? {};
+    const instagramProfiles = (j.instagram?.profiles ?? [])
+      .map((h: string) => cleanChannelHandle(h, "instagram"))
+      .filter((h: string) => h && h !== ownHandle);
+    const instagramHashtags = (j.instagram?.hashtags ?? []).map(cleanTag).filter(Boolean);
     const profilePool = isOccupationalHealthPlan(plan)
-      ? [...fallback.profiles, ...profiles]
-      : [...profiles, ...fallback.profiles];
+      ? [...fallback.profiles, ...instagramProfiles]
+      : [...instagramProfiles, ...fallback.profiles];
+    const channels: RadarSourceSuggestions["channels"] = {
+      instagram: {
+        profiles: [...new Set(profilePool)].slice(0, 8),
+        hashtags: [...new Set([...fallback.hashtags.map(cleanTag), ...instagramHashtags])].filter(Boolean).slice(0, 8),
+        searchRationale: j.instagram?.searchRationale,
+      },
+      facebook: {
+        profiles: [...new Set((j.facebook?.profiles ?? [])
+          .map((h: string) => cleanChannelHandle(h, "facebook"))
+          .filter(Boolean))].slice(0, 8) as string[],
+        hashtags: [],
+        searchRationale: j.facebook?.searchRationale,
+      },
+      tiktok: {
+        profiles: [...new Set((j.tiktok?.profiles ?? [])
+          .map((h: string) => cleanChannelHandle(h, "tiktok"))
+          .filter(Boolean))].slice(0, 6) as string[],
+        hashtags: [...new Set((j.tiktok?.hashtags ?? []).map(cleanTag).filter(Boolean))].slice(0, 8) as string[],
+        searchRationale: j.tiktok?.searchRationale,
+      },
+    };
     return {
-      profiles: [...new Set(profilePool)].slice(0, 12),
-      hashtags: [...new Set([...fallback.hashtags.map(cleanTag), ...hashtags])].filter(Boolean).slice(0, 10),
+      profiles: channels.instagram.profiles,
+      hashtags: channels.instagram.hashtags,
+      channels,
     };
   } catch {
-    return fallback;
+    return { profiles: fallback.profiles, hashtags: fallback.hashtags, channels: emptyChannels };
+  }
+}
+
+function profileEvidence(profile: SocialProfile) {
+  return [
+    profile.bio,
+    profile.category,
+    ...profile.posts.slice(0, 6).map(post => post.caption),
+  ].filter(Boolean).join(" ");
+}
+
+export function fallbackProfileAssessment(
+  plan: any,
+  profile: SocialProfile,
+  channel: RadarChannel,
+  isManual: boolean
+): RadarProfileMatch | null {
+  const terms = planRelevanceTerms(plan);
+  const text = lowerPlain([
+    profile.handle,
+    profile.fullName,
+    profile.bio,
+    profile.category,
+    ...profile.posts.slice(0, 8).map(post => post.caption),
+  ].filter(Boolean).join(" "));
+  if (RADAR_BLOCKLIST_TERMS.some(term => text.includes(term))) return null;
+  const matched = terms.filter(term => text.includes(term));
+  const fitScore = clamp(
+    18 +
+      matched.length * 9 +
+      (profile.bio ? 8 : 0) +
+      (profile.category ? 5 : 0) +
+      (isManual ? 8 : 0),
+    0,
+    100
+  );
+  if (fitScore < (isManual ? 48 : 58)) return null;
+  return {
+    channel,
+    handle: cleanChannelHandle(profile.handle, channel),
+    fullName: profile.fullName,
+    bio: profile.bio,
+    followers: profile.followers,
+    profilePic: profile.profilePic,
+    role: fitScore >= 76 ? "concorrente_direto" : "inspiracao",
+    fitScore,
+    confidence: matched.length >= 5 ? "alta" : matched.length >= 3 ? "media" : "baixa",
+    reason: matched.length
+      ? `Aderencia comprovada por ${matched.slice(0, 5).join(", ")}.`
+      : "Perfil informado manualmente para comparacao.",
+    audienceOverlap: matched.slice(0, 3).join(", ") || "A validar com o usuario",
+    offerOverlap: fitScore >= 76 ? "Oferta ou problema atendido parecem comparaveis." : "Oferta diferente; util como inspiracao.",
+    contentOpportunity: "Observar os formatos fora da curva e adaptar o mecanismo ao DNA da marca.",
+    evidence: matched.slice(0, 6),
+  };
+}
+
+async function assessMarketProfiles(
+  plan: any,
+  profiles: SocialProfile[],
+  channel: RadarChannel,
+  manualHandles: string[]
+): Promise<RadarProfileMatch[]> {
+  if (!profiles.length) return [];
+  const manual = new Set(manualHandles.map(handle => cleanChannelHandle(handle, channel)));
+  const fallback = profiles
+    .map(profile =>
+      fallbackProfileAssessment(
+        plan,
+        profile,
+        channel,
+        manual.has(cleanChannelHandle(profile.handle, channel))
+      )
+    )
+    .filter((match): match is RadarProfileMatch => !!match);
+  if (!process.env.OPENROUTER_API_KEY) return fallback;
+
+  try {
+    const candidates = profiles.map(profile => ({
+      handle: cleanChannelHandle(profile.handle, channel),
+      nome: profile.fullName,
+      bio: profile.bio,
+      categoria: profile.category,
+      seguidores: profile.followers,
+      informadoPeloUsuario: manual.has(cleanChannelHandle(profile.handle, channel)),
+      amostraPublicacoes: profile.posts.slice(0, 6).map(post => ({
+        texto: (post.caption || "").slice(0, 420),
+        curtidas: post.likes,
+        comentarios: post.comments,
+        compartilhamentos: post.shares,
+        visualizacoes: post.views,
+      })),
+    }));
+    const content = await openRouterChat([
+      {
+        role: "system",
+        content: `Voce e o Agente de Inteligencia Competitiva da Cacarejar.
+Avalie perfis REAIS ja coletados. O objetivo nao e achar gente parecida visualmente; e encontrar concorrentes e inspiracoes estrategicas.
+
+Classifique cada candidato como:
+- concorrente_direto: publico e problema/oferta comparaveis;
+- inspiracao: publico, linguagem ou mecanismo editorial aproveitavel, mesmo com oferta diferente;
+- rejeitar: coincidencia superficial, tema ocasional, agregador, noticia, sorteio, celebridade generica, conteudo sensivel ou negocio sem relacao.
+
+Retorne SOMENTE JSON:
+{"assessments":[{
+  "handle":"exatamente um handle recebido",
+  "decision":"concorrente_direto|inspiracao|rejeitar",
+  "fitScore":0,
+  "confidence":"alta|media|baixa",
+  "reason":"por que este perfil serve ou nao serve",
+  "audienceOverlap":"publico compartilhado",
+  "offerOverlap":"relacao entre ofertas",
+  "contentOpportunity":"o que observar sem copiar",
+  "evidence":["evidencia concreta 1","evidencia concreta 2"]
+}]}
+
+Regras duras:
+- Nota 80+ exige oferta/problema e publico claramente comparaveis.
+- Inspiracao precisa de nota minima 60 e evidencia editorial aplicavel.
+- Aparencia, genero, roupa, cor, popularidade ou uma palavra solta nao provam aderencia.
+- Perfis de crime, violencia, sensualizacao, noticias, sorteios e engajamento forcado devem ser rejeitados, salvo quando forem o proprio campo profissional do cliente.
+- Nao invente informacao. Quando a evidencia for insuficiente, rejeite.
+- Avalie todos os handles e nunca altere seus nomes.`,
+      },
+      {
+        role: "user",
+        content: `MARCA ANALISADA
+${JSON.stringify({
+  produto: plan?.produto,
+  nicho: plan?.nicho,
+  resumo: plan?.resumoDiagnostico || plan?.resumo,
+  sumario: plan?.sumarioExecutivo,
+  objetivo: plan?.objetivoPrincipal,
+  perfil: {
+    handle: plan?.profile?.handle,
+    nome: plan?.profile?.fullName,
+    bio: plan?.profile?.bio,
+    categoria: plan?.profile?.category,
+  },
+  dna: plan?.brandDNA,
+})}
+
+CANAL: ${channel}
+CANDIDATOS COLETADOS:
+${JSON.stringify(candidates)}`,
+      },
+    ], { model: BRAIN, temperature: 0.15, maxTokens: 5200 });
+    const parsed = parseJson<{ assessments?: any[] }>(content);
+    const byHandle = new Map(
+      profiles.map(profile => [
+        cleanChannelHandle(profile.handle, channel),
+        profile,
+      ])
+    );
+    const accepted: RadarProfileMatch[] = [];
+    for (const item of parsed?.assessments ?? []) {
+      const handle = cleanChannelHandle(item?.handle || "", channel);
+      const profile = byHandle.get(handle);
+      if (!profile || item?.decision === "rejeitar") continue;
+      const fitScore = clamp(Number(item?.fitScore) || 0, 0, 100);
+      const threshold = manual.has(handle) ? 50 : 60;
+      if (fitScore < threshold || item?.confidence === "baixa") continue;
+      accepted.push({
+        channel,
+        handle,
+        fullName: profile.fullName,
+        bio: profile.bio,
+        followers: profile.followers,
+        profilePic: profile.profilePic,
+        role: item?.decision === "concorrente_direto"
+          ? "concorrente_direto"
+          : "inspiracao",
+        fitScore,
+        confidence: item?.confidence === "alta" ? "alta" : "media",
+        reason: String(item?.reason || "Perfil aderente ao contexto do negocio."),
+        audienceOverlap: String(item?.audienceOverlap || "Publico semelhante."),
+        offerOverlap: String(item?.offerOverlap || "Oferta complementar ou comparavel."),
+        contentOpportunity: String(item?.contentOpportunity || "Analisar mecanismos vencedores sem copiar."),
+        evidence: Array.isArray(item?.evidence)
+          ? item.evidence.map(String).filter(Boolean).slice(0, 4)
+          : [],
+      });
+    }
+    return accepted
+      .sort((a, b) => b.fitScore - a.fitScore)
+      .slice(0, 8);
+  } catch (error) {
+    console.error("[radar] qualificacao de perfis falhou:", (error as any)?.message);
+    return fallback.filter(match => match.confidence !== "baixa");
+  }
+}
+
+export function commercialSignals(profiles: SocialProfile[]) {
+  const signals = new Map<
+    string,
+    {
+      handle: string;
+      mentions: number;
+      commercialMentions: number;
+      evidence: string[];
+      channels: Set<RadarChannel>;
+    }
+  >();
+  const ownHandles = new Set(
+    profiles.map(profile => lowerPlain(profile.handle)).filter(Boolean)
+  );
+  for (const profile of profiles) {
+    for (const post of profile.posts ?? []) {
+      const caption = String(post.caption || "");
+      const mentions = caption.match(/@[a-zA-Z0-9._]{2,}/g) ?? [];
+      const commercial = /\b(publi|publicidade|parceria|patrocin|ad\b|ad:|apoio|oferecimento|embaixador|embaixadora|cupom|desconto)\b/i.test(
+        stripAccents(caption)
+      );
+      for (const raw of mentions) {
+        const handle = raw.slice(1).toLowerCase();
+        if (!handle || ownHandles.has(handle)) continue;
+        const row = signals.get(handle) ?? {
+          handle,
+          mentions: 0,
+          commercialMentions: 0,
+          evidence: [],
+          channels: new Set<RadarChannel>(),
+        };
+        row.mentions += 1;
+        if (commercial) row.commercialMentions += 1;
+        row.channels.add(profile.network);
+        if (row.evidence.length < 3) {
+          row.evidence.push(
+            `${profile.handle}: "${caption.slice(0, 180)}"${post.url ? ` (${post.url})` : ""}`
+          );
+        }
+        signals.set(handle, row);
+      }
+    }
+  }
+  return [...signals.values()].sort(
+    (a, b) =>
+      b.commercialMentions - a.commercialMentions ||
+      b.mentions - a.mentions
+  );
+}
+
+async function discoverBrandProspects(
+  plan: any,
+  profiles: SocialProfile[],
+  profileMatches: RadarProfileMatch[],
+  channel: RadarChannel
+): Promise<RadarBrandProspect[]> {
+  const signals = commercialSignals(profiles);
+  const verified = signals
+    .filter(signal => signal.commercialMentions > 0)
+    .slice(0, 5)
+    .map<RadarBrandProspect>(signal => ({
+      channel,
+      brand: `@${signal.handle}`,
+      handle: signal.handle,
+      category: "Marca citada em conteudo comercial",
+      relationship: "investiu_em_perfil_similar",
+      evidenceLevel: "sinal_publico",
+      fitScore: clamp(72 + signal.commercialMentions * 6, 0, 96),
+      why: "A marca apareceu em publicacao com sinal de parceria, publicidade ou promocao em um perfil qualificado pelo Radar.",
+      interestedThemes: [],
+      evidence: signal.evidence,
+      approach: "Estude a parceria encontrada e apresente uma proposta ligada ao mesmo objetivo, com um formato autoral do perfil selecionado.",
+    }));
+
+  if (!process.env.OPENROUTER_API_KEY) return verified;
+  try {
+    const content = await openRouterChat([
+      {
+        role: "system",
+        content: `Voce e o Agente de Oportunidades de Marca da Cacarejar.
+Encontre marcas que podem se interessar pelo perfil analisado.
+
+Existem duas classes:
+1. investiu_em_perfil_similar: somente quando ha evidencia publica fornecida de publi, parceria ou patrocinio;
+2. aderencia_potencial: marca cuja categoria, publico e temas combinam, mas sem afirmar investimento anterior.
+
+Retorne SOMENTE JSON:
+{"brands":[{
+  "brand":"nome da marca",
+  "handle":"handle se souber, sem @",
+  "category":"categoria",
+  "relationship":"investiu_em_perfil_similar|aderencia_potencial",
+  "evidenceLevel":"sinal_publico|hipotese",
+  "fitScore":0,
+  "why":"por que pode se interessar",
+  "interestedThemes":["tema 1","tema 2"],
+  "evidence":["evidencia concreta"],
+  "approach":"abordagem especifica para iniciar conversa"
+}]}
+
+Regras:
+- Nunca diga que uma marca investiu sem uma evidencia publica recebida.
+- Para hipoteses, prefira marcas reais com operacao no Brasil e explique a afinidade.
+- Evite uma lista obvia de gigantes. Misture marcas nichadas, empresas medias e no maximo duas grandes.
+- A nota mede afinidade comercial, nao fama.
+- Nao prometa contato, verba ou interesse confirmado.
+- Gere no maximo 8 oportunidades, ordenadas por utilidade.`,
+      },
+      {
+        role: "user",
+        content: `PERFIL E NEGOCIO
+${JSON.stringify({
+  produto: plan?.produto,
+  nicho: plan?.nicho,
+  resumo: plan?.resumoDiagnostico || plan?.resumo,
+  objetivo: plan?.objetivoPrincipal,
+  perfil: plan?.profile,
+  dna: plan?.brandDNA,
+})}
+
+PERFIS SIMILARES QUALIFICADOS
+${JSON.stringify(profileMatches)}
+
+SINAIS PUBLICOS DE MARCAS NAS PUBLICACOES
+${JSON.stringify(signals.slice(0, 20).map(signal => ({
+  handle: signal.handle,
+  mencoes: signal.mentions,
+  mencoesComSinalComercial: signal.commercialMentions,
+  evidencias: signal.evidence,
+})))}`,
+      },
+    ], { model: BRAIN, temperature: 0.2, maxTokens: 4200 });
+    const parsed = parseJson<{ brands?: any[] }>(content);
+    const commercialByHandle = new Map(
+      signals.map(signal => [signal.handle, signal])
+    );
+    const prospects: RadarBrandProspect[] = [];
+    for (const item of parsed?.brands ?? []) {
+      const handle = lowerPlain(String(item?.handle || "").replace(/^@/, ""));
+      const signal = handle ? commercialByHandle.get(handle) : undefined;
+      const askedInvested = item?.relationship === "investiu_em_perfil_similar";
+      const hasPublicSignal = !!signal?.commercialMentions;
+      const relationship = askedInvested && hasPublicSignal
+        ? "investiu_em_perfil_similar"
+        : "aderencia_potencial";
+      const evidenceLevel = relationship === "investiu_em_perfil_similar"
+        ? "sinal_publico"
+        : "hipotese";
+      const brand = String(item?.brand || (handle ? `@${handle}` : "")).trim();
+      if (!brand) continue;
+      prospects.push({
+        channel,
+        brand,
+        handle: handle || undefined,
+        category: String(item?.category || "Marca com afinidade tematica"),
+        relationship,
+        evidenceLevel,
+        fitScore: clamp(Number(item?.fitScore) || 0, 0, 100),
+        why: String(item?.why || "Afinidade potencial com o publico e os temas do perfil."),
+        interestedThemes: Array.isArray(item?.interestedThemes)
+          ? item.interestedThemes.map(String).filter(Boolean).slice(0, 5)
+          : [],
+        evidence: relationship === "investiu_em_perfil_similar"
+          ? signal!.evidence
+          : Array.isArray(item?.evidence)
+            ? item.evidence.map(String).filter(Boolean).slice(0, 3)
+            : [],
+        approach: String(item?.approach || "Apresente uma proposta curta com tema, formato e beneficio para a marca."),
+      });
+    }
+    const merged = [...verified, ...prospects]
+      .filter(prospect => prospect.fitScore >= 55)
+      .sort((a, b) => {
+        if (a.relationship !== b.relationship) {
+          return a.relationship === "investiu_em_perfil_similar" ? -1 : 1;
+        }
+        return b.fitScore - a.fitScore;
+      });
+    const seen = new Set<string>();
+    return merged.filter(prospect => {
+      const key = lowerPlain(prospect.handle || prospect.brand);
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0, 10);
+  } catch (error) {
+    console.error("[radar] prospeccao de marcas falhou:", (error as any)?.message);
+    return verified;
   }
 }
 
@@ -573,9 +1097,18 @@ function fallbackIdeas(opportunities: MarketOpportunity[], hits: RadarHit[], bra
   });
 }
 
-export async function scan(orgId: number, opts: { handles?: string[]; excludeHandles?: string[]; feedback?: RadarResult["feedback"] } = {}): Promise<RadarResult> {
+export async function scan(
+  orgId: number,
+  opts: {
+    handles?: string[];
+    excludeHandles?: string[];
+    feedback?: RadarResult["feedback"];
+    channel?: RadarChannel;
+  } = {}
+): Promise<RadarResult> {
   const plan: any = await getPlan(orgId);
   if (!plan) throw new Error("Faca o diagnostico primeiro");
+  const channel: RadarChannel = opts.channel ?? "instagram";
   const produto = plan.produto || "";
   const nicho = plan.nicho || "";
   const brandDNA = plan.brandDNA ?? {};
@@ -583,29 +1116,70 @@ export async function scan(orgId: number, opts: { handles?: string[]; excludeHan
   const ownHandle = ctx.ownHandle;
 
   const suggestion = await suggestSources(orgId);
-  const hashtags = suggestion.hashtags;
-  const exclude = new Set((opts.excludeHandles ?? []).map(cleanHandle).filter(Boolean));
-  let handles = (opts.handles ?? []).map(cleanHandle).filter(h => h && h !== ownHandle && !exclude.has(h));
+  const channelSuggestion = suggestion.channels[channel];
+  const hashtags = channelSuggestion.hashtags;
+  const exclude = new Set(
+    (opts.excludeHandles ?? [])
+      .map(handle => cleanChannelHandle(handle, channel))
+      .filter(Boolean)
+  );
+  const manualHandles = (opts.handles ?? [])
+    .map(handle => cleanChannelHandle(handle, channel))
+    .filter(Boolean);
+  let handles = manualHandles.filter(
+    handle =>
+      handle &&
+      !(channel === "instagram" && handle === ownHandle) &&
+      !exclude.has(handle)
+  );
   let hashtagPosts: HotPost[] = [];
-  if (!handles.length && isOccupationalHealthPlan(plan) && suggestion.profiles.length) {
-    handles = suggestion.profiles.map(cleanHandle).filter(h => h && h !== ownHandle && !exclude.has(h));
+  let relatedHandles: string[] = [];
+  if (!handles.length && channel === "instagram" && ownHandle) {
+    const [ownProfile] = await fetchInstagramProfilesBatch([ownHandle]);
+    relatedHandles = (ownProfile?.relatedProfiles ?? [])
+      .map(profile => cleanChannelHandle(profile.handle, "instagram"))
+      .filter(handle => handle && handle !== ownHandle && !exclude.has(handle));
   }
-  if (!handles.length) {
+  if (!handles.length && channel === "instagram") {
     hashtagPosts = hashtags.length ? await fetchHotPostsByHashtag(hashtags, 60) : [];
     const owners = [...hashtagPosts]
       .sort((a, b) => engagement(b.likes, b.comments) - engagement(a.likes, a.comments))
-      .map(p => cleanHandle(p.ownerUsername || ""))
+      .map(p => cleanChannelHandle(p.ownerUsername || "", "instagram"))
       .filter(Boolean);
-    handles = [...new Set([...owners, ...suggestion.profiles])].filter(h => h && h !== ownHandle && !exclude.has(h));
+    handles = [...new Set([
+      ...relatedHandles,
+      ...channelSuggestion.profiles,
+      ...owners,
+    ])].filter(handle => handle && handle !== ownHandle && !exclude.has(handle));
+  } else if (!handles.length) {
+    handles = channelSuggestion.profiles.filter(handle => !exclude.has(handle));
   }
   handles = handles.slice(0, 12);
 
-  const profiles = await fetchInstagramProfilesBatch(handles);
+  const profiles = channel === "instagram"
+    ? await fetchInstagramProfilesBatch(handles)
+    : channel === "tiktok"
+      ? await fetchTikTokProfilesBatch(handles)
+      : await fetchFacebookPagesBatch(handles);
+  const profileMatches = await assessMarketProfiles(
+    plan,
+    profiles,
+    channel,
+    manualHandles
+  );
+  const acceptedHandles = new Set(profileMatches.map(match => match.handle));
+  const acceptedProfiles = profiles.filter(profile =>
+    acceptedHandles.has(cleanChannelHandle(profile.handle, channel))
+  );
   const qualityWarnings: string[] = [];
   const missingSources: string[] = [];
   if (handles.length && profiles.length < handles.length) {
-    const readHandles = new Set(profiles.map(p => cleanHandle(p.handle)));
-    const notRead = handles.filter(h => !readHandles.has(cleanHandle(h)));
+    const readHandles = new Set(
+      profiles.map(profile => cleanChannelHandle(profile.handle, channel))
+    );
+    const notRead = handles.filter(
+      handle => !readHandles.has(cleanChannelHandle(handle, channel))
+    );
     if (notRead.length) {
       missingSources.push(...notRead.map(h => `@${h}`));
       qualityWarnings.push(`Nem todos os perfis informados foram lidos automaticamente (${notRead.slice(0, 5).join(", ")}).`);
@@ -614,10 +1188,20 @@ export async function scan(orgId: number, opts: { handles?: string[]; excludeHan
   if (!profiles.length && !hashtagPosts.length) {
     qualityWarnings.push("A coleta automatica nao trouxe perfis ou hashtags com posts suficientes nesta rodada.");
   }
+  if (profiles.length && !profileMatches.length) {
+    qualityWarnings.push(
+      "Os perfis coletados nao provaram aderencia suficiente de publico, oferta ou conteudo e foram descartados."
+    );
+  }
   const candidates: RadarHit[] = [];
 
-  for (const p of profiles) {
-    const posts = (p.posts ?? []).filter((post: SocialPost) => post.img);
+  for (const p of acceptedProfiles) {
+    const profileMatch = profileMatches.find(
+      match => match.handle === cleanChannelHandle(p.handle, channel)
+    );
+    const posts = (p.posts ?? []).filter(
+      (post: SocialPost) => channel === "facebook" || post.img
+    );
     const avg = posts.length ? posts.reduce((s, post) => s + engagement(post.likes, post.comments), 0) / posts.length : 0;
     for (const post of posts) {
       const score = calcHotScore({
@@ -628,6 +1212,7 @@ export async function scan(orgId: number, opts: { handles?: string[]; excludeHan
         profileAvgEngagement: avg,
       });
       candidates.push({
+        channel,
         ownerUsername: p.handle,
         ownerFullName: p.fullName,
         followers: p.followers,
@@ -640,14 +1225,22 @@ export async function scan(orgId: number, opts: { handles?: string[]; excludeHan
         sourceType: "profile",
         format: inferFormat(post),
         mechanism: mechanismFromText(post.caption),
+        profileRole: profileMatch?.role,
+        profileFitScore: profileMatch?.fitScore,
+        profileConfidence: profileMatch?.confidence,
+        profileMatchReason: profileMatch?.reason,
         ...score,
       });
     }
   }
 
-  for (const post of hashtagPosts.filter(p => p.img)) {
+  for (const post of channel === "instagram" ? hashtagPosts.filter(p => p.img) : []) {
+    const owner = cleanChannelHandle(post.ownerUsername || "", "instagram");
+    const profileMatch = profileMatches.find(match => match.handle === owner);
+    if (!profileMatch) continue;
     const score = calcHotScore({ likes: post.likes, comments: post.comments, timestamp: (post as any).timestamp });
     candidates.push({
+      channel,
       ownerUsername: cleanHandle(post.ownerUsername || ""),
       ownerFullName: post.ownerFullName,
       likes: post.likes,
@@ -660,33 +1253,53 @@ export async function scan(orgId: number, opts: { handles?: string[]; excludeHan
       sourceType: "hashtag",
       format: inferFormat(post),
       mechanism: mechanismFromText(post.caption),
+      profileRole: profileMatch.role,
+      profileFitScore: profileMatch.fitScore,
+      profileConfidence: profileMatch.confidence,
+      profileMatchReason: profileMatch.reason,
       ...score,
     });
   }
 
   const seen = new Set<string>();
-  const owners = new Set<string>();
+  const ownerCounts = new Map<string, number>();
   let filteredOutByRelevance = 0;
   const hits = candidates
-    .sort((a, b) => (b.hotScore ?? 0) - (a.hotScore ?? 0))
+    .sort(
+      (a, b) =>
+        (b.profileFitScore ?? 0) - (a.profileFitScore ?? 0) ||
+        (b.hotScore ?? 0) - (a.hotScore ?? 0)
+    )
     .filter(h => {
       const key = (h.url || h.img || "") + (h.ownerUsername || "");
-      const owner = cleanHandle(h.ownerUsername || "");
-      if (!h.img || seen.has(key) || owners.has(owner) || h.ownerUsername === ownHandle || exclude.has(owner)) return false;
+      const owner = cleanChannelHandle(h.ownerUsername || "", channel);
+      if (
+        (!h.img && channel !== "facebook") ||
+        seen.has(key) ||
+        (ownerCounts.get(owner) ?? 0) >= 3 ||
+        (channel === "instagram" && h.ownerUsername === ownHandle) ||
+        exclude.has(owner)
+      ) return false;
       if (!isRelevantHitForPlan(plan, h, { relaxed: !!opts.handles?.length })) {
         filteredOutByRelevance += 1;
         return false;
       }
       seen.add(key);
-      if (owner) owners.add(owner);
+      if (owner) ownerCounts.set(owner, (ownerCounts.get(owner) ?? 0) + 1);
       return true;
     })
-    .slice(0, 12);
+    .slice(0, 18);
 
   if (hits.length) {
     await Promise.all(hits.map(async (h, i) => { h.img = await localizeRemoteImage(h.img, `radar_hit${i}`); }));
   }
   const scanned = [...new Set(hits.map(h => h.ownerUsername).filter(Boolean))] as string[];
+  const brandProspectsPromise = discoverBrandProspects(
+    plan,
+    acceptedProfiles,
+    profileMatches,
+    channel
+  );
 
   let marketSummary = hits.length
     ? ""
@@ -860,8 +1473,61 @@ Regras:
     }));
   }
 
+  const brandProspects = await brandProspectsPromise;
+  const scannedAt = Date.now();
+  const current = await getRadar(orgId);
+  const legacyInstagram =
+    current?.engineVersion === 2 &&
+    !current.channels &&
+    channel !== "instagram"
+    ? {
+        scannedAt: current.scannedAt,
+        marketSummary: current.marketSummary,
+        sources: current.sources ?? [],
+        hashtags: current.hashtags ?? [],
+        hits: (current.hits ?? []).map(hit => ({
+          ...hit,
+          channel: hit.channel ?? "instagram",
+        })) as RadarHit[],
+        profileMatches: current.profileMatches ?? [],
+        brandProspects: current.brandProspects ?? [],
+        patterns: current.patterns,
+        opportunities: current.opportunities,
+        ideas: current.ideas,
+        quality: current.quality,
+        dataQuality: current.dataQuality,
+      }
+    : undefined;
+  const channels: NonNullable<RadarResult["channels"]> = {
+    ...(legacyInstagram ? { instagram: legacyInstagram } : {}),
+    ...(current?.channels ?? {}),
+    [channel]: {
+      scannedAt,
+      marketSummary,
+      sources: scanned,
+      hashtags,
+      hits,
+      profileMatches,
+      brandProspects,
+      patterns,
+      opportunities,
+      ideas,
+      quality,
+      dataQuality,
+    },
+  };
+  const channelSnapshots = Object.values(channels).filter(Boolean);
+  const combinedHits = channelSnapshots.flatMap(snapshot => snapshot!.hits);
+  const combinedProfiles = channelSnapshots.flatMap(
+    snapshot => snapshot!.profileMatches
+  );
+  const combinedBrands = channelSnapshots.flatMap(
+    snapshot => snapshot!.brandProspects
+  );
   const result: RadarResult = {
-    scannedAt: Date.now(),
+    scannedAt,
+    engineVersion: 2,
+    activeChannel: channel,
     nicho,
     baseHandle: ownHandle || undefined,
     baseKey: ctx.key || undefined,
@@ -869,15 +1535,18 @@ Regras:
     baseSource: ctx.source || undefined,
     baseProduto: produto || undefined,
     marketSummary,
-    sources: scanned,
-    hashtags,
-    hits,
+    sources: [...new Set(channelSnapshots.flatMap(snapshot => snapshot!.sources))],
+    hashtags: [...new Set(channelSnapshots.flatMap(snapshot => snapshot!.hashtags))],
+    hits: combinedHits,
+    profileMatches: combinedProfiles,
+    brandProspects: combinedBrands,
+    channels,
     patterns,
     opportunities,
     ideas,
     quality,
     dataQuality,
-    feedback: opts.feedback,
+    feedback: opts.feedback ?? current?.feedback,
   };
 
   const db = await getDb();
@@ -892,7 +1561,13 @@ export async function getRadar(orgId: number): Promise<RadarResult | null> {
   return (rows[0]?.radarJson as any) ?? null;
 }
 
-async function suggestMoreLike(orgId: number, likedHandles: string[], rejectedHandles: string[], likedPosts: RadarHit[] = []): Promise<string[]> {
+async function suggestMoreLike(
+  orgId: number,
+  likedHandles: string[],
+  rejectedHandles: string[],
+  likedPosts: RadarHit[] = [],
+  channel: RadarChannel = "instagram"
+): Promise<string[]> {
   const plan: any = await getPlan(orgId);
   const produto = plan?.produto || "";
   const nicho = plan?.nicho || "";
@@ -901,10 +1576,10 @@ async function suggestMoreLike(orgId: number, likedHandles: string[], rejectedHa
     const content = await openRouterChat([
       {
         role: "system",
-        content: `Voce e o Agente de Audiencia da Cacarejar. O usuario marcou quais posts parecem compativeis com a marca.
-Sugira NOVOS handles brasileiros de Instagram parecidos com os perfis e mecanismos aprovados, evitando os rejeitados.
+        content: `Voce e o Agente de Inteligencia Competitiva da Cacarejar. O usuario marcou quais perfis e posts parecem compativeis com a marca.
+Sugira NOVOS handles brasileiros de ${channel} parecidos em publico, oferta ou mecanismo editorial, evitando os rejeitados.
 Retorne SOMENTE JSON {"profiles":[handles sem @, 8-12]}.
-Priorize perfis reais, nichados, com boa chance de ter conteudo acionavel. Busque variedade: no maximo um perfil muito parecido para cada aprovado. Nao repita nenhum handle informado.`,
+Priorize perfis reais, nichados, com boa chance de ter conteudo acionavel. Busque variedade: no maximo um perfil muito parecido para cada aprovado. Nao repita nenhum handle informado. Aparencia visual nao prova aderencia.`,
       },
       {
         role: "user",
@@ -917,7 +1592,9 @@ Perfis rejeitados/excluidos: ${rejectedHandles.map(h => "@" + h).join(", ")}`,
       },
     ], { model: BRAIN, temperature: 0.6, maxTokens: 700 });
     const parsed = parseJson<{ profiles: string[] }>(content);
-    return [...new Set((parsed?.profiles ?? []).map(cleanHandle).filter(Boolean))]
+    return [...new Set((parsed?.profiles ?? [])
+      .map(handle => cleanChannelHandle(handle, channel))
+      .filter(Boolean))]
       .filter(h => !likedHandles.includes(h) && !rejectedHandles.includes(h))
       .slice(0, 12);
   } catch {
@@ -925,27 +1602,40 @@ Perfis rejeitados/excluidos: ${rejectedHandles.map(h => "@" + h).join(", ")}`,
   }
 }
 
-export async function refineWithFeedback(orgId: number, input: string[] | { likedHandles?: string[]; likedPostKeys?: string[]; dislikedPostKeys?: string[] }): Promise<RadarResult> {
+export async function refineWithFeedback(
+  orgId: number,
+  input: string[] | {
+    likedHandles?: string[];
+    likedPostKeys?: string[];
+    dislikedPostKeys?: string[];
+    channel?: RadarChannel;
+  }
+): Promise<RadarResult> {
   const current = await getRadar(orgId);
   if (!current?.sources?.length) throw new Error("Faca uma pesquisa de Radar primeiro");
 
+  const channel: RadarChannel = Array.isArray(input)
+    ? current.activeChannel ?? "instagram"
+    : input.channel ?? current.activeChannel ?? "instagram";
+  const channelHits = current.channels?.[channel]?.hits ??
+    (current.hits ?? []).filter(hit => (hit.channel ?? "instagram") === channel);
   const likedPostKeys = new Set((Array.isArray(input) ? [] : input.likedPostKeys ?? []).map(String).filter(Boolean));
   const dislikedPostKeys = [...new Set((Array.isArray(input) ? [] : input.dislikedPostKeys ?? []).map(String).filter(Boolean))];
   const fallbackLikedHandles = Array.isArray(input) ? input : (input.likedHandles ?? []);
-  const likedPosts = ((current.hits ?? []) as RadarHit[]).filter(h => likedPostKeys.has(hitKey(h)));
+  const likedPosts = channelHits.filter(h => likedPostKeys.has(hitKey(h)));
   const likedHandles = [...new Set([
-    ...likedPosts.map(h => cleanHandle(h.ownerUsername || "")).filter(Boolean),
-    ...fallbackLikedHandles.map(cleanHandle).filter(Boolean),
+    ...likedPosts.map(h => cleanChannelHandle(h.ownerUsername || "", channel)).filter(Boolean),
+    ...fallbackLikedHandles.map(handle => cleanChannelHandle(handle, channel)).filter(Boolean),
   ])];
   if (!likedHandles.length) throw new Error("Marque Gostei em pelo menos um post compativel para refazer a pesquisa");
 
   const currentSources = [...new Set([
-    ...(current.sources ?? []).map(cleanHandle).filter(Boolean),
-    ...((current.hits ?? []) as RadarHit[]).map(h => cleanHandle(h.ownerUsername || "")).filter(Boolean),
+    ...(current.channels?.[channel]?.sources ?? []).map(handle => cleanChannelHandle(handle, channel)).filter(Boolean),
+    ...channelHits.map(h => cleanChannelHandle(h.ownerUsername || "", channel)).filter(Boolean),
   ])];
-  const dislikedHandles = ((current.hits ?? []) as RadarHit[])
+  const dislikedHandles = channelHits
     .filter(h => dislikedPostKeys.includes(hitKey(h)))
-    .map(h => cleanHandle(h.ownerUsername || ""))
+    .map(h => cleanChannelHandle(h.ownerUsername || "", channel))
     .filter(Boolean);
   const rejectedHandles = [...new Set(dislikedHandles.filter(h => !likedHandles.includes(h)))];
   const previousCount = current.feedback?.refinementCount ?? 0;
@@ -963,7 +1653,7 @@ export async function refineWithFeedback(orgId: number, input: string[] | { like
   }
 
   try {
-    const more = await suggestMoreLike(orgId, likedHandles, rejectedHandles, likedPosts);
+    const more = await suggestMoreLike(orgId, likedHandles, rejectedHandles, likedPosts, channel);
     const handles = [...new Set([...likedHandles, ...more])].slice(0, 12);
     const feedback = {
       likedHandles,
@@ -974,7 +1664,12 @@ export async function refineWithFeedback(orgId: number, input: string[] | { like
       freeLimit: FREE_REFINES,
       nextCostCC: REFINE_COST_CC,
     };
-    const result = await scan(orgId, { handles, excludeHandles: rejectedHandles, feedback });
+    const result = await scan(orgId, {
+      handles,
+      excludeHandles: rejectedHandles,
+      feedback,
+      channel,
+    });
     if (holdId) await credits.settle(orgId, holdId, 0);
     return result;
   } catch (e) {

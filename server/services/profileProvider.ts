@@ -9,12 +9,15 @@ export interface SocialPost {
   caption: string;
   likes: number;
   comments: number;
+  shares?: number;
+  views?: number;
   img?: string;   // imagem do post (displayUrl)
   url?: string;   // permalink
   timestamp?: string;
+  type?: string;
 }
 export interface SocialProfile {
-  network: "instagram" | "tiktok";
+  network: "instagram" | "tiktok" | "facebook";
   handle: string;
   fullName?: string;
   bio?: string;
@@ -28,6 +31,12 @@ export interface SocialProfile {
   topPosts: SocialPost[];     // 3 melhores por engajamento
   engajamentoPct?: number;    // (média likes+coment / seguidores) * 100
   avgLikes?: number;
+  relatedProfiles?: {
+    handle: string;
+    fullName?: string;
+    profilePic?: string;
+    verified?: boolean;
+  }[];
   source: string;
 }
 
@@ -94,9 +103,11 @@ function mapProfileItem(p: any, fallbackHandle?: string): SocialProfile | null {
     caption: x.caption ?? "",
     likes: x.likesCount ?? 0,
     comments: x.commentsCount ?? 0,
+    views: x.videoViewCount ?? x.videoPlayCount ?? x.viewCount ?? undefined,
     img: x.displayUrl ?? x.images?.[0] ?? undefined,
     url: x.url ?? undefined,
     timestamp: x.timestamp ?? undefined,
+    type: x.type ?? x.productType ?? undefined,
   }));
   const followers = p.followersCount ?? 0;
   const topPosts = posts.slice().sort((a, b) => (b.likes + b.comments) - (a.likes + a.comments)).slice(0, 3);
@@ -108,7 +119,14 @@ function mapProfileItem(p: any, fallbackHandle?: string): SocialProfile | null {
     category: p.businessCategoryName, profilePic: p.profilePicUrlHD ?? p.profilePicUrl,
     verified: p.verified, posts, topPosts,
     engajamentoPct: followers > 0 ? +((avgEng / followers) * 100).toFixed(2) : undefined,
-    avgLikes, source: "apify",
+    avgLikes,
+    relatedProfiles: (p.relatedProfiles ?? []).slice(0, 20).map((item: any) => ({
+      handle: item.username ?? item.handle ?? "",
+      fullName: item.full_name ?? item.fullName ?? undefined,
+      profilePic: item.profile_pic_url ?? item.profilePicUrl ?? undefined,
+      verified: item.is_verified ?? item.verified ?? false,
+    })).filter((item: any) => item.handle),
+    source: "apify",
   };
 }
 
@@ -161,9 +179,12 @@ function mapTikTokItems(items: any[], fallbackHandle?: string): SocialProfile | 
     caption: v.text ?? v.desc ?? v.caption ?? "",
     likes: v.diggCount ?? v.digg_count ?? 0,
     comments: v.commentCount ?? v.comment_count ?? 0,
+    shares: v.shareCount ?? v.share_count ?? 0,
+    views: v.playCount ?? v.play_count ?? 0,
     img: v.coverUrl ?? v.videoMeta?.coverUrl ?? v.thumbnail ?? undefined,
     url: v.webVideoUrl ?? v.url ?? undefined,
     timestamp: v.createTime ? new Date(v.createTime * 1000).toISOString() : v.timestamp ?? undefined,
+    type: "video",
   }));
 
   const topPosts = posts.slice().sort((a, b) => (b.likes + b.comments) - (a.likes + a.comments)).slice(0, 3);
@@ -294,6 +315,153 @@ export async function fetchInstagramProfilesBatch(handles: string[]): Promise<So
 }
 
 /** Localiza (baixa) uma imagem remota e devolve URL do nosso domínio. Reuso para o Radar. */
+/** TikTok em lote. Limitamos a seis perfis para manter custo e tempo previsiveis. */
+export async function fetchTikTokProfilesBatch(handles: string[]): Promise<SocialProfile[]> {
+  const users = [...new Set(handles.map(cleanTikTokHandle).filter(Boolean))].slice(0, 6);
+  if (!users.length) return [];
+  const profiles = await Promise.all(users.map(fetchTikTokApify));
+  return profiles.filter(
+    (profile): profile is SocialProfile =>
+      !!profile && (profile.posts?.length ?? 0) > 0
+  );
+}
+
+function cleanFacebookHandle(raw: string) {
+  return (raw || "")
+    .trim()
+    .replace(/^@/, "")
+    .replace(/^https?:\/\/(www\.)?facebook\.com\//i, "")
+    .replace(/[/?#].*$/, "");
+}
+
+function facebookImage(item: any): string | undefined {
+  const attachments = Array.isArray(item?.attachments) ? item.attachments : [];
+  const media = attachments.flatMap((attachment: any) =>
+    Array.isArray(attachment?.subattachments?.data)
+      ? attachment.subattachments.data
+      : [attachment]
+  );
+  return (
+    item?.image ??
+    item?.picture ??
+    item?.thumbnail ??
+    item?.full_picture ??
+    media.find((entry: any) => entry?.media?.image?.src)?.media?.image?.src ??
+    undefined
+  );
+}
+
+/** Le publicacoes de Paginas publicas do Facebook, com volume limitado. */
+export async function fetchFacebookPagesBatch(handles: string[]): Promise<SocialProfile[]> {
+  const token = process.env.APIFY_TOKEN;
+  if (!token) {
+    warnDataQuality("apify_missing_token", { network: "facebook_batch" });
+    return [];
+  }
+  const pages = [...new Set(handles.map(cleanFacebookHandle).filter(Boolean))].slice(0, 8);
+  if (!pages.length) return [];
+  try {
+    const res = await fetch(
+      `https://api.apify.com/v2/acts/api-ninja~facebook-pages-scraper/run-sync-get-dataset-items?token=${token}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          urls: pages,
+          type: "posts",
+          maxResults: 12,
+          parseAllResults: false,
+        }),
+      }
+    );
+    if (!res.ok) {
+      warnDataQuality("apify_batch_http_error", {
+        network: "facebook",
+        handles: pages,
+        status: res.status,
+      });
+      return [];
+    }
+    const items = (await res.json()) as any[];
+    if (!Array.isArray(items)) return [];
+    const grouped = new Map<
+      string,
+      { name?: string; followers?: number; posts: SocialPost[] }
+    >();
+    for (const item of items) {
+      const authorUrl = item?.author?.url ?? item?.page_url ?? item?.pageUrl ?? "";
+      const fallback = item?.author?.name ?? item?.page_name ?? item?.name ?? "";
+      const handle = cleanFacebookHandle(authorUrl || fallback);
+      if (!handle) continue;
+      const row = grouped.get(handle) ?? {
+        name: item?.author?.name ?? item?.page_name ?? item?.name,
+        followers: item?.followers,
+        posts: [] as SocialPost[],
+      };
+      row.posts.push({
+        caption: item?.message ?? item?.description ?? item?.text ?? "",
+        likes: item?.reactions_count ?? item?.likes_count ?? item?.likes ?? 0,
+        comments: item?.comments_count ?? item?.comments ?? 0,
+        shares: item?.reshare_count ?? item?.shares_count ?? item?.shares ?? 0,
+        views: item?.play_count ?? item?.views_count ?? item?.views ?? undefined,
+        img: facebookImage(item),
+        url: item?.url ?? item?.post_url ?? undefined,
+        timestamp: item?.timestamp
+          ? new Date(
+              Number(item.timestamp) *
+                (Number(item.timestamp) < 10_000_000_000 ? 1000 : 1)
+            ).toISOString()
+          : item?.date ?? undefined,
+        type: item?.type ?? "post",
+      });
+      grouped.set(handle, row);
+    }
+    return [...grouped.entries()]
+      .map(([handle, row]) => {
+        const posts = row.posts.slice(0, 12);
+        const topPosts = posts
+          .slice()
+          .sort(
+            (a, b) =>
+              b.likes +
+              b.comments * 4 +
+              (b.shares ?? 0) * 6 -
+              (a.likes + a.comments * 4 + (a.shares ?? 0) * 6)
+          )
+          .slice(0, 3);
+        const avg = posts.length
+          ? posts.reduce((sum, post) => sum + post.likes + post.comments, 0) /
+            posts.length
+          : 0;
+        return {
+          network: "facebook" as const,
+          handle,
+          fullName: row.name,
+          followers: row.followers,
+          posts,
+          topPosts,
+          engajamentoPct: row.followers
+            ? +((avg / row.followers) * 100).toFixed(2)
+            : undefined,
+          avgLikes: posts.length
+            ? Math.round(
+                posts.reduce((sum, post) => sum + post.likes, 0) / posts.length
+              )
+            : 0,
+          source: "apify",
+        };
+      })
+      .filter(profile => profile.posts.length > 0);
+  } catch (e) {
+    warnDataQuality("apify_batch_exception", {
+      network: "facebook",
+      handles: pages,
+      message: (e as any)?.message,
+    });
+    return [];
+  }
+}
+
 export async function localizeRemoteImage(url: string | undefined, tag = "img"): Promise<string | undefined> {
   return localizeImage(url, tag);
 }
