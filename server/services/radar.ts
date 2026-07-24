@@ -974,6 +974,16 @@ Regras duras:
           hasVisualSample,
         })
       ) {
+        console.info("[radar-qualification]", JSON.stringify({
+          event: "profile_rejected",
+          channel,
+          handle,
+          decision: item?.decision,
+          fitScore,
+          confidence: item?.confidence,
+          dimensions: normalizeDimensions(item),
+          reason: String(item?.reason || "").slice(0, 320),
+        }));
         continue;
       }
       const dimensions = normalizeDimensions(item);
