@@ -172,6 +172,31 @@ describe("Radar competitive intelligence", () => {
     ).toBe(true);
   });
 
+  it("scores a component by its specific utility instead of averaging unrelated offer dimensions", () => {
+    expect(
+      qualifiesProfileAssessment(
+        {
+          decision: "inspiracao_de_componente",
+          inspirationDimension: "formato_tom",
+          fitScore: 76,
+          confidence: "alta",
+          dimensions: {
+            audience: 42,
+            offer: 18,
+            subject: 58,
+            formatTone: 78,
+            visualDNA: 50,
+          },
+          evidence: [
+            "Usa o erro intencional como linguagem comica",
+            "Transforma o processo artistico em punchline",
+          ],
+        },
+        { hasVisualSample: true }
+      )
+    ).toBe(true);
+  });
+
   it("does not accept audience size as a component inspiration", () => {
     expect(
       qualifiesProfileAssessment(

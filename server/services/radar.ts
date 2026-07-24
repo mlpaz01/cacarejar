@@ -640,8 +640,23 @@ Nao inclua o proprio perfil do cliente nas sugestoes.`,
 }
 
 function assessmentPosts(profile: SocialProfile, limit = 6) {
+  const winners = (profile.topPosts ?? []).slice(0, Math.ceil(limit / 2));
+  const timeline = profile.posts ?? [];
+  const spreadCount = Math.max(0, limit - winners.length);
+  const spread = Array.from({ length: spreadCount }, (_, index) => {
+    if (spreadCount === 1) return timeline[Math.floor(timeline.length / 2)];
+    const position = Math.round(
+      (index / Math.max(spreadCount - 1, 1)) *
+      Math.max(timeline.length - 1, 0)
+    );
+    return timeline[position];
+  }).filter((post): post is SocialPost => Boolean(post));
+  const pool = Array.from(
+    { length: Math.max(winners.length, spread.length) },
+    (_, index) => [winners[index], spread[index]]
+  ).flat().filter((post): post is SocialPost => Boolean(post));
   const seen = new Set<string>();
-  return [...(profile.topPosts ?? []), ...(profile.posts ?? [])]
+  return [...pool, ...winners, ...timeline]
     .filter(post => {
       const key = String(
         post.url ||
@@ -832,8 +847,8 @@ export function qualifiesProfileAssessment(
     ].sort((a, b) => b - a);
     return (
       fitScore >= (manual ? 62 : 68) &&
-      componentScore >= (manual ? 72 : 78) &&
-      (supportingScores[1] ?? 0) >= (manual ? 50 : 55)
+      componentScore >= (manual ? 68 : 72) &&
+      (supportingScores[1] ?? 0) >= (manual ? 45 : 48)
     );
   }
 
@@ -1104,13 +1119,13 @@ mecanismo e fontes concretas. Em caso de conflito, explique a divergencia nas ev
       visualParts.push({ type: "image_url", image_url: { url: img } });
     });
     for (const profile of profiles.slice(0, 12)) {
-      const samples = assessmentPosts(profile)
+      const samples = assessmentPosts(profile, 8)
         .filter(post => Boolean(post.img))
-        .slice(0, 2);
+        .slice(0, 4);
       samples.forEach((sample, index) => {
         visualParts.push({
           type: "text",
-          text: `POST ${index + 1} DE MELHOR DESEMPENHO DO CANDIDATO @${cleanChannelHandle(profile.handle, channel)}
+          text: `AMOSTRA ${index + 1} DO HISTORICO E DOS CAMPEOES DO CANDIDATO @${cleanChannelHandle(profile.handle, channel)}
 Legenda: ${(sample.caption || "").slice(0, 260)}
 Curtidas: ${sample.likes || 0}; comentarios: ${sample.comments || 0}; visualizacoes: ${sample.views || 0}`,
         });
@@ -1152,12 +1167,14 @@ Regras duras:
 - concorrente_direto exige publico, problema, oferta e assunto comparaveis.
 - inspiracao_integral exige assunto, mecanismo editorial, tom/formato e DNA visual realmente aplicaveis.
 - inspiracao_de_componente so pode ser usada quando o componente nomeado for forte e houver ao menos uma segunda dimensao de apoio. A justificativa deve comecar com "Inspiracao apenas para..." e dizer claramente o que NAO e comparavel.
+- Para inspiracao_de_componente, fitScore mede a UTILIDADE DO COMPONENTE NOMEADO para esta marca; nao e a media das cinco dimensoes nem deve ser derrubado por oferta diferente.
 - Audiencia, numero de seguidores e "marca pessoal" nunca podem ser o componente de inspiracao.
 - Nota alta nunca pode nascer apenas de audiencia numericamente parecida, marca pessoal, rosto humano ou popularidade.
 - Se o perfil analisado usa linguagem raw, humor, bastidores e processo autoral, fotografia polida de moda/lifestyle nao e inspiracao.
 - Se oferta e assunto forem de outro setor, audience e visualDNA nao podem compensar sozinhos.
 - Quando houver imagem, compare acabamento, cenario, expressao, texto na tela, energia e processo. Quando nao houver imagem, visualDNA nao pode passar de 55.
-- fitScore deve refletir as cinco dimensoes, e nao uma impressao geral generica.
+- Em concorrente_direto e inspiracao_integral, fitScore deve refletir as cinco dimensoes; em inspiracao_de_componente, siga a regra especifica de utilidade acima.
+- Rubrica das dimensoes: 0 = oposto ou ausente; 25 = coincidencia superficial; 50 = util mas parcial; 70 = aderencia forte; 85 ou mais = quase equivalente.
 - Aparencia, genero, roupa, cor, popularidade ou uma palavra solta nao provam aderencia.
 - Perfis de crime, violencia, sensualizacao, noticias, sorteios e engajamento forcado devem ser rejeitados, salvo quando forem o proprio campo profissional do cliente.
 - Nao invente informacao. Quando a evidencia for insuficiente, rejeite.
