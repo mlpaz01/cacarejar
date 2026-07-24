@@ -612,6 +612,10 @@ export default function Diagnostico() {
         (idea: any) =>
           idea.diagnosisDecision && idea.diagnosisDecision !== "agent"
       ));
+  const savedRadarAdSignals =
+    ((rd?.feedback?.likedHandles ?? []) as any[]).length +
+    ((rd?.feedback?.likedPostKeys ?? []) as any[]).length;
+  const canRunAdSpy = adQuery.trim().length > 0 || savedRadarAdSignals > 0;
   const journeyAction = !radarHasFeedback
     ? {
         label: "Continuar no Radar",
@@ -1413,6 +1417,8 @@ export default function Diagnostico() {
                 query: plan.anunciosQuery,
                 ads: plan.anunciosConcorrentes ?? [],
                 insights: plan.anunciosInsights ?? [],
+                querySource: plan.anunciosQuerySource,
+                queryLabel: plan.anunciosQueryLabel,
                 scannedAt: plan.anunciosScannedAt,
                 dataQuality: plan.anunciosDataQuality,
               }
@@ -1421,14 +1427,18 @@ export default function Diagnostico() {
           <section className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
             <HeaderLine
               icon={Megaphone}
-              title="Espiao de Anuncios dos concorrentes"
-              subtitle="Anuncios reais rodando agora na Meta (Facebook/Instagram). Os que rodam ha mais tempo costumam ser os campeoes."
+              title="Espiao de Anuncios"
+              subtitle="Com Radar validado, busca anuncios de referencias comparaveis. Sem Radar, use uma palavra-chave ou concorrente manual."
             />
             <div className="flex gap-2 flex-wrap mt-4 mb-4 items-center">
               <input
                 value={adQuery}
                 onChange={e => setAdQuery(e.target.value)}
-                placeholder={`Palavra-chave ou concorrente (padrao: ${plan?.produto || plan?.nicho || "seu nicho"})`}
+                placeholder={
+                  savedRadarAdSignals > 0
+                    ? "Opcional: deixe em branco para usar referencias aprovadas no Radar"
+                    : "Digite uma palavra-chave ou concorrente, ou rode o Radar antes"
+                }
                 className="input-clean flex-1 min-w-[220px]"
               />
               <button
@@ -1437,7 +1447,7 @@ export default function Diagnostico() {
                     adQuery.trim() ? { query: adQuery.trim() } : undefined
                   )
                 }
-                disabled={scanAds.isPending}
+                disabled={scanAds.isPending || !canRunAdSpy}
                 className="rounded-full bg-[#ff3217] text-white px-4 py-2 text-xs font-black disabled:opacity-50 flex items-center gap-1.5"
               >
                 {scanAds.isPending ? (
@@ -1445,9 +1455,28 @@ export default function Diagnostico() {
                 ) : (
                   <Search className="w-3.5 h-3.5" />
                 )}
-                {scanAds.isPending ? "Escaneando..." : "Escanear anuncios"}
+                {scanAds.isPending
+                  ? "Escaneando..."
+                  : adQuery.trim()
+                    ? "Escanear busca"
+                    : savedRadarAdSignals > 0
+                      ? "Escanear referencias do Radar"
+                      : "Informe termo ou use Radar"}
               </button>
             </div>
+            {!canRunAdSpy && (
+              <div className="rounded-2xl border border-[#ffd0c8] bg-[#fff8f7] p-4 mb-4">
+                <p className="text-xs font-black uppercase tracking-wide text-[#9b1c0b]">
+                  Para chamar de concorrente, precisa de criterio
+                </p>
+                <p className="text-sm text-[#22304b] font-semibold leading-relaxed mt-1">
+                  Rode o Radar e marque Gostei nos perfis/postagens que parecem
+                  comparaveis, ou digite manualmente uma palavra-chave ou nome
+                  de concorrente. A busca automatica ampla pelo produto foi
+                  removida para evitar resultados estranhos.
+                </p>
+              </div>
+            )}
             {adData?.dataQuality?.status === "degraded" && (
               <div className="rounded-2xl border border-[#ffd0c8] bg-[#fff8f7] p-4 mb-4">
                 <div className="flex items-start gap-3">
@@ -1477,6 +1506,21 @@ export default function Diagnostico() {
               </EmptyText>
             ) : adData?.ads?.length ? (
               <>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  <span className="rounded-full bg-[#f8fafc] border border-[#e6ebf3] px-3 py-1 text-xs font-black text-[#071b44]">
+                    Origem:{" "}
+                    {adData.querySource === "radar"
+                      ? adData.queryLabel || "Radar validado"
+                      : adData.querySource === "manual"
+                        ? "Busca manual"
+                        : "Busca antiga por palavra-chave ampla"}
+                  </span>
+                  {adData.querySource !== "radar" && (
+                    <span className="rounded-full bg-[#fff8f7] border border-[#ffd0c8] px-3 py-1 text-xs font-black text-[#9b1c0b]">
+                      Valide aderencia antes de tratar como concorrente
+                    </span>
+                  )}
+                </div>
                 {adData.insights?.length ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
                     {adData.insights.map((ins: any, i: number) => (
@@ -1563,9 +1607,9 @@ export default function Diagnostico() {
               </>
             ) : (
               <EmptyText>
-                Clique em "Escanear anuncios" para ver o que os concorrentes
-                estao anunciando agora - e quais ja rodam ha semanas (os
-                campeoes).
+                Para ver anuncios de concorrentes, digite uma busca manual ou
+                rode o Radar antes e marque Gostei nas referencias que fazem
+                sentido para este negocio.
               </EmptyText>
             )}
           </section>

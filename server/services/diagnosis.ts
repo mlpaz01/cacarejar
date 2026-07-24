@@ -342,6 +342,8 @@ export interface CacaPlan {
   anunciosConcorrentes?: any[];
   anunciosInsights?: { titulo: string; detalhe: string }[];
   anunciosQuery?: string;
+  anunciosQuerySource?: "manual" | "radar";
+  anunciosQueryLabel?: string;
   anunciosScannedAt?: number;
   anunciosDataQuality?: {
     status: "complete" | "degraded";

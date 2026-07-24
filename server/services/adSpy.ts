@@ -33,6 +33,8 @@ export interface CompetitorAd {
 
 export interface AdSpyResult {
   query: string;
+  querySource: "manual" | "radar";
+  queryLabel?: string;
   scannedAt: number;
   ads: CompetitorAd[];
   insights: { titulo: string; detalhe: string }[];
@@ -53,6 +55,24 @@ type FetchAdsResult = {
 
 function cleanKeyword(s: string): string {
   return (s || "").replace(/[,;].*$/, "").trim().split(/\s+/).slice(0, 4).join(" ").slice(0, 60);
+}
+
+function cleanHandle(s: string): string {
+  return (s || "").trim().replace(/^@/, "").toLowerCase();
+}
+
+function buildRadarQuery(radar: any): { keyword: string; label: string } | null {
+  if (!radar) return null;
+  const likedKeys = new Set(((radar.feedback?.likedPostKeys ?? []) as string[]).map(String));
+  const likedHits = ((radar.hits ?? []) as any[]).filter(hit => likedKeys.has(String(hit.url || hit.img || `${hit.ownerUsername || ""}:${String(hit.caption || "").slice(0, 80)}`)));
+  const firstHit = likedHits[0];
+  if (firstHit?.ownerFullName || firstHit?.ownerUsername) {
+    const label = firstHit.ownerFullName || `@${firstHit.ownerUsername}`;
+    return { keyword: cleanKeyword(label), label };
+  }
+  const likedHandle = ((radar.feedback?.likedHandles ?? []) as string[]).map(cleanHandle).filter(Boolean)[0];
+  if (likedHandle) return { keyword: cleanKeyword(likedHandle), label: `@${likedHandle}` };
+  return null;
 }
 
 function epochToISO(e?: number): string | undefined {
@@ -174,12 +194,12 @@ export async function fetchCompetitorAds(keyword: string, opts: { country?: stri
 }
 
 /** Insights dos Agentes sobre o conjunto de anúncios (ângulos, ofertas, formatos, o que fazer diferente). */
-async function generateInsights(keyword: string, ads: CompetitorAd[]): Promise<{ titulo: string; detalhe: string }[]> {
+async function generateInsights(keyword: string, ads: CompetitorAd[], sourceLabel?: string): Promise<{ titulo: string; detalhe: string }[]> {
   if (!process.env.OPENROUTER_API_KEY || !ads.length) return [];
   const lines = ads.slice(0, 12).map((a, i) =>
     `${i + 1}. [${a.advertiser}${a.runningDays != null ? ` · ativo ha ${a.runningDays}d` : ""}${a.format ? ` · ${a.format}` : ""}] CTA:${a.cta || "-"} | ${a.text.slice(0, 180)}`
   ).join("\n");
-  const prompt = `Voce e estrategista de trafego pago. Abaixo estao anuncios REAIS de concorrentes no nicho "${keyword}" (Biblioteca de Anuncios da Meta, Brasil). Anuncios "ativos ha muitos dias" tendem a ser vencedores (provavelmente lucrativos, por isso seguem no ar).
+  const prompt = `Voce e estrategista de trafego pago. Abaixo estao anuncios REAIS encontrados na Biblioteca de Anuncios da Meta, Brasil, para a busca "${keyword}"${sourceLabel ? ` (origem: ${sourceLabel})` : ""}. Anuncios "ativos ha muitos dias" tendem a ser vencedores (provavelmente lucrativos, por isso seguem no ar).
 Analise e devolva SOMENTE JSON no formato {"insights":[{"titulo":string,"detalhe":string}]} com 4 a 5 itens cobrindo:
 - angulos/ganchos que mais se repetem
 - ofertas e CTAs mais usados
@@ -207,26 +227,41 @@ export async function scanAdSpy(orgId: number, params: { query?: string } = {}):
   const db = await getDb();
   let row: any = null;
   let plan: any = null;
-  let keyword = cleanKeyword(params.query || "");
+  const manualQuery = cleanKeyword(params.query || "");
+  let keyword = manualQuery;
+  let querySource: AdSpyResult["querySource"] = "manual";
+  let queryLabel = manualQuery ? "Busca manual" : "";
   if (db) {
     const rows = await db.select().from(orgProfile).where(eq(orgProfile.organizationId, orgId)).limit(1);
     row = rows[0];
     plan = row?.planoJson;
-    if (!keyword) keyword = cleanKeyword(plan?.produto || row?.produto || plan?.nicho || row?.nicho || "");
+    if (!keyword) {
+      const radarQuery = buildRadarQuery(row?.radarJson);
+      if (radarQuery?.keyword) {
+        keyword = radarQuery.keyword;
+        querySource = "radar";
+        queryLabel = `Radar validado: ${radarQuery.label}`;
+      }
+    }
   }
-  if (!keyword) throw new Error("Rode um diagnostico primeiro ou informe uma palavra-chave para o Espiao de Anuncios.");
+  if (!keyword) {
+    throw new Error("Para buscar concorrentes reais, rode o Radar e marque Gostei em referencias compativeis, ou digite uma palavra-chave/concorrente manualmente.");
+  }
 
   const fetched = await fetchCompetitorAds(keyword, { country: "BR", count: 16 });
   const ads = fetched.ads;
   // localiza thumbs (CDN da Meta bloqueia hotlink)
   await Promise.all(ads.map(async (a, i) => { a.thumb = await localizeRemoteImage(a.thumb, `ad${i}`); }));
-  const insights = await generateInsights(keyword, ads);
+  const insights = await generateInsights(keyword, ads, queryLabel);
   const scannedAt = Date.now();
+  const hasFetchWarnings = fetched.warnings.length || ads.length === 0;
   const dataQuality: AdSpyResult["dataQuality"] = {
-    status: fetched.warnings.length || ads.length === 0 ? "degraded" : "complete",
-    message: fetched.warnings.length || ads.length === 0
-      ? "Leitura parcial dos anuncios. Use como sinal inicial e tente outra palavra-chave se precisar aprofundar."
-      : "Leitura feita com anuncios reais encontrados na Biblioteca da Meta.",
+    status: hasFetchWarnings ? "degraded" : "complete",
+    message: hasFetchWarnings
+      ? "Leitura exploratoria dos anuncios. Use como sinal inicial e valide se os anunciantes sao realmente comparaveis."
+      : querySource === "radar"
+        ? "Leitura feita com anuncios reais de referencias validadas no Radar."
+        : "Leitura feita com anuncios reais pela busca manual informada.",
     missing: fetched.missing,
     warnings: fetched.warnings,
     checkedAt: scannedAt,
@@ -243,8 +278,17 @@ export async function scanAdSpy(orgId: number, params: { query?: string } = {}):
   }
 
   if (db && row && plan) {
-    const nextPlan = { ...plan, anunciosConcorrentes: ads, anunciosInsights: insights, anunciosQuery: keyword, anunciosScannedAt: scannedAt, anunciosDataQuality: dataQuality };
+    const nextPlan = {
+      ...plan,
+      anunciosConcorrentes: ads,
+      anunciosInsights: insights,
+      anunciosQuery: keyword,
+      anunciosQuerySource: querySource,
+      anunciosQueryLabel: queryLabel,
+      anunciosScannedAt: scannedAt,
+      anunciosDataQuality: dataQuality,
+    };
     await db.update(orgProfile).set({ planoJson: nextPlan }).where(eq(orgProfile.organizationId, orgId));
   }
-  return { query: keyword, scannedAt, ads, insights, dataQuality };
+  return { query: keyword, querySource, queryLabel, scannedAt, ads, insights, dataQuality };
 }
