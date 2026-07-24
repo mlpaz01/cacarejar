@@ -2,13 +2,10 @@ import { Link } from "wouter";
 import {
   BarChart3,
   CheckCircle2,
-  ClipboardCheck,
   FileText,
-  Megaphone,
   Pencil,
   Radar,
   Send,
-  TrendingUp,
 } from "lucide-react";
 
 export type JourneyStepId =
@@ -33,58 +30,43 @@ export const journeySteps: Array<{
     label: "Diagnostico",
     href: "/diagnostico",
     icon: FileText,
-    detail: "Perfil e prescricao",
+    detail: "perfil, posts e plano",
   },
   {
     id: "radar",
-    label: "Radar",
-    href: "/radar",
+    label: "Referencias",
+    href: "/diagnostico",
     icon: Radar,
-    detail: "Concorrencia e feedback",
+    detail: "gostei ou nao gostei",
   },
   {
     id: "estudio",
     label: "Estudio",
     href: "/estudio",
     icon: Pencil,
-    detail: "Criacao e toque humano",
-  },
-  {
-    id: "aprovacao",
-    label: "Aprovacao",
-    href: "/aprovacao",
-    icon: ClipboardCheck,
-    detail: "Posts finais",
+    detail: "editar antes de sair",
   },
   {
     id: "publicacao",
     label: "Publicacao",
     href: "/integracoes",
     icon: Send,
-    detail: "Publicar e registrar",
-  },
-  {
-    id: "campanhas",
-    label: "Campanhas",
-    href: "/campanhas",
-    icon: Megaphone,
-    detail: "Escalar vencedor",
+    detail: "aprovar e registrar",
   },
   {
     id: "metricas",
-    label: "Metricas",
+    label: "Resultados",
     href: "/metricas",
     icon: BarChart3,
-    detail: "Resultado real",
-  },
-  {
-    id: "acompanhamento",
-    label: "Acompanhamento",
-    href: "/recalibracao",
-    icon: TrendingUp,
-    detail: "Aprender e repetir",
+    detail: "medir e aprender",
   },
 ];
+
+const normalizeJourneyStep = (active: JourneyStepId): JourneyStepId => {
+  if (active === "aprovacao") return "publicacao";
+  if (active === "campanhas" || active === "acompanhamento") return "metricas";
+  return active;
+};
 
 export function JourneyGuide({
   active,
@@ -93,7 +75,8 @@ export function JourneyGuide({
   active: JourneyStepId;
   compact?: boolean;
 }) {
-  const activeIndex = journeySteps.findIndex(step => step.id === active);
+  const normalizedActive = normalizeJourneyStep(active);
+  const activeIndex = journeySteps.findIndex(step => step.id === normalizedActive);
 
   return (
     <section className="bg-white border border-[#e6ebf3] rounded-2xl p-4 shadow-sm mb-5">
@@ -103,7 +86,7 @@ export function JourneyGuide({
             Jornada guiada
           </p>
           <h2 className="text-lg font-black text-[#071b44]">
-            Da estrategia ao aprendizado
+            O proximo clique certo
           </h2>
         </div>
         <span className="rounded-full bg-[#f8fafc] border border-[#e6ebf3] px-3 py-1 text-xs font-black text-[#071b44]">
@@ -112,11 +95,11 @@ export function JourneyGuide({
       </div>
 
       <div
-        className={`grid gap-2 ${compact ? "grid-cols-2 lg:grid-cols-4 xl:grid-cols-8" : "grid-cols-1 md:grid-cols-4 xl:grid-cols-8"}`}
+        className={`grid gap-2 ${compact ? "grid-cols-2 lg:grid-cols-5" : "grid-cols-1 md:grid-cols-3 xl:grid-cols-5"}`}
       >
         {journeySteps.map((step, index) => {
           const Icon = step.icon;
-          const isActive = step.id === active;
+          const isActive = step.id === normalizedActive;
           const done = index < activeIndex;
 
           return (

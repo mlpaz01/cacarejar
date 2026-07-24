@@ -16,7 +16,6 @@ import {
 export default function Guia() {
   const { data: diagnosis } = trpc.diagnosis.get.useQuery();
   const { data: radar } = trpc.radar.get.useQuery();
-  const { data: campaigns } = trpc.campaigns.list.useQuery();
   const { data: creatives } = trpc.creatives.list.useQuery({
     campaignId: undefined,
   });
@@ -33,9 +32,6 @@ export default function Guia() {
     !!(diagnosis as any)?.aprendizadoSemanal ||
     (((diagnosis as any)?.acompanhamento?.feedbacks ?? []) as any[]).length >
       0;
-  const activeCampaigns = (campaigns ?? []).filter(
-    (campaign: any) => !["arquivada", "concluida"].includes(campaign.status)
-  ).length;
   const radarFeedbackCount =
     ((radar as any)?.feedback?.likedPostKeys?.length ?? 0) +
     ((radar as any)?.feedback?.dislikedPostKeys?.length ?? 0);
@@ -60,71 +56,45 @@ export default function Guia() {
     {
       id: "diagnostico",
       title: "1. Diagnostico",
-      action: "Preencha ou restaure o perfil que sera trabalhado nesta semana.",
-      text: "Defina negocio, objetivo e canais. Esta etapa cria a prescricao e impede que as outras abas misturem perfis.",
+      action: "Escolha o perfil e deixe os Agentes entenderem o negocio.",
+      text: "Ao concluir, voce ja ve posts fortes do proprio perfil, uma primeira leitura e referencias de mercado para validar.",
       done: !!diagnosis,
-      success: "Perfil ativo e parecer prontos.",
+      success: "Perfil ativo pronto para orientar todo o resto.",
     },
     {
       id: "radar",
-      title: "2. Radar",
+      title: "2. Referencias",
       action:
-        "Rode o Radar e marque quais concorrentes/postagens combinam com o negocio.",
-      text: "Esta etapa valida referencias e sinais de mercado. Ela nao gera posts; ela melhora o contexto antes da criacao.",
+        "Marque Gostei ou Nao gostei nos posts e perfis encontrados.",
+      text: "Esse clique ensina o criterio humano: o que parece concorrente, inspiracao ou caminho errado para este negocio.",
       done: !!radar && radarFeedbackCount > 0,
-      success: "Concorrencia validada com feedback humano.",
+      success: "Referencias validadas com criterio humano.",
     },
     {
       id: "estudio",
       title: "3. Estudio",
       action:
-        "Crie ou refine posts, imagens e roteiros de video com base no Diagnostico e no Radar.",
-      text: "Este e o unico lugar de criacao. A base vem dos Agentes, mas o usuario ajusta texto, imagem, bastidor, prova, videos verticais e marca a versao humana final.",
+        "Veja as sugestoes e ajuste texto, imagem e bastidor antes de aprovar.",
+      text: "O Estudio e o lugar oficial de criacao. Diagnostico e referencias orientam; aqui a pessoa da o toque humano.",
       done: editedCreatives > 0,
       success: "Pelo menos um criativo foi humanizado.",
     },
     {
-      id: "aprovacao",
-      title: "4. Aprovacao",
-      action: "Selecione somente os posts que estao prontos para sair.",
-      text: "Esta etapa separa ideia de publicacao real. O que nao estiver claro volta para o Estudio.",
-      done: approved > 0 || published > 0 || measured > 0,
-      success: "Posts finais escolhidos.",
-    },
-    {
       id: "publicacao",
-      title: "5. Publicacao",
-      action:
-        "Copie legenda, baixe imagem, publique no canal e registre o link.",
-      text: "Sem link e resultado, o Cacarejar nao aprende. Publicacao assistida e o controle da execucao semanal.",
-      done: published > 0 || measured > 0,
+      title: "4. Publicacao",
+      action: "Aprove, publique no canal e registre o link.",
+      text: "Sem registro, a plataforma nao aprende. Esta etapa fecha a execucao da semana.",
+      done: approved > 0 || published > 0 || measured > 0,
       success: "Conteudo publicado com rastreio.",
     },
     {
-      id: "campanhas",
-      title: "6. Campanhas",
-      action: "Transforme um post com sinal organico em campanha pequena.",
-      text: "A verba entra depois do sinal real. Primeiro prova, depois escala com seguranca.",
-      done: activeCampaigns > 0,
-      success: "Campanha criada a partir de sinal.",
-    },
-    {
       id: "metricas",
-      title: "7. Metricas",
+      title: "5. Resultados",
       action:
-        "Confira alcance, cliques, leads, vendas e o que merece variacao.",
-      text: "Aqui o usuario diferencia gosto pessoal de performance real.",
-      done: measured > 0,
-      success: "Resultado registrado.",
-    },
-    {
-      id: "acompanhamento",
-      title: "8. Acompanhamento",
-      action:
-        "Rode o check-in e transforme resultado em aprendizado da proxima semana.",
-      text: "A jornada fecha quando o que aconteceu vira prescricao melhor para o proximo ciclo.",
-      done: learningDone && measured > 0,
-      success: "Aprendizado pronto para repetir o ciclo.",
+        "Informe o que aconteceu e deixe os Agentes aprenderem para o proximo ciclo.",
+      text: "Aqui gosto pessoal vira dado. A proxima semana nasce do que trouxe conversa, lead ou venda.",
+      done: measured > 0 || learningDone,
+      success: "Resultado registrado e pronto para virar aprendizado.",
     },
   ];
 
@@ -135,14 +105,14 @@ export default function Guia() {
   return (
     <AppLayout
       title="Guia de uso"
-      subtitle="A jornada guiada do Cacarejar, do perfil ativo ao aprendizado real."
+      subtitle="Um caminho simples: entender, escolher referencias, editar, publicar e medir."
       journeyActive={next.id}
     >
       <section className="rounded-3xl bg-[#071b44] text-white p-6 shadow-sm mb-6">
         <div className="flex items-start justify-between gap-5 flex-wrap">
           <div className="max-w-4xl">
             <p className="text-xs font-black text-white/60 uppercase tracking-widest flex items-center gap-2">
-              <BookOpen className="w-4 h-4" /> Proximo clique certo
+              <BookOpen className="w-4 h-4" /> Sem treinamento
             </p>
             <h2 className="text-3xl font-black mt-2">{next.title}</h2>
             <p className="text-base text-white/85 mt-3 leading-relaxed">
@@ -233,23 +203,23 @@ export default function Guia() {
 
       <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         <InfoCard
-          title="Regra da jornada"
+          title="Regra simples"
           icon={ShieldCheck}
           items={[
-            "Diagnostico e Radar orientam, mas nao sao telas de criacao.",
-            "Crie e edite conteudos no Estudio.",
-            "Nao publique sem passar pelo Estudio.",
-            "Nao escale campanha sem resultado organico.",
+            "Diagnostico entende o perfil.",
+            "Referencias ensinam o criterio.",
+            "Estudio cria e humaniza.",
+            "Resultados melhoram a proxima semana.",
           ]}
         />
         <InfoCard
-          title="Videos verticais"
+          title="Quando quiser video"
           icon={Clapperboard}
           items={[
-            "Videos TikTok fica dentro do Estudio.",
-            "Use depois de escolher um post base.",
-            "Copie roteiro, cenas e prompt visual.",
-            "Depois registre publicacao e resultado.",
+            "Entre pelo Estudio.",
+            "Escolha um post base.",
+            "Use o roteiro vertical.",
+            "Registre o resultado depois.",
           ]}
         />
         <InfoCard

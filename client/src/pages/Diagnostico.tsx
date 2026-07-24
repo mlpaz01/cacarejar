@@ -21,6 +21,7 @@ import {
   MessageSquareText,
   Palette,
   Pencil,
+  Radar,
   RotateCcw,
   Search,
   Sparkles,
@@ -106,11 +107,13 @@ export default function Diagnostico() {
   const [adQuery, setAdQuery] = useState("");
   const [googleQuery, setGoogleQuery] = useState("");
   const [feedback, setFeedback] = useState("");
+  const [autoRadarStarted, setAutoRadarStarted] = useState(false);
 
   const analyze = trpc.diagnosis.analyze.useMutation({
     onSuccess: p => {
       setPlan(p);
       setForceForm(false);
+      setAutoRadarStarted(false);
       utils.diagnosis.get.invalidate();
       utils.radar.get.invalidate();
       toast.success("Diagnostico concluido.");
@@ -122,6 +125,7 @@ export default function Diagnostico() {
       setPlan(null);
       setForceForm(false);
       setShowHistory(false);
+      setAutoRadarStarted(false);
       utils.diagnosis.get.invalidate();
       utils.radar.get.invalidate();
       toast.success("Diagnostico restaurado.");
@@ -183,6 +187,34 @@ export default function Diagnostico() {
   const rd: any = radar.data;
 
   useEffect(() => {
+    if (!shown || forceForm || showHistory) return;
+    if (autoRadarStarted || scanRadar.isPending) return;
+    if (rd?.scannedAt || ((rd?.hits ?? []) as any[]).length > 0) return;
+    const hasContext = Boolean(
+      shown.profile?.handle ||
+        shown.redes?.instagram ||
+        shown._redes?.instagram ||
+        shown.produto ||
+        shown.nicho
+    );
+    if (!hasContext) return;
+    setAutoRadarStarted(true);
+    scanRadar.mutate(undefined);
+  }, [
+    autoRadarStarted,
+    forceForm,
+    showHistory,
+    rd?.scannedAt,
+    rd?.hits?.length,
+    scanRadar.isPending,
+    shown?.profile?.handle,
+    shown?.redes?.instagram,
+    shown?._redes?.instagram,
+    shown?.produto,
+    shown?.nicho,
+  ]);
+
+  useEffect(() => {
     if (!location.includes("studioReturn=")) return;
     setPlan(null);
     setForceForm(false);
@@ -220,6 +252,7 @@ export default function Diagnostico() {
     setPlan(null);
     setForceForm(true);
     setShowHistory(false);
+    setAutoRadarStarted(false);
     setProduto("");
     setSobre("");
     setObjetivo("vender");
@@ -264,6 +297,19 @@ export default function Diagnostico() {
       feedback:
         feedback || "Usar feedbacks do Radar no parecer e na prescricao.",
     });
+  };
+
+  const applyFeedbackAndOpenStudio = async () => {
+    if (!rd) {
+      scanRadar.mutate(undefined);
+      return;
+    }
+    if (!likedHitKeys.length && !dislikedHitKeys.length) {
+      toast.error("Marque Gostei ou Nao gostei em pelo menos uma referencia.");
+      return;
+    }
+    await useRadarFeedback();
+    navigate("/estudio");
   };
 
   const exportPdf = () => {
@@ -618,16 +664,20 @@ export default function Diagnostico() {
   const canRunAdSpy = adQuery.trim().length > 0 || savedRadarAdSignals > 0;
   const journeyAction = !radarHasFeedback
     ? {
-        label: "Continuar no Radar",
-        title: "Proxima acao: validar concorrencia antes da criacao",
-        text: "Rode o Radar, marque quais referencias combinam ou nao com este negocio e use esse feedback para fortalecer o contexto antes de abrir o Estudio.",
-        run: () => navigate("/radar"),
+        label: "Validar referencias",
+        title: "Proxima acao: escolher o que combina",
+        text: "Veja os posts e perfis sugeridos, marque Gostei ou Nao gostei e use esse criterio antes de abrir o Estudio.",
+        run: () => {
+          const el = document.getElementById("radar-previo");
+          if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+          else navigate("/radar");
+        },
       }
     : plano7Dias.length > 0
       ? {
           label: "Abrir Estudio",
           title: "Proxima acao: criar e humanizar no Estudio",
-          text: "Agora que o perfil e o Radar estao alinhados, use o Estudio como unico lugar para transformar estrategia em conteudo editavel.",
+          text: "As referencias ja receberam seu criterio. Agora os posts ficam no Estudio, onde voce edita visualmente antes de aprovar.",
           run: () => navigate("/estudio"),
         }
       : {
@@ -719,11 +769,58 @@ export default function Diagnostico() {
 
       <ProfileHero plan={shown} />
 
-      {brandDNA && <BrandDNASection dna={brandDNA} />}
+      <DiagnosisSummarySection
+        plan={shown}
+        parecer={parecer}
+        topPostsCount={topPosts.length}
+        radarCount={hotHits.length}
+      />
 
       {topPosts.length > 0 && (
         <TopPostsSection posts={topPosts} analyses={topPostAnalyses} />
       )}
+
+      <RadarPreviewSection
+        hits={hotHits}
+        likedHitKeys={likedHitKeys}
+        dislikedHitKeys={dislikedHitKeys}
+        onMark={markHit}
+        onScan={() => scanRadar.mutate(undefined)}
+        onRefine={useRadarFeedback}
+        onContinue={applyFeedbackAndOpenStudio}
+        onAdvanced={() => navigate("/radar")}
+        loading={scanRadar.isPending}
+        refining={refineRadar.isPending || recalibrate.isPending}
+        hasRadar={!!rd?.scannedAt}
+      />
+
+      {timeline.length > 0 && (
+        <SchedulePreviewSection
+          timeline={timeline}
+          onOpenStudio={() => navigate("/estudio")}
+        />
+      )}
+
+      <details className="group rounded-2xl border border-[#e6ebf3] bg-white shadow-sm mb-5">
+        <summary className="cursor-pointer list-none p-5 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-xs font-black text-[#ff3217] uppercase tracking-wide">
+              Analise completa
+            </p>
+            <h2 className="text-xl font-black text-[#071b44]">
+              Ver detalhes avancados
+            </h2>
+            <p className="text-sm text-[#61708a] mt-1">
+              Metodo, motor organico, anuncios, Google, cronograma completo e acompanhamento ficam aqui para nao pesar a jornada.
+            </p>
+          </div>
+          <span className="rounded-xl border border-[#e6ebf3] px-4 py-2 text-xs font-black text-[#071b44] group-open:bg-[#071b44] group-open:text-white">
+            Abrir
+          </span>
+        </summary>
+        <div className="px-5 pb-5">
+
+      {brandDNA && <BrandDNASection dna={brandDNA} />}
 
       {(situacao.length > 0 || pilaresEstrategicos.length > 0) && (
         <StrategicStudySection
@@ -1864,7 +1961,308 @@ export default function Diagnostico() {
           </EmptyText>
         )}
       </section>
+        </div>
+      </details>
     </AppLayout>
+  );
+}
+
+function DiagnosisSummarySection({
+  plan,
+  parecer,
+  topPostsCount,
+  radarCount,
+}: {
+  plan: any;
+  parecer: any;
+  topPostsCount: number;
+  radarCount: number;
+}) {
+  const negocio =
+    plan?.produto || plan?.nicho || plan?.profile?.fullName || "este perfil";
+  const leitura =
+    parecer?.analise ||
+    plan?.sumarioExecutivo ||
+    plan?.resumo ||
+    "Os Agentes montaram uma primeira leitura do perfil. Agora escolha as referencias que fazem sentido antes de criar.";
+  const prescricao =
+    parecer?.prescricaoImediata ||
+    plan?.objetivoPrincipal ||
+    "Validar referencias reais e transformar a melhor direcao em conteudo editavel no Estudio.";
+  return (
+    <section className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
+      <div className="grid grid-cols-1 xl:grid-cols-[1.1fr_.9fr] gap-5">
+        <div>
+          <p className="text-xs font-black text-[#ff3217] uppercase tracking-wide">
+            Resumo simples
+          </p>
+          <h2 className="text-2xl font-black text-[#071b44] mt-2">
+            O que entendemos sobre {negocio}
+          </h2>
+          <p className="text-base font-semibold text-[#22304b] leading-relaxed mt-3">
+            {leitura}
+          </p>
+        </div>
+        <div className="rounded-2xl bg-[#071b44] text-white p-5">
+          <p className="text-xs font-black text-white/60 uppercase">
+            Proximo clique
+          </p>
+          <h3 className="text-xl font-black mt-2">
+            Escolha as referencias antes de criar
+          </h3>
+          <p className="text-sm text-white/75 leading-relaxed mt-2">
+            {prescricao}
+          </p>
+          <div className="grid grid-cols-2 gap-3 mt-5">
+            <MiniStat label="Posts do perfil" value={topPostsCount || "-"} />
+            <MiniStat label="Referencias" value={radarCount || "-"} />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function RadarPreviewSection({
+  hits,
+  likedHitKeys,
+  dislikedHitKeys,
+  onMark,
+  onScan,
+  onRefine,
+  onContinue,
+  onAdvanced,
+  loading,
+  refining,
+  hasRadar,
+}: {
+  hits: any[];
+  likedHitKeys: string[];
+  dislikedHitKeys: string[];
+  onMark: (hit: any, value: "like" | "dislike") => void;
+  onScan: () => void;
+  onRefine: () => void;
+  onContinue: () => void;
+  onAdvanced: () => void;
+  loading: boolean;
+  refining: boolean;
+  hasRadar: boolean;
+}) {
+  const feedbackCount = likedHitKeys.length + dislikedHitKeys.length;
+  return (
+    <section
+      id="radar-previo"
+      className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm mb-5 scroll-mt-28"
+    >
+      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+        <HeaderLine
+          icon={Radar}
+          title="Referencias encontradas"
+          subtitle="Marque o que combina e o que nao combina. Esse criterio guia os posts no Estudio."
+        />
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={onScan}
+            disabled={loading}
+            className="rounded-xl border border-[#e6ebf3] bg-white px-4 py-2 text-xs font-black text-[#071b44] hover:bg-[#f8fafc] disabled:opacity-50 inline-flex items-center gap-2"
+          >
+            {loading ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Search className="w-3.5 h-3.5" />
+            )}
+            {hasRadar ? "Rebuscar previa" : "Buscar referencias"}
+          </button>
+          <button
+            type="button"
+            onClick={onAdvanced}
+            className="rounded-xl border border-[#e6ebf3] bg-white px-4 py-2 text-xs font-black text-[#071b44] hover:bg-[#f8fafc]"
+          >
+            Radar avancado
+          </button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-5 mt-5">
+          <p className="text-sm font-black text-[#071b44]">
+            Buscando posts e perfis parecidos...
+          </p>
+          <p className="text-xs text-[#61708a] mt-1">
+            A primeira previa fica aqui para voce validar sem sair do Diagnostico.
+          </p>
+        </div>
+      ) : hits.length ? (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mt-5">
+            {hits.map((hit: any) => {
+              const key = hitKey(hit);
+              const liked = likedHitKeys.includes(key);
+              const disliked = dislikedHitKeys.includes(key);
+              return (
+                <article
+                  key={key}
+                  className={`rounded-2xl border overflow-hidden bg-white flex flex-col ${liked ? "border-[#18b85c]" : disliked ? "border-[#ff3217]" : "border-[#e6ebf3]"}`}
+                >
+                  {hit.img ? (
+                    <img
+                      src={hit.img}
+                      alt=""
+                      className="w-full aspect-[4/3] object-cover bg-[#f8fafc]"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="w-full aspect-[4/3] bg-[#f8fafc] grid place-items-center text-[#61708a]">
+                      <Radar className="w-8 h-8" />
+                    </div>
+                  )}
+                  <div className="p-4 flex flex-col flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-black text-[#071b44] truncate">
+                        @{hit.ownerUsername || "referencia"}
+                      </p>
+                      <span className="text-[10px] font-black text-white bg-[#ff3217] rounded-full px-2 py-1">
+                        {hit.hotScore ?? "-"} hot
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#22304b] leading-relaxed mt-2 line-clamp-4 flex-1">
+                      {hit.why || hit.mechanism || hit.caption || hit.theme}
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 mt-3">
+                      <button
+                        type="button"
+                        onClick={() => onMark(hit, "like")}
+                        className={`rounded-xl border px-3 py-2 text-xs font-black flex items-center justify-center gap-1.5 ${liked ? "bg-[#18b85c] text-white border-[#18b85c]" : "bg-white text-[#071b44] border-[#e6ebf3]"}`}
+                      >
+                        <ThumbsUp className="w-3.5 h-3.5" /> Gostei
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onMark(hit, "dislike")}
+                        className={`rounded-xl border px-3 py-2 text-xs font-black flex items-center justify-center gap-1.5 ${disliked ? "bg-[#ff3217] text-white border-[#ff3217]" : "bg-white text-[#071b44] border-[#e6ebf3]"}`}
+                      >
+                        <ThumbsDown className="w-3.5 h-3.5" /> Nao
+                      </button>
+                    </div>
+                    {hit.url && (
+                      <a
+                        href={absUrl(hit.url)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-3 text-[11px] font-black text-[#61708a] hover:text-[#071b44] inline-flex items-center gap-1"
+                      >
+                        Abrir post <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+          <div className="rounded-2xl border border-[#ffd6ce] bg-[#fff8f6] p-4 mt-5 flex flex-col lg:flex-row lg:items-center gap-3">
+            <div className="flex-1">
+              <p className="text-sm font-black text-[#071b44]">
+                {feedbackCount
+                  ? `${feedbackCount} escolha(s) feitas.`
+                  : "Escolha pelo menos uma referencia para ensinar o criterio."}
+              </p>
+              <p className="text-xs text-[#61708a] mt-1">
+                Depois disso, as sugestoes de post aparecem no Estudio.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onRefine}
+              disabled={!feedbackCount || refining}
+              className="rounded-xl border border-[#e6ebf3] bg-white px-4 py-3 text-xs font-black text-[#071b44] hover:bg-[#f8fafc] disabled:opacity-50"
+            >
+              {refining ? "Refinando..." : "Refinar com minhas escolhas"}
+            </button>
+            <button
+              type="button"
+              onClick={onContinue}
+              disabled={!feedbackCount || refining}
+              className="rounded-xl bg-[#071b44] text-white px-5 py-3 text-xs font-black hover:bg-[#0b255c] disabled:opacity-50 inline-flex items-center justify-center gap-2"
+            >
+              Usar e abrir Estudio <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </>
+      ) : (
+        <div className="rounded-2xl border border-[#ffd6ce] bg-[#fff8f6] p-5 mt-5">
+          <p className="text-sm font-black text-[#071b44]">
+            Ainda nao ha referencias para validar.
+          </p>
+          <p className="text-xs text-[#61708a] mt-1">
+            Clique em Buscar referencias ou use o Radar avancado para informar perfis especificos.
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function SchedulePreviewSection({
+  timeline,
+  onOpenStudio,
+}: {
+  timeline: any[];
+  onOpenStudio: () => void;
+}) {
+  return (
+    <section className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm mb-5">
+      <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+        <HeaderLine
+          icon={CalendarDays}
+          title="Cronograma recomendado"
+          subtitle="Uma previa simples do caminho sugerido. A criacao dos posts acontece no Estudio."
+        />
+        <button
+          type="button"
+          onClick={onOpenStudio}
+          className="rounded-xl bg-[#071b44] text-white px-5 py-3 text-sm font-black inline-flex items-center justify-center gap-2 hover:bg-[#0b255c]"
+        >
+          Ver sugestoes no Estudio <ArrowRight className="w-4 h-4" />
+        </button>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mt-5">
+        {timeline.slice(0, 4).map((week: any) => {
+          const first = (week.canais ?? [])[0] ?? {};
+          return (
+            <article
+              key={week.semana}
+              className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-4"
+            >
+              <span className="rounded-full bg-[#071b44] text-white text-[10px] font-black px-3 py-1">
+                {week.semana}
+              </span>
+              <h3 className="text-base font-black text-[#071b44] mt-3">
+                {week.tema || first.acao || "Execucao da semana"}
+              </h3>
+              <p className="text-xs text-[#22304b] leading-relaxed mt-2">
+                {first.canal ? `${first.canal}: ` : ""}
+                {first.acao || week.meta || "Abrir no Estudio e preparar o conteudo."}
+              </p>
+              {week.meta && (
+                <p className="text-[11px] font-bold text-[#18b85c] mt-3">
+                  {week.meta}
+                </p>
+              )}
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function MiniStat({ label, value }: { label: string; value: any }) {
+  return (
+    <div className="rounded-2xl bg-white/10 border border-white/15 p-3">
+      <p className="text-[10px] font-black text-white/55 uppercase">{label}</p>
+      <p className="text-2xl font-black mt-1">{value}</p>
+    </div>
   );
 }
 
