@@ -25,6 +25,80 @@ const truncate = (value: any, max = 220) => {
   return text.length > max ? `${text.slice(0, max - 1)}...` : text;
 };
 
+const normalizeLoose = (value: any) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+const RADAR_STOPWORDS = new Set([
+  "para", "pela", "pelo", "com", "sem", "que", "uma", "umas", "uns", "dos", "das",
+  "nas", "nos", "esse", "essa", "isso", "este", "esta", "voce", "cliente", "clientes",
+  "conteudo", "conteudos", "post", "posts", "instagram", "reels", "tiktok", "redes",
+  "sociais", "marketing", "vender", "vendas", "mais", "fazer", "faco", "perfil", "marca",
+]);
+const RADAR_BLOCK_TERMS = [
+  "violencia", "violencia domestica", "policia", "preso", "presa", "prisao", "crime",
+  "denuncia", "denunciada", "agressao", "assassin", "morte", "estupro", "abuso",
+  "nudez", "sensual", "lingerie", "calcinha", "sutia", "onlyfans", "aposta", "cassino",
+  "bet", "sorteio", "premio", "concorra", "ganhe", "marque", "seguir todos",
+  "comente bastante", "engajadas",
+];
+
+const radarHitText = (hit: any) =>
+  normalizeLoose(
+    [hit?.ownerUsername, hit?.ownerFullName, hit?.caption, hit?.theme, hit?.why, hit?.mechanism]
+      .filter(Boolean)
+      .join(" ")
+  );
+
+const radarContextTerms = (plan: any) => {
+  const raw = normalizeLoose(
+    [
+      plan?.produto,
+      plan?.nicho,
+      plan?.sumarioExecutivo,
+      plan?.resumo,
+      plan?.objetivoPrincipal,
+      plan?.profile?.handle,
+      plan?.profile?.fullName,
+      plan?.profile?.bio,
+      plan?.profile?.category,
+      plan?.site?.title,
+      plan?.site?.description,
+      plan?.brandDNA ? JSON.stringify(plan.brandDNA) : "",
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+  const counts = new Map<string, number>();
+  for (const term of raw.match(/[a-z0-9]{4,}/g) ?? []) {
+    if (RADAR_STOPWORDS.has(term) || /^\d+$/.test(term)) continue;
+    counts.set(term, (counts.get(term) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || b[0].length - a[0].length)
+    .slice(0, 28)
+    .map(([term]) => term);
+};
+
+const filterRadarPosts = (hits: any[], plan: any) => {
+  const terms = radarContextTerms(plan);
+  const hasEnoughContext = terms.length >= 4;
+  return hits
+    .map(hit => {
+      const text = radarHitText(hit);
+      if (RADAR_BLOCK_TERMS.some(term => text.includes(term))) return null;
+      const score =
+        terms.filter(term => text.includes(term)).length * 2 +
+        (hit?.why || hit?.theme ? 1 : 0) +
+        (hit?.sourceType === "profile" ? 1 : 0);
+      if (hasEnoughContext && score < 3) return null;
+      return { ...hit, fitScore: score };
+    })
+    .filter(Boolean)
+    .sort((a: any, b: any) => (b.fitScore ?? 0) - (a.fitScore ?? 0) || (b.hotScore ?? 0) - (a.hotScore ?? 0));
+};
+
 const hitKey = (h: any) =>
   String(
     h?.url ||
@@ -101,8 +175,8 @@ export default function DiagnosticoPrint() {
   const disliked = new Set(
     ((feedbackDraft?.dislikedPostKeys ?? rd?.feedback?.dislikedPostKeys ?? []) as string[])
   );
-  const radarPosts = ((rd?.hits ?? []) as any[])
-    .filter(hit => pickImage(hit))
+  const radarPosts = filterRadarPosts((rd?.hits ?? []) as any[], shown)
+    .filter((hit: any) => pickImage(hit))
     .slice(0, 8);
   const postIdeas = ((shown.postIdeas ?? []) as any[]).slice(0, 4);
   const timeline = ((shown.cronogramaMulticanal ?? shown.cronograma ?? []) as any[]).slice(0, 4);

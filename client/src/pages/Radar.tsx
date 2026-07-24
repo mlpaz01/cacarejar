@@ -72,6 +72,45 @@ const profileContext = (plan: any) => {
   return { key: "", label: "", source: "" };
 };
 
+const normalizeLoose = (value: any) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+const RADAR_BLOCK_TERMS = [
+  "violencia",
+  "violencia domestica",
+  "policia",
+  "preso",
+  "presa",
+  "prisao",
+  "crime",
+  "denuncia",
+  "denunciada",
+  "agressao",
+  "assassin",
+  "morte",
+  "estupro",
+  "abuso",
+  "nudez",
+  "sensual",
+  "lingerie",
+  "calcinha",
+  "sutia",
+  "onlyfans",
+  "aposta",
+  "cassino",
+  "bet",
+  "sorteio",
+  "premio",
+  "concorra",
+  "ganhe",
+  "marque",
+  "seguir todos",
+  "comente bastante",
+  "engajadas",
+];
+
 const STOP_TERMS = new Set([
   "para",
   "com",
@@ -100,7 +139,102 @@ const STOP_TERMS = new Set([
   "sem",
   "tem",
   "vai",
+  "cliente",
+  "clientes",
+  "conteudo",
+  "conteudos",
+  "post",
+  "posts",
+  "instagram",
+  "reels",
+  "tiktok",
+  "redes",
+  "sociais",
+  "marketing",
+  "vender",
+  "vendas",
+  "perfil",
+  "marca",
 ]);
+
+function radarHitText(hit: any) {
+  return normalizeLoose(
+    [
+      hit?.ownerUsername,
+      hit?.ownerFullName,
+      hit?.caption,
+      hit?.theme,
+      hit?.why,
+      hit?.mechanism,
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+}
+
+function radarContextTerms(plan: any) {
+  const raw = normalizeLoose(
+    [
+      plan?.produto,
+      plan?.nicho,
+      plan?.sumarioExecutivo,
+      plan?.resumo,
+      plan?.objetivoPrincipal,
+      plan?.profile?.handle,
+      plan?.profile?.fullName,
+      plan?.profile?.bio,
+      plan?.profile?.category,
+      plan?.site?.title,
+      plan?.site?.description,
+      plan?.brandDNA ? JSON.stringify(plan.brandDNA) : "",
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+  const counts = new Map<string, number>();
+  for (const term of raw.match(/[a-z0-9]{4,}/g) ?? []) {
+    if (STOP_TERMS.has(term) || /^\d+$/.test(term)) continue;
+    counts.set(term, (counts.get(term) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || b[0].length - a[0].length)
+    .slice(0, 28)
+    .map(([term]) => term);
+}
+
+function filterRadarHitsForBrand(hits: any[], plan: any) {
+  const terms = radarContextTerms(plan);
+  const hasEnoughContext = terms.length >= 4;
+  const visible: any[] = [];
+  let hidden = 0;
+
+  for (const hit of hits) {
+    const text = radarHitText(hit);
+    if (RADAR_BLOCK_TERMS.some(term => text.includes(term))) {
+      hidden += 1;
+      continue;
+    }
+    const matchedTerms = terms.filter(term => text.includes(term));
+    const score =
+      matchedTerms.length * 2 +
+      (hit?.why || hit?.theme ? 1 : 0) +
+      (hit?.sourceType === "profile" ? 1 : 0);
+    if (hasEnoughContext && score < 3) {
+      hidden += 1;
+      continue;
+    }
+    visible.push({ ...hit, fitScore: score });
+  }
+
+  return {
+    hits: visible.sort(
+      (a, b) =>
+        (b.fitScore ?? 0) - (a.fitScore ?? 0) ||
+        (b.hotScore ?? 0) - (a.hotScore ?? 0)
+    ),
+    hidden,
+  };
+}
 
 function topSocialTerms(hits: any[], hashtags: string[] = []) {
   const counts = new Map<string, number>();
@@ -199,7 +333,13 @@ export default function Radar() {
     0,
     (refineInfo.freeLimit ?? 3) - (refineInfo.refinementCount ?? 0)
   );
-  const hits = (data?.hits ?? []) as any[];
+  const rawHits = (data?.hits ?? []) as any[];
+  const filteredRadar = useMemo(
+    () => filterRadarHitsForBrand(rawHits, diagnosis.data),
+    [rawHits, diagnosis.data]
+  );
+  const hits = filteredRadar.hits;
+  const hiddenHitsCount = filteredRadar.hidden;
   const dataQuality = (data as any)?.dataQuality;
   const sourceStats = useMemo(() => {
     const map = new Map<string, any>();
@@ -609,7 +749,7 @@ export default function Radar() {
               </div>
               {data.quality && (
                 <span className="text-[10px] font-black text-[#071b44] bg-[#f6f8fc] border border-[#e6ebf3] rounded-full px-3 py-1">
-                  Pesquisa {data.quality.grade} · {data.quality.hitsCount} hits
+                  Pesquisa {data.quality.grade} · {hits.length} hits validos
                   · {data.quality.sourcesCount} fontes
                 </span>
               )}
@@ -890,8 +1030,20 @@ export default function Radar() {
                 </span>
               )}
             </p>
+            {hiddenHitsCount > 0 && (
+              <div className="rounded-xl border border-[#ffd6ce] bg-[#fff8f6] p-3 mb-3">
+                <p className="text-xs font-black text-[#9b1c0b] uppercase tracking-wide">
+                  Filtro de aderencia ativo
+                </p>
+                <p className="text-xs text-[#22304b] font-semibold leading-relaxed mt-1">
+                  {hiddenHitsCount} post(s) foram ocultados porque pareciam
+                  pouco aderentes, sensiveis ou oportunistas demais para este
+                  negocio.
+                </p>
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-3">
-              {(data.hits ?? []).map((h: any, i: number) => {
+              {hits.map((h: any, i: number) => {
                 const key = hitKey(h);
                 const handle = hitOwner(h);
                 const liked = likedHitKeys.includes(key);
@@ -1005,7 +1157,15 @@ export default function Radar() {
                 );
               })}
             </div>
-            {(data?.hits?.length ?? 0) > 0 && likedHitKeys.length === 0 && (
+            {!hits.length && rawHits.length > 0 && (
+              <p className="text-[11px] text-[#61708a] font-semibold mt-3 rounded-xl bg-[#fbfcff] border border-[#e6ebf3] p-3">
+                A coleta encontrou posts, mas nenhum passou no filtro de
+                aderencia. Informe perfis que voce realmente considera
+                referencia, ou rode uma nova busca com uma direcao mais
+                especifica.
+              </p>
+            )}
+            {hits.length > 0 && likedHitKeys.length === 0 && (
               <p className="text-[11px] text-[#61708a] font-semibold mt-3 rounded-xl bg-[#fbfcff] border border-[#e6ebf3] p-3">
                 Marque Gostei em pelo menos um post compatível para refazer a
                 pesquisa. Se gostar de mais de um post do mesmo perfil, o Radar
