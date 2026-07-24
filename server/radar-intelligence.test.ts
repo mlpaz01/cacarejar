@@ -147,6 +147,56 @@ describe("Radar competitive intelligence", () => {
     ).toBe(true);
   });
 
+  it("accepts a partial inspiration only when its named editorial component is strong", () => {
+    expect(
+      qualifiesProfileAssessment(
+        {
+          decision: "inspiracao_de_componente",
+          inspirationDimension: "assunto",
+          fitScore: 74,
+          confidence: "alta",
+          dimensions: {
+            audience: 45,
+            offer: 30,
+            subject: 88,
+            formatTone: 62,
+            visualDNA: 58,
+          },
+          evidence: [
+            "Transforma sucata em objetos artisticos",
+            "Mostra o processo manual nos videos",
+          ],
+        },
+        { hasVisualSample: true }
+      )
+    ).toBe(true);
+  });
+
+  it("does not accept audience size as a component inspiration", () => {
+    expect(
+      qualifiesProfileAssessment(
+        {
+          decision: "inspiracao_de_componente",
+          inspirationDimension: "audiencia",
+          fitScore: 74,
+          confidence: "alta",
+          dimensions: {
+            audience: 95,
+            offer: 15,
+            subject: 20,
+            formatTone: 25,
+            visualDNA: 20,
+          },
+          evidence: [
+            "Quantidade semelhante de seguidores",
+            "Criadora aparece no proprio perfil",
+          ],
+        },
+        { hasVisualSample: true }
+      )
+    ).toBe(false);
+  });
+
   it("only treats a brand mention as commercial when the post carries a public partnership signal", () => {
     const candidate = profile(
       "criadora",

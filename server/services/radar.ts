@@ -362,6 +362,8 @@ export interface RadarHit {
   recencyScore?: number;
   hotScore?: number;
   profileRole?: "concorrente_direto" | "inspiracao";
+  profileMatchScope?: "perfil_completo" | "componente_editorial";
+  profileInspirationDimension?: string;
   profileFitScore?: number;
   profileConfidence?: "alta" | "media" | "baixa";
   profileMatchReason?: string;
@@ -375,6 +377,8 @@ export interface RadarProfileMatch {
   followers?: number;
   profilePic?: string;
   role: "concorrente_direto" | "inspiracao";
+  matchScope?: "perfil_completo" | "componente_editorial";
+  inspirationDimension?: string;
   fitScore: number;
   confidence: "alta" | "media" | "baixa";
   reason: string;
@@ -718,7 +722,16 @@ export function qualifiesProfileAssessment(
   options: { manual?: boolean; hasVisualSample?: boolean } = {}
 ) {
   const decision = String(item?.decision || "");
-  if (!["concorrente_direto", "inspiracao"].includes(decision)) return false;
+  if (
+    ![
+      "concorrente_direto",
+      "inspiracao",
+      "inspiracao_integral",
+      "inspiracao_de_componente",
+    ].includes(decision)
+  ) {
+    return false;
+  }
   if (item?.confidence === "baixa") return false;
 
   const manual = options.manual === true;
@@ -736,6 +749,39 @@ export function qualifiesProfileAssessment(
       dimensions.audience >= (manual ? 58 : 72) &&
       dimensions.offer >= (manual ? 55 : 68) &&
       dimensions.subject >= (manual ? 55 : 65)
+    );
+  }
+
+  if (decision === "inspiracao_de_componente") {
+    const component = String(item?.inspirationDimension || "");
+    if (
+      !["assunto", "formato_tom", "dna_visual", "mecanismo"].includes(
+        component
+      )
+    ) {
+      return false;
+    }
+    const componentScore =
+      component === "assunto"
+        ? dimensions.subject
+        : component === "formato_tom"
+          ? dimensions.formatTone
+          : component === "dna_visual"
+            ? dimensions.visualDNA
+            : Math.max(
+                dimensions.subject,
+                dimensions.formatTone,
+                dimensions.visualDNA
+              );
+    const supportingScores = [
+      dimensions.subject,
+      dimensions.formatTone,
+      dimensions.visualDNA,
+    ].sort((a, b) => b - a);
+    return (
+      fitScore >= (manual ? 62 : 68) &&
+      componentScore >= (manual ? 72 : 78) &&
+      (supportingScores[1] ?? 0) >= (manual ? 50 : 55)
     );
   }
 
@@ -918,16 +964,18 @@ Avalie perfis REAIS ja coletados. O objetivo nao e achar gente parecida visualme
 
 Classifique cada candidato como:
 - concorrente_direto: publico e problema/oferta comparaveis;
-- inspiracao: publico, linguagem ou mecanismo editorial aproveitavel, mesmo com oferta diferente;
+- inspiracao_integral: assunto, formato/tom e DNA visual se combinam de forma ampla;
+- inspiracao_de_componente: apenas UM componente editorial e realmente forte e util;
 - rejeitar: coincidencia superficial, tema ocasional, agregador, noticia, sorteio, celebridade generica, conteudo sensivel ou negocio sem relacao.
 
 Retorne SOMENTE JSON:
 {"assessments":[{
   "handle":"exatamente um handle recebido",
-  "decision":"concorrente_direto|inspiracao|rejeitar",
+  "decision":"concorrente_direto|inspiracao_integral|inspiracao_de_componente|rejeitar",
   "fitScore":0,
   "confidence":"alta|media|baixa",
   "dimensions":{"audience":0,"offer":0,"subject":0,"formatTone":0,"visualDNA":0},
+  "inspirationDimension":"assunto|formato_tom|dna_visual|mecanismo|",
   "reason":"por que este perfil serve ou nao serve",
   "audienceOverlap":"publico compartilhado",
   "offerOverlap":"relacao entre ofertas",
@@ -937,7 +985,9 @@ Retorne SOMENTE JSON:
 
 Regras duras:
 - concorrente_direto exige publico, problema, oferta e assunto comparaveis.
-- inspiracao exige assunto, mecanismo editorial, tom/formato e DNA visual realmente aplicaveis.
+- inspiracao_integral exige assunto, mecanismo editorial, tom/formato e DNA visual realmente aplicaveis.
+- inspiracao_de_componente so pode ser usada quando o componente nomeado for forte e houver ao menos uma segunda dimensao de apoio. A justificativa deve comecar com "Inspiracao apenas para..." e dizer claramente o que NAO e comparavel.
+- Audiencia, numero de seguidores e "marca pessoal" nunca podem ser o componente de inspiracao.
 - Nota alta nunca pode nascer apenas de audiencia numericamente parecida, marca pessoal, rosto humano ou popularidade.
 - Se o perfil analisado usa linguagem raw, humor, bastidores e processo autoral, fotografia polida de moda/lifestyle nao e inspiracao.
 - Se oferta e assunto forem de outro setor, audience e visualDNA nao podem compensar sozinhos.
@@ -965,8 +1015,21 @@ Regras duras:
     for (const item of parsed?.assessments ?? []) {
       const handle = cleanChannelHandle(item?.handle || "", channel);
       const profile = byHandle.get(handle);
-      if (!profile || item?.decision === "rejeitar") continue;
+      if (!profile) continue;
       const fitScore = clamp(Number(item?.fitScore) || 0, 0, 100);
+      if (item?.decision === "rejeitar") {
+        console.info("[radar-qualification]", JSON.stringify({
+          event: "profile_rejected",
+          channel,
+          handle,
+          decision: item?.decision,
+          fitScore,
+          confidence: item?.confidence,
+          dimensions: normalizeDimensions(item),
+          reason: String(item?.reason || "").slice(0, 320),
+        }));
+        continue;
+      }
       const hasVisualSample = profile.posts.some(post => Boolean(post.img));
       if (
         !qualifiesProfileAssessment(item, {
@@ -997,6 +1060,14 @@ Regras duras:
         role: item?.decision === "concorrente_direto"
           ? "concorrente_direto"
           : "inspiracao",
+        matchScope:
+          item?.decision === "inspiracao_de_componente"
+            ? "componente_editorial"
+            : "perfil_completo",
+        inspirationDimension:
+          item?.decision === "inspiracao_de_componente"
+            ? String(item?.inspirationDimension || "mecanismo")
+            : undefined,
         fitScore,
         confidence: item?.confidence === "alta" ? "alta" : "media",
         reason: String(item?.reason || "Perfil aderente ao contexto do negocio."),
@@ -1448,6 +1519,8 @@ export async function scan(
         format: inferFormat(post),
         mechanism: mechanismFromText(post.caption),
         profileRole: profileMatch?.role,
+        profileMatchScope: profileMatch?.matchScope,
+        profileInspirationDimension: profileMatch?.inspirationDimension,
         profileFitScore: profileMatch?.fitScore,
         profileConfidence: profileMatch?.confidence,
         profileMatchReason: profileMatch?.reason,
@@ -1476,6 +1549,8 @@ export async function scan(
       format: inferFormat(post),
       mechanism: mechanismFromText(post.caption),
       profileRole: profileMatch.role,
+      profileMatchScope: profileMatch.matchScope,
+      profileInspirationDimension: profileMatch.inspirationDimension,
       profileFitScore: profileMatch.fitScore,
       profileConfidence: profileMatch.confidence,
       profileMatchReason: profileMatch.reason,

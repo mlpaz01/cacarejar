@@ -1083,7 +1083,9 @@ export default function Radar() {
                         <p className="text-[9px] font-black text-[#ff3217] uppercase mt-1">
                           {profile.role === "concorrente_direto"
                             ? "Concorrente direto"
-                            : "Inspiracao"}
+                            : profile.matchScope === "componente_editorial"
+                              ? `Inspiracao: ${String(profile.inspirationDimension || "mecanismo").replace(/_/g, " ")}`
+                              : "Inspiracao ampla"}
                         </p>
                         <p className="text-[10px] text-[#61708a] mt-1 line-clamp-3">
                           {profile.reason}
@@ -1434,7 +1436,9 @@ export default function Radar() {
                         <p className="text-[9px] text-[#ff3217] font-black uppercase tracking-wide mt-1">
                           {h.profileRole === "concorrente_direto"
                             ? "Concorrente direto"
-                            : "Inspiracao"}
+                            : h.profileMatchScope === "componente_editorial"
+                              ? `Inspiracao: ${String(h.profileInspirationDimension || "mecanismo").replace(/_/g, " ")}`
+                              : "Inspiracao ampla"}
                         </p>
                       )}
                       {h.profileMatchReason && (

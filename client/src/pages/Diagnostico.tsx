@@ -2383,7 +2383,9 @@ function RadarPreviewSection({
                       <p className="text-[10px] font-black text-[#ff3217] uppercase mt-2">
                         {hit.profileRole === "concorrente_direto"
                           ? "Concorrente direto"
-                          : "Inspiracao"}
+                          : hit.profileMatchScope === "componente_editorial"
+                            ? `Inspiracao: ${String(hit.profileInspirationDimension || "mecanismo").replace(/_/g, " ")}`
+                            : "Inspiracao ampla"}
                       </p>
                     )}
                     <p className="text-xs text-[#22304b] leading-relaxed mt-2 line-clamp-4 flex-1">
