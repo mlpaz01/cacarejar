@@ -1272,33 +1272,81 @@ function buildLegacySituation(plan: Partial<CacaPlan>, radar?: any): CacaPlan["s
   ];
 }
 
+const weakPillarTitles = [
+  "conteudo que vende",
+  "conteúdo que vende",
+  "funil & oferta",
+  "funil e oferta",
+  "otimizacao continua",
+  "otimização contínua",
+];
+
+const textKey = (value: any) =>
+  String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
+function hasWeakPillars(plan: Partial<CacaPlan>) {
+  const pillars = Array.isArray(plan.pilaresEstrategicos)
+    ? plan.pilaresEstrategicos
+    : [];
+  if (pillars.length < 3) return true;
+  return pillars.some((p: any) => {
+    const title = textKey(p?.titulo);
+    const objective = textKey(p?.objetivo);
+    const actions = textKey(
+      ((p?.acoes ?? []) as any[])
+        .map(a => `${a?.acao || ""} ${a?.detalhe || ""}`)
+        .join(" ")
+    );
+    return (
+      weakPillarTitles.map(textKey).includes(title) ||
+      objective.includes("prontos para anuncio") ||
+      objective.includes("caminho claro do anuncio") ||
+      actions.includes("thompson sampling") ||
+      actions.includes("verba migra sozinha")
+    );
+  });
+}
+
 function buildLegacyPillars(plan: Partial<CacaPlan>, radar?: any): CacaPlan["pilaresEstrategicos"] {
   const existing = Array.isArray(plan.pilaresEstrategicos) ? plan.pilaresEstrategicos.filter((x: any) => x?.titulo) : [];
-  if (existing.length >= 3) return existing as CacaPlan["pilaresEstrategicos"];
+  if (existing.length >= 3 && !hasWeakPillars(plan)) return existing as CacaPlan["pilaresEstrategicos"];
   const produto = plan.produto || plan.nicho || "a oferta";
+  const profileLabel = plan.profile?.handle ? `@${plan.profile.handle}` : produto;
+  const bestPost = ((plan.profile?.topPosts ?? []) as any[])[0];
+  const bestPostSignal = bestPost
+    ? `${nf(bestPost.likes)} curtidas e ${nf(bestPost.comments)} comentarios em um post sobre "${truncate(bestPost.caption || "um tema de alto interesse", 120)}".`
+    : "Os posts campeoes ainda precisam ser usados como prova antes de criar do zero.";
+  const visualDna = plan.brandDNA?.resumoVisual || plan.brandDNA?.estiloFoto || "um visual reconhecivel e humano";
+  const marketSignal = radar?.marketSummary
+    ? truncate(radar.marketSummary, 170)
+    : "Validar referencias no Radar antes de transformar mercado em conteudo.";
   return [
     {
-      titulo: "Autoridade com prova",
-      objetivo: `Fazer ${produto} parecer confiavel antes de pedir venda.`,
+      titulo: "Prova real antes da oferta",
+      objetivo: `Transformar sinais ja existentes de ${profileLabel} em confianca para ${produto}.`,
       acoes: [
-        { acao: "Post campeao como referencia", detalhe: "Partir dos posts com mais engajamento e explicar o mecanismo: dor, desejo, prova ou bastidor." },
-        { acao: "Prova semanal", detalhe: "Toda semana precisa ter evidencia real: print, bastidor, caso, antes/depois ou comentario de cliente." },
+        { acao: "Comecar pelo post que ja respondeu", detalhe: bestPostSignal },
+        { acao: "Adicionar evidencia humana", detalhe: "Trazer bastidor, print, comentario, caso ou antes/depois antes de qualquer chamada comercial." },
       ],
     },
     {
-      titulo: "Radar antes da criacao",
-      objetivo: "Usar concorrentes e criadores de inspiracao como pesquisa, nao como copia.",
+      titulo: "DNA visual como filtro",
+      objetivo: `Criar conteudo que pareca de ${profileLabel}, nao uma imagem generica de banco.`,
       acoes: [
-        { acao: "Marcar Gostei/Nao gostei", detalhe: "O usuario ensina quais referencias combinam com o negocio antes dos agentes criarem." },
-        { acao: "Extrair mecanismo", detalhe: radar?.marketSummary ? truncate(radar.marketSummary, 170) : "Transformar padroes de mercado em angulos proprios." },
+        { acao: "Preservar identidade", detalhe: `Usar como filtro: ${visualDna}.` },
+        { acao: "Editar no Estudio", detalhe: "Trocar frases neutras por detalhes que so essa marca, pessoa ou negocio poderia dizer." },
       ],
     },
     {
-      titulo: "Toque humano antes de publicar",
-      objetivo: "Evitar cara de conteudo automatico e preservar criterio editorial.",
+      titulo: "Referencia validada, nao copiada",
+      objetivo: "Usar o mercado como criterio de escolha antes dos Agentes criarem a primeira versao.",
       acoes: [
-        { acao: "Editar no Estudio", detalhe: "Ajustar texto, imagem, direcao de arte e detalhes reais antes da aprovacao." },
-        { acao: "Medir e repetir", detalhe: "O que tiver salvamento, comentario, DM ou venda entra no proximo ciclo como aprendizado." },
+        { acao: "Escolher Gostei/Nao gostei", detalhe: marketSignal },
+        { acao: "Repetir o mecanismo vencedor", detalhe: "Reaproveitar dor, contraste, prova ou bastidor que funcionou, sem repetir a estetica do concorrente." },
       ],
     },
   ];
@@ -1575,6 +1623,7 @@ ${JSON.stringify(dna)}
 ESTILO DO RELATORIO:
 - Escreva como o antigo "Estudo do seu negocio": resumo executivo, DNA visual, analise da situacao, pilares estrategicos, melhores posts, mercado e conclusao.
 - Nao entregue frases rasas como "criar conteudo de valor". Diga o que observar, por que importa e qual movimento fazer.
+- Em pilaresEstrategicos, nao use titulos amplos como "Conteudo que vende", "Funil & oferta" ou "Otimizacao continua". Cada pilar deve citar uma evidencia do perfil, um mecanismo dos posts campeoes, o DNA visual ou um sinal do Radar.
 - Os agentes autonomos criam a base, mas o humano precisa editar, escolher e dar verdade antes de publicar.
 - Quando houver posts campeoes, explique o mecanismo de sucesso: emocao, prova, bastidor, contraste, quebra de crenca, desejo ou utilidade.
 - Quando faltar dado, seja honesto e transforme em proxima acao de coleta, sem fingir que viu algo.
@@ -2095,7 +2144,7 @@ export async function getPlan(orgId: number) {
     return enhanced as unknown as CacaPlan;
   }
   const planHasLinkedin = (plan.prescricoesPorCanal ?? []).some((p: any) => /linkedin/i.test(p?.canal || ""));
-  if (!Array.isArray(plan.interessesPosts) || !plan.interessesPosts.length || !plan.prescricoesPorCanal?.length || !plan.cronogramaMulticanal?.length || !plan.plano7Dias?.length || !plan.motorOrganico || !plan.campanhaAssistida || !plan.acompanhamento || !plan.canais360?.canais?.length || planHasLinkedin) {
+  if (!Array.isArray(plan.interessesPosts) || !plan.interessesPosts.length || !plan.prescricoesPorCanal?.length || !plan.cronogramaMulticanal?.length || !plan.plano7Dias?.length || !plan.motorOrganico || !plan.campanhaAssistida || !plan.acompanhamento || !plan.canais360?.canais?.length || planHasLinkedin || hasWeakPillars(plan)) {
     plan.interessesPosts = inferPostInterests(plan, plan.profile ?? savedProfile, row.radarJson);
     const enhanced = enhancePlanV2(plan as CacaPlan, row.redes ?? {}, row.radarJson);
     await db.update(orgProfile).set({ planoJson: enhanced as any }).where(eq(orgProfile.organizationId, orgId));

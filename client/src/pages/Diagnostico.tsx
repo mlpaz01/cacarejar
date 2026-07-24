@@ -616,9 +616,6 @@ export default function Diagnostico() {
   const situacao = ((shown.situacao ?? []) as any[]).filter(
     item => item?.fator && item?.analise
   );
-  const pilaresEstrategicos = ((shown.pilaresEstrategicos ?? []) as any[]).filter(
-    item => item?.titulo
-  );
   const dataQuality = (shown as any).dataQuality;
   const organicPackageText = motorOrganico
     ? [
@@ -782,12 +779,7 @@ export default function Diagnostico() {
 
       {brandDNA && <BrandDNASection dna={brandDNA} />}
 
-      {(situacao.length > 0 || pilaresEstrategicos.length > 0) && (
-        <StrategicStudySection
-          situacao={situacao}
-          pilares={pilaresEstrategicos}
-        />
-      )}
+      {situacao.length > 0 && <StrategicStudySection situacao={situacao} />}
 
       {topPosts.length > 0 && (
         <TopPostsSection posts={topPosts} analyses={topPostAnalyses} />
@@ -2479,13 +2471,11 @@ function TopPostsSection({
 
 function StrategicStudySection({
   situacao,
-  pilares,
 }: {
   situacao: any[];
-  pilares: any[];
 }) {
   return (
-    <section className="grid grid-cols-1 xl:grid-cols-[.95fr_1.05fr] gap-5 mb-5">
+    <section className="grid grid-cols-1 gap-5 mb-5">
       {situacao.length > 0 && (
         <div className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm">
           <HeaderLine
@@ -2506,43 +2496,6 @@ function StrategicStudySection({
                   {item.analise}
                 </p>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-      {pilares.length > 0 && (
-        <div className="bg-white rounded-2xl border border-[#e6ebf3] p-6 shadow-sm">
-          <HeaderLine
-            icon={Target}
-            title="Pilares estrategicos"
-            subtitle="Os movimentos que devem guiar Radar, Estudio, aprovacao e publicacao."
-          />
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
-            {pilares.slice(0, 4).map((pilar: any, index: number) => (
-              <article
-                key={`${pilar.titulo}-${index}`}
-                className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-4"
-              >
-                <span className="rounded-full bg-[#071b44] text-white text-[10px] font-black px-3 py-1">
-                  Pilar {index + 1}
-                </span>
-                <h3 className="text-base font-black text-[#071b44] mt-3">
-                  {pilar.titulo}
-                </h3>
-                <p className="text-xs text-[#61708a] leading-relaxed mt-2">
-                  {pilar.objetivo}
-                </p>
-                <div className="space-y-2 mt-3">
-                  {(pilar.acoes ?? []).slice(0, 3).map((acao: any, i: number) => (
-                    <p
-                      key={`${acao.acao}-${i}`}
-                      className="text-xs text-[#22304b] leading-relaxed"
-                    >
-                      <b>{acao.acao}:</b> {acao.detalhe}
-                    </p>
-                  ))}
-                </div>
-              </article>
             ))}
           </div>
         </div>
