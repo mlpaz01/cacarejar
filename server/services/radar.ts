@@ -600,7 +600,10 @@ Nao inclua o proprio perfil do cliente nas sugestoes.`,
     const channels: RadarSourceSuggestions["channels"] = {
       instagram: {
         profiles: [...new Set(profilePool)].slice(0, 8),
-        hashtags: [...new Set([...fallback.hashtags.map(cleanTag), ...instagramHashtags])].filter(Boolean).slice(0, 8),
+        hashtags: [...new Set([
+          ...instagramHashtags,
+          ...fallback.hashtags.map(cleanTag),
+        ])].filter(Boolean).slice(0, 10),
         searchRationale: j.instagram?.searchRationale,
       },
       facebook: {
