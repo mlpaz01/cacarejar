@@ -29,6 +29,8 @@ const BRAIN = "anthropic/claude-sonnet-4.6";
 const DISCOVERY_BRAIN = "perplexity/sonar-pro";
 const FREE_REFINES = 3;
 const REFINE_COST_CC = 10;
+const RADAR_PROFILE_LIMIT = 10;
+const RADAR_BRAND_LIMIT = 10;
 export type RadarChannel = "instagram" | "facebook" | "tiktok";
 const cleanHandle = (h: string) => (h || "").trim().replace(/^@/, "").replace(/^https?:\/\/(www\.)?instagram\.com\//i, "").replace(/\/$/, "").toLowerCase();
 const cleanChannelHandle = (raw: string, channel: RadarChannel) => {
@@ -578,7 +580,7 @@ Regras:
 - Para criadores autorais, diferencie claramente arte/processo/humor de moda, beleza, turismo e lifestyle.
 - Nao confunda aparencia, genero, cor, roupa, popularidade ou tema ocasional com aderencia de negocio.
 - Priorize brasileiros e perfis nichados. Evite celebridades, agregadores, noticias, sorteios e perfis genericos.
-- Sugira no maximo 8 perfis por canal. Se nao souber um handle real, deixe a lista vazia.
+- Sugira no maximo 10 perfis por canal. Se nao souber um handle real, deixe a lista vazia.
 - Nao invente nomes para completar quantidade. A etapa seguinte validara cada perfil em dados publicos.`,
       },
       {
@@ -617,7 +619,7 @@ Nao inclua o proprio perfil do cliente nas sugestoes.`,
       : [...instagramProfiles, ...fallback.profiles];
     const channels: RadarSourceSuggestions["channels"] = {
       instagram: {
-        profiles: [...new Set(profilePool)].slice(0, 8),
+        profiles: [...new Set(profilePool)].slice(0, RADAR_PROFILE_LIMIT),
         hashtags: [...new Set([
           ...instagramHashtags,
           ...fallback.hashtags.map(cleanTag),
@@ -627,14 +629,14 @@ Nao inclua o proprio perfil do cliente nas sugestoes.`,
       facebook: {
         profiles: [...new Set((j.facebook?.profiles ?? [])
           .map((h: string) => cleanChannelHandle(h, "facebook"))
-          .filter(Boolean))].slice(0, 8) as string[],
+          .filter(Boolean))].slice(0, RADAR_PROFILE_LIMIT) as string[],
         hashtags: [],
         searchRationale: j.facebook?.searchRationale,
       },
       tiktok: {
         profiles: [...new Set((j.tiktok?.profiles ?? [])
           .map((h: string) => cleanChannelHandle(h, "tiktok"))
-          .filter(Boolean))].slice(0, 6) as string[],
+          .filter(Boolean))].slice(0, RADAR_PROFILE_LIMIT) as string[],
         hashtags: [...new Set((j.tiktok?.hashtags ?? []).map(cleanTag).filter(Boolean))].slice(0, 8) as string[],
         searchRationale: j.tiktok?.searchRationale,
       },
@@ -1141,7 +1143,7 @@ mecanismo e fontes concretas. Em caso de conflito, explique a divergencia nas ev
       });
       visualParts.push({ type: "image_url", image_url: { url: img } });
     });
-    for (const profile of profiles.slice(0, 12)) {
+    for (const profile of profiles.slice(0, RADAR_PROFILE_LIMIT)) {
       const samples = (
         assessmentPostsByHandle.get(
           cleanChannelHandle(profile.handle, channel)
@@ -1308,7 +1310,7 @@ Regras duras:
     }
     return accepted
       .sort((a, b) => b.fitScore - a.fitScore)
-      .slice(0, 8);
+      .slice(0, RADAR_PROFILE_LIMIT);
   } catch (error) {
     console.error("[radar] qualificacao de perfis falhou:", (error as any)?.message);
     return fallback.filter(match => match.confidence !== "baixa");
@@ -1396,7 +1398,7 @@ async function discoverBrandProspects(
   const signals = commercialSignals(profiles);
   const verified = signals
     .filter(signal => signal.commercialMentions > 0)
-    .slice(0, 5)
+    .slice(0, RADAR_BRAND_LIMIT)
     .map<RadarBrandProspect>(signal => ({
       channel,
       brand: `@${signal.handle}`,
@@ -1471,7 +1473,7 @@ Regras:
 - Use primeiro os posts campeoes, DNA visual, tom e temas recorrentes do perfil. Rotulos automaticos de nicho sao secundarios.
 - Em criadores autorais, valorize marcas de materiais, ferramentas, educacao, cultura, sustentabilidade, creator economy, eventos, plataformas e comunidades que ganhariam com aquele tipo de conteudo.
 - Nao coloque perfis de pessoas como marca. A lista precisa ser de empresas, produtos, instituicoes, eventos, plataformas ou marcas comerciais.
-- Gere no maximo 8 oportunidades, ordenadas por utilidade.`,
+- Gere no maximo 10 oportunidades, ordenadas por utilidade.`,
       },
       {
         role: "user",
@@ -1573,7 +1575,7 @@ Monte oportunidades de marca que combinem com o CONTEUDO real do perfil, nao com
       if (!key || seen.has(key)) return false;
       seen.add(key);
       return true;
-    }).slice(0, 10);
+    }).slice(0, RADAR_BRAND_LIMIT);
   } catch (error) {
     console.error("[radar] prospeccao de marcas falhou:", (error as any)?.message);
     return verified;
@@ -1754,7 +1756,7 @@ export async function scan(
       ? await fetchTikTokProfilesBatch(handles)
       : await fetchFacebookPagesBatch(handles);
   if (channel === "instagram" && profiles.length) {
-    const deepProfiles = profiles.slice(0, 6);
+    const deepProfiles = profiles.slice(0, RADAR_PROFILE_LIMIT);
     const history = await fetchInstagramPostHistoryBatch(
       deepProfiles.map(profile => profile.handle),
       30

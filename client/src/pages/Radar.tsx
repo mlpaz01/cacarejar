@@ -43,6 +43,28 @@ const hitOwner = (h: any) =>
   String(h?.ownerUsername || "")
     .replace(/^@/, "")
     .toLowerCase();
+const safePotentialBrandText = (brand: any, value: any) => {
+  const text = String(value || "").trim();
+  if (brand?.relationship === "investiu_em_perfil_similar") return text;
+  return text
+    .replace(/parceria\s+(j[áa]\s+)?confirmada\s+(p[uú]blicamente)?:?/gi, "Afinidade potencial:")
+    .replace(/investimento\s+(j[áa]\s+)?confirmado\s+(p[uú]blicamente)?:?/gi, "Sinal de afinidade:")
+    .replace(/contrato\s+ativo/gi, "possivel abertura comercial")
+    .replace(/a marca\s+j[áa]\s+validou\s+o perfil/gi, "a marca poderia se beneficiar do perfil")
+    .replace(/\bj[áa] conhece o trabalho\b/gi, "tem afinidade com esse tipo de trabalho")
+    .replace(/\bj[áa] conhece\b/gi, "pode ter afinidade com")
+    .replace(/\bj[áa] foi confirmado\b/gi, "deve ser confirmado")
+    .replace(/\bj[áa] foi confirmada\b/gi, "deve ser confirmada")
+    .replace(/\bconfirmado p[uú]blicamente\b/gi, "a confirmar publicamente")
+    .replace(/\bconfirmada p[uú]blicamente\b/gi, "a confirmar publicamente")
+    .replace(/\bcampanha anterior\b/gi, "conteudo de melhor desempenho")
+    .replace(/\bda conte[uú]do de melhor desempenho\b/gi, "do conteudo de melhor desempenho")
+    .replace(/\bformalizar em contrato de s[ée]rie\b/gi, "propor uma serie")
+    .replace(/\bformalizar em contrato\b/gi, "propor uma conversa comercial")
+    .replace(/\bera co-branded\b/gi, "poderia indicar afinidade com esse ecossistema")
+    .replace(/\bcontrato de s[ée]rie\b/gi, "serie comercial")
+    .trim();
+};
 const cleanHandle = (h?: string) =>
   (h || "")
     .trim()
@@ -386,6 +408,14 @@ export default function Radar() {
   const dataQuality = channelData?.dataQuality;
   const profileMatches = (channelData?.profileMatches ?? []) as any[];
   const brandProspects = (channelData?.brandProspects ?? []) as any[];
+  const topProfileMatches = profileMatches
+    .slice()
+    .sort((a, b) => (b.fitScore ?? 0) - (a.fitScore ?? 0))
+    .slice(0, 10);
+  const topBrandProspects = brandProspects
+    .slice()
+    .sort((a, b) => (b.fitScore ?? 0) - (a.fitScore ?? 0))
+    .slice(0, 10);
   const sourceStats = useMemo(() => {
     const map = new Map<string, any>();
     for (const h of hits) {
@@ -416,7 +446,7 @@ export default function Radar() {
           )[0]?.[0] ?? "sinal geral",
       }))
       .sort((a, b) => b.avgHot - a.avgHot)
-      .slice(0, 6);
+      .slice(0, 10);
   }, [hits]);
   const signalMap = useMemo(() => {
     const map = new Map<string, any>();
@@ -794,6 +824,11 @@ export default function Radar() {
           >
             <Users className="w-3.5 h-3.5" />
             Concorrentes e inspiracoes
+            {topProfileMatches.length > 0 && (
+              <span className="rounded-full bg-[#f1f4f9] px-1.5 py-0.5 text-[9px] text-[#61708a]">
+                {topProfileMatches.length}
+              </span>
+            )}
           </button>
           <button
             type="button"
@@ -806,6 +841,11 @@ export default function Radar() {
           >
             <Handshake className="w-3.5 h-3.5" />
             Marcas interessadas
+            {topBrandProspects.length > 0 && (
+              <span className="rounded-full bg-[#f1f4f9] px-1.5 py-0.5 text-[9px] text-[#61708a]">
+                {topBrandProspects.length}
+              </span>
+            )}
           </button>
         </div>
       </section>
@@ -891,6 +931,142 @@ export default function Radar() {
         </div>
       )}
 
+      {!scan.isPending && channelData && (
+        <section className="bg-white rounded-xl border border-[#e6ebf3] p-5 shadow-sm mb-5">
+          <div className="flex items-start justify-between gap-4 flex-wrap mb-4">
+            <div>
+              <h3 className="text-sm font-black text-[#071b44] flex items-center gap-2">
+                <Handshake className="w-4 h-4 text-[#ff3217]" />
+                Match do Radar
+              </h3>
+              <p className="text-[11px] text-[#61708a] mt-1">
+                Ate 10 perfis inspiradores e ate 10 marcas que podem se
+                interessar pelo conteudo deste perfil.
+              </p>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <span className="text-[10px] font-black text-[#071b44] bg-[#f6f8fc] border border-[#e6ebf3] rounded-full px-3 py-1">
+                {topProfileMatches.length}/10 perfis
+              </span>
+              <span className="text-[10px] font-black text-[#071b44] bg-[#f6f8fc] border border-[#e6ebf3] rounded-full px-3 py-1">
+                {topBrandProspects.length}/10 marcas
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 2xl:grid-cols-2 gap-4">
+            <div className="rounded-xl border border-[#e6ebf3] bg-[#fbfcff] p-4">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <h4 className="text-xs font-black text-[#071b44] uppercase tracking-wide flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5 text-[#ff3217]" />
+                  Perfis inspiradores e concorrentes
+                </h4>
+                <button
+                  type="button"
+                  onClick={() => setRadarMode("profiles")}
+                  className="text-[10px] font-black text-[#071b44] border border-[#e6ebf3] bg-white rounded-full px-3 py-1 hover:border-[#071b44]"
+                >
+                  Ver posts
+                </button>
+              </div>
+              {topProfileMatches.length ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {topProfileMatches.map((profile: any, index: number) => (
+                    <article
+                      key={`${profile.handle}-${index}`}
+                      className="rounded-lg bg-white border border-[#e6ebf3] px-3 py-2"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs font-black text-[#071b44] truncate">
+                          @{profile.handle}
+                        </p>
+                        <span className="text-[9px] font-black text-white bg-[#ff3217] rounded-full px-2 py-0.5">
+                          {profile.fitScore ?? "-"}/100
+                        </span>
+                      </div>
+                      <p className="text-[9px] font-black text-[#ff3217] uppercase mt-1">
+                        {profile.role === "concorrente_direto"
+                          ? "Concorrente direto"
+                          : profile.matchScope === "componente_editorial"
+                            ? `Inspiracao: ${String(profile.inspirationDimension || "mecanismo").replace(/_/g, " ")}`
+                            : "Inspiracao ampla"}
+                      </p>
+                      <p className="text-[10px] text-[#61708a] mt-1 line-clamp-2">
+                        {profile.reason}
+                      </p>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="rounded-lg bg-white border border-[#e6ebf3] p-4 text-xs text-[#61708a] font-semibold">
+                  Rode o Radar para montar a lista de perfis qualificados.
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-xl border border-[#e6ebf3] bg-[#fbfcff] p-4">
+              <div className="flex items-center justify-between gap-3 mb-3">
+                <h4 className="text-xs font-black text-[#071b44] uppercase tracking-wide flex items-center gap-1.5">
+                  <Building2 className="w-3.5 h-3.5 text-[#ff3217]" />
+                  Marcas que podem se interessar
+                </h4>
+                <button
+                  type="button"
+                  onClick={() => setRadarMode("brands")}
+                  className="text-[10px] font-black text-[#071b44] border border-[#e6ebf3] bg-white rounded-full px-3 py-1 hover:border-[#071b44]"
+                >
+                  Ver abordagem
+                </button>
+              </div>
+              {topBrandProspects.length ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  {topBrandProspects.map((brand: any, index: number) => {
+                    const hasInvestmentSignal =
+                      brand.relationship === "investiu_em_perfil_similar";
+                    return (
+                      <article
+                        key={`${brand.handle || brand.brand}-${index}`}
+                        className="rounded-lg bg-white border border-[#e6ebf3] px-3 py-2"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-black text-[#071b44] truncate">
+                            {brand.brand}
+                          </p>
+                          <span className="text-[9px] font-black text-white bg-[#071b44] rounded-full px-2 py-0.5">
+                            {brand.fitScore ?? "-"}/100
+                          </span>
+                        </div>
+                        <p
+                          className={`text-[9px] font-black uppercase mt-1 ${
+                            hasInvestmentSignal
+                              ? "text-[#087a38]"
+                              : "text-[#ff3217]"
+                          }`}
+                        >
+                          {hasInvestmentSignal
+                            ? "Sinal publico"
+                            : "Hipotese de fit"}
+                        </p>
+                        <p className="text-[10px] text-[#61708a] mt-1 line-clamp-2">
+                          {safePotentialBrandText(
+                            brand,
+                            brand.contentFit || brand.why
+                          )}
+                        </p>
+                      </article>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="rounded-lg bg-white border border-[#e6ebf3] p-4 text-xs text-[#61708a] font-semibold">
+                  Atualize o Radar para buscar marcas por afinidade comercial.
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
       {radarMode === "brands" && channelData && (
         <section className="bg-white rounded-xl border border-[#e6ebf3] p-5 shadow-sm">
           <div className="flex items-start justify-between gap-4 flex-wrap mb-4">
@@ -905,14 +1081,22 @@ export default function Radar() {
               </p>
             </div>
             <span className="text-[10px] font-black text-[#071b44] bg-[#f6f8fc] border border-[#e6ebf3] rounded-full px-3 py-1">
-              {brandProspects.length} marca(s) analisada(s)
+              {topBrandProspects.length}/10 marca(s) analisada(s)
             </span>
           </div>
-          {brandProspects.length ? (
+          {topBrandProspects.length ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-              {brandProspects.map((brand: any, index: number) => {
+              {topBrandProspects.map((brand: any, index: number) => {
                 const hasInvestmentSignal =
                   brand.relationship === "investiu_em_perfil_similar";
+                const displayWhy = safePotentialBrandText(
+                  brand,
+                  brand.contentFit || brand.why
+                );
+                const displayApproach = safePotentialBrandText(
+                  brand,
+                  brand.approach
+                );
                 const brandUrl = brand.handle
                   ? activeChannel === "facebook"
                     ? `https://facebook.com/${brand.handle}`
@@ -955,8 +1139,18 @@ export default function Radar() {
                         : "Oportunidade potencial"}
                     </div>
                     <p className="text-xs text-[#22304b] font-semibold leading-relaxed mt-3">
-                      {brand.why}
+                      {displayWhy}
                     </p>
+                    {!!brand.matchedContent?.length && (
+                      <div className="rounded-lg bg-white border border-[#e6ebf3] p-3 mt-3">
+                        <p className="text-[9px] uppercase font-black text-[#ff3217]">
+                          Conteudo que cria o match
+                        </p>
+                        <p className="text-[11px] text-[#22304b] leading-relaxed mt-1">
+                          {brand.matchedContent.slice(0, 3).join(" | ")}
+                        </p>
+                      </div>
+                    )}
                     {!!brand.interestedThemes?.length && (
                       <div className="flex flex-wrap gap-1.5 mt-3">
                         {brand.interestedThemes.map((theme: string) => (
@@ -974,7 +1168,7 @@ export default function Radar() {
                         Como abordar
                       </p>
                       <p className="text-[11px] text-[#22304b] leading-relaxed mt-1">
-                        {brand.approach}
+                        {displayApproach}
                       </p>
                     </div>
                     {hasInvestmentSignal && !!brand.evidence?.length && (
@@ -1066,8 +1260,8 @@ export default function Radar() {
                   </button>
                 </div>
                 <div className="space-y-2 mt-3">
-                  {profileMatches.length ? (
-                    profileMatches.slice(0, 6).map((profile: any) => (
+                  {topProfileMatches.length ? (
+                    topProfileMatches.map((profile: any) => (
                       <div
                         key={profile.handle}
                         className="rounded-lg bg-white border border-[#e6ebf3] px-3 py-2"
