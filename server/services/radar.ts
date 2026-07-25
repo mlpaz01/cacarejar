@@ -1365,6 +1365,21 @@ export function commercialSignals(profiles: SocialProfile[]) {
   );
 }
 
+function safePotentialBrandText(value: string) {
+  return String(value || "")
+    .replace(/parceria\s+(j[áa]\s+)?confirmada\s+(p[uú]blicamente)?:?/gi, "Afinidade potencial:")
+    .replace(/investimento\s+(j[áa]\s+)?confirmado\s+(p[uú]blicamente)?:?/gi, "Sinal de afinidade:")
+    .replace(/contrato\s+ativo/gi, "possivel abertura comercial")
+    .replace(/a marca\s+j[áa]\s+validou\s+o perfil/gi, "a marca poderia se beneficiar do perfil")
+    .replace(/\bj[áa] conhece o trabalho\b/gi, "tem afinidade com esse tipo de trabalho")
+    .replace(/\bj[áa] conhece\b/gi, "pode ter afinidade com")
+    .replace(/\bj[áa] foi confirmado\b/gi, "deve ser confirmado")
+    .replace(/\bj[áa] foi confirmada\b/gi, "deve ser confirmada")
+    .replace(/\bconfirmado p[uú]blicamente\b/gi, "a confirmar publicamente")
+    .replace(/\bconfirmada p[uú]blicamente\b/gi, "a confirmar publicamente")
+    .trim();
+}
+
 async function discoverBrandProspects(
   plan: any,
   profiles: SocialProfile[],
@@ -1500,6 +1515,9 @@ Monte oportunidades de marca que combinem com o CONTEUDO real do perfil, nao com
         : "hipotese";
       const brand = String(item?.brand || (handle ? `@${handle}` : "")).trim();
       if (!brand) continue;
+      const rawWhy = String(item?.why || "Afinidade potencial com o publico e os temas do perfil.");
+      const rawContentFit = String(item?.contentFit || "").trim();
+      const rawApproach = String(item?.approach || "Apresente uma proposta curta com tema, formato e beneficio para a marca.");
       prospects.push({
         channel,
         brand,
@@ -1508,23 +1526,31 @@ Monte oportunidades de marca que combinem com o CONTEUDO real do perfil, nao com
         relationship,
         evidenceLevel,
         fitScore: clamp(Number(item?.fitScore) || 0, 0, 100),
-        why: String(item?.why || "Afinidade potencial com o publico e os temas do perfil."),
+        why: relationship === "investiu_em_perfil_similar"
+          ? rawWhy
+          : safePotentialBrandText(rawWhy),
         interestedThemes: Array.isArray(item?.interestedThemes)
           ? item.interestedThemes.map(String).filter(Boolean).slice(0, 5)
           : [],
         matchedContent: Array.isArray(item?.matchedContent)
           ? item.matchedContent.map(String).filter(Boolean).slice(0, 4)
           : [],
-        contentFit: String(item?.contentFit || "").trim() || undefined,
+        contentFit: rawContentFit
+          ? relationship === "investiu_em_perfil_similar"
+            ? rawContentFit
+            : safePotentialBrandText(rawContentFit)
+          : undefined,
         evidence: relationship === "investiu_em_perfil_similar"
           ? signal!.evidence
           : Array.isArray(item?.evidence)
-            ? item.evidence.map(String).filter(Boolean).slice(0, 3)
+            ? item.evidence.map((entry: any) => safePotentialBrandText(String(entry))).filter(Boolean).slice(0, 3)
             : [],
         sourceUrls: Array.isArray(item?.sourceUrls)
           ? item.sourceUrls.map(String).filter(Boolean).slice(0, 3)
           : [],
-        approach: String(item?.approach || "Apresente uma proposta curta com tema, formato e beneficio para a marca."),
+        approach: relationship === "investiu_em_perfil_similar"
+          ? rawApproach
+          : safePotentialBrandText(rawApproach),
       });
     }
     const merged = [...verified, ...prospects]

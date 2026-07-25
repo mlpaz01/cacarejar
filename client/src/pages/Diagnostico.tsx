@@ -81,6 +81,22 @@ const shortText = (value: any, max = 220) => {
   const text = String(value || "").trim();
   return text.length > max ? `${text.slice(0, max - 1)}...` : text;
 };
+const safePotentialBrandText = (brand: any, value: any) => {
+  const text = String(value || "").trim();
+  if (brand?.relationship === "investiu_em_perfil_similar") return text;
+  return text
+    .replace(/parceria\s+(j[áa]\s+)?confirmada\s+(p[uú]blicamente)?:?/gi, "Afinidade potencial:")
+    .replace(/investimento\s+(j[áa]\s+)?confirmado\s+(p[uú]blicamente)?:?/gi, "Sinal de afinidade:")
+    .replace(/contrato\s+ativo/gi, "possivel abertura comercial")
+    .replace(/a marca\s+j[áa]\s+validou\s+o perfil/gi, "a marca poderia se beneficiar do perfil")
+    .replace(/\bj[áa] conhece o trabalho\b/gi, "tem afinidade com esse tipo de trabalho")
+    .replace(/\bj[áa] conhece\b/gi, "pode ter afinidade com")
+    .replace(/\bj[áa] foi confirmado\b/gi, "deve ser confirmado")
+    .replace(/\bj[áa] foi confirmada\b/gi, "deve ser confirmada")
+    .replace(/\bconfirmado p[uú]blicamente\b/gi, "a confirmar publicamente")
+    .replace(/\bconfirmada p[uú]blicamente\b/gi, "a confirmar publicamente")
+    .trim();
+};
 const normalizeLoose = (value: any) =>
   String(value || "")
     .normalize("NFD")
@@ -2357,6 +2373,14 @@ function RadarPreviewSection({
               {channelBrandProspects.map((brand: any, index: number) => {
                 const hasInvestmentSignal =
                   brand.relationship === "investiu_em_perfil_similar";
+                const displayContentFit = safePotentialBrandText(
+                  brand,
+                  brand.contentFit || brand.why
+                );
+                const displayApproach = safePotentialBrandText(
+                  brand,
+                  brand.approach
+                );
                 const brandUrl = brand.handle
                   ? activeChannel === "facebook"
                     ? `https://facebook.com/${brand.handle}`
@@ -2399,7 +2423,7 @@ function RadarPreviewSection({
                         : "Hipotese de fit"}
                     </div>
                     <p className="text-xs text-[#22304b] font-semibold leading-relaxed mt-3 line-clamp-4">
-                      {brand.contentFit || brand.why}
+                      {displayContentFit}
                     </p>
                     {!!brand.matchedContent?.length && (
                       <div className="rounded-xl border border-[#e6ebf3] bg-[#fbfcff] p-3 mt-3">
@@ -2430,7 +2454,7 @@ function RadarPreviewSection({
                         Abordagem
                       </p>
                       <p className="text-[11px] text-[#61708a] leading-relaxed mt-1 line-clamp-3">
-                        {brand.approach}
+                        {displayApproach}
                       </p>
                       {brandUrl && (
                         <a
