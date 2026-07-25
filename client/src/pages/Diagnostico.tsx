@@ -6,6 +6,7 @@ import {
   BadgeCheck,
   BarChart3,
   BookOpen,
+  Building2,
   CalendarDays,
   CheckCircle2,
   ChevronDown,
@@ -17,7 +18,9 @@ import {
   Heart,
   History,
   Instagram,
+  Lightbulb,
   Loader2,
+  Handshake,
   Megaphone,
   MessageSquareText,
   MoreHorizontal,
@@ -784,6 +787,11 @@ export default function Diagnostico() {
   )
     .slice()
     .sort((a, b) => (b.hotScore ?? 0) - (a.hotScore ?? 0));
+  const rawBrandProspects = rd?.engineVersion === 3
+    ? ((rd?.brandProspects ?? []) as any[])
+        .slice()
+        .sort((a, b) => (b.fitScore ?? 0) - (a.fitScore ?? 0))
+    : [];
   const radarPreview = buildRadarPreview(rawRadarHits, shown);
   const hotHits = radarPreview.hits;
   const radarFreeLeft = Math.max(
@@ -975,6 +983,7 @@ export default function Diagnostico() {
 
       <RadarPreviewSection
         hits={hotHits}
+        brandProspects={rawBrandProspects}
         likedHitKeys={likedHitKeys}
         dislikedHitKeys={dislikedHitKeys}
         onMark={markHit}
@@ -2208,6 +2217,7 @@ function DiagnosisSummarySection({
 
 function RadarPreviewSection({
   hits,
+  brandProspects,
   likedHitKeys,
   dislikedHitKeys,
   onMark,
@@ -2222,6 +2232,7 @@ function RadarPreviewSection({
   lowConfidence,
 }: {
   hits: any[];
+  brandProspects: any[];
   likedHitKeys: string[];
   dislikedHitKeys: string[];
   onMark: (hit: any, value: "like" | "dislike") => void;
@@ -2242,6 +2253,9 @@ function RadarPreviewSection({
   const channelHits = hits.filter(
     hit => (hit?.channel || "instagram") === activeChannel
   );
+  const channelBrandProspects = brandProspects
+    .filter(brand => (brand?.channel || "instagram") === activeChannel)
+    .slice(0, 4);
   const qualifiedProfiles = new Set(
     channelHits.map(hit => String(hit?.ownerUsername || "").toLowerCase())
   ).size;
@@ -2309,6 +2323,148 @@ function RadarPreviewSection({
           );
         })}
       </div>
+
+      {(hasRadar || loading) && (
+        <div className="mt-5 rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-4">
+          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-black text-[#071b44] flex items-center gap-2">
+                <Handshake className="w-4 h-4 text-[#ff3217]" />
+                Match do conteudo com marcas
+              </h3>
+              <p className="text-xs text-[#61708a] mt-1 leading-relaxed">
+                Marcas que podem se interessar por voce, cruzando conteudo,
+                temas, publico e possiveis parceiros. O Agente separa hipotese
+                de sinal publico para nao inventar patrocinador.
+              </p>
+            </div>
+            <span className="rounded-full border border-[#e6ebf3] bg-white px-3 py-1 text-[10px] font-black text-[#071b44]">
+              {channelBrandProspects.length} match(es)
+            </span>
+          </div>
+
+          {loading ? (
+            <div className="rounded-xl border border-[#e6ebf3] bg-white p-4 mt-4">
+              <p className="text-xs font-black text-[#071b44]">
+                Procurando marcas com afinidade comercial...
+              </p>
+              <p className="text-[11px] text-[#61708a] mt-1">
+                A busca usa posts campeoes, DNA da marca e sinais do mercado.
+              </p>
+            </div>
+          ) : channelBrandProspects.length ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-3 mt-4">
+              {channelBrandProspects.map((brand: any, index: number) => {
+                const hasInvestmentSignal =
+                  brand.relationship === "investiu_em_perfil_similar";
+                const brandUrl = brand.handle
+                  ? activeChannel === "facebook"
+                    ? `https://facebook.com/${brand.handle}`
+                    : activeChannel === "tiktok"
+                      ? `https://tiktok.com/@${brand.handle}`
+                      : `https://instagram.com/${brand.handle}`
+                  : "";
+                return (
+                  <article
+                    key={`${brand.handle || brand.brand}-${index}`}
+                    className="rounded-2xl border border-[#e6ebf3] bg-white p-4 flex flex-col"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-black text-[#071b44] truncate">
+                          {brand.brand}
+                        </p>
+                        <p className="text-[10px] font-bold text-[#61708a] mt-0.5">
+                          {brand.category || "Marca com afinidade"}
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-[#071b44] text-white px-2.5 py-1 text-[10px] font-black flex-shrink-0">
+                        {brand.fitScore ?? "-"}/100
+                      </span>
+                    </div>
+                    <div
+                      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-black mt-3 w-fit ${
+                        hasInvestmentSignal
+                          ? "bg-[#eafff1] text-[#087a38] border border-[#bfeccb]"
+                          : "bg-[#fff1ef] text-[#9b1c0b] border border-[#ffd6ce]"
+                      }`}
+                    >
+                      {hasInvestmentSignal ? (
+                        <BadgeCheck className="w-3 h-3" />
+                      ) : (
+                        <Lightbulb className="w-3 h-3" />
+                      )}
+                      {hasInvestmentSignal
+                        ? "Sinal publico"
+                        : "Hipotese de fit"}
+                    </div>
+                    <p className="text-xs text-[#22304b] font-semibold leading-relaxed mt-3 line-clamp-4">
+                      {brand.contentFit || brand.why}
+                    </p>
+                    {!!brand.matchedContent?.length && (
+                      <div className="rounded-xl border border-[#e6ebf3] bg-[#fbfcff] p-3 mt-3">
+                        <p className="text-[9px] uppercase font-black text-[#ff3217]">
+                          Conteudo que cria o match
+                        </p>
+                        <p className="text-[11px] text-[#22304b] leading-relaxed mt-1">
+                          {brand.matchedContent.slice(0, 2).join(" | ")}
+                        </p>
+                      </div>
+                    )}
+                    {!!brand.interestedThemes?.length && (
+                      <div className="flex flex-wrap gap-1.5 mt-3">
+                        {brand.interestedThemes
+                          .slice(0, 4)
+                          .map((theme: string) => (
+                            <span
+                              key={theme}
+                              className="rounded-full bg-[#f6f8fc] border border-[#e6ebf3] px-2 py-1 text-[9px] font-black text-[#61708a]"
+                            >
+                              {theme}
+                            </span>
+                          ))}
+                      </div>
+                    )}
+                    <div className="mt-auto pt-3">
+                      <p className="text-[10px] font-black text-[#071b44]">
+                        Abordagem
+                      </p>
+                      <p className="text-[11px] text-[#61708a] leading-relaxed mt-1 line-clamp-3">
+                        {brand.approach}
+                      </p>
+                      {brandUrl && (
+                        <a
+                          href={brandUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-3 text-[11px] font-black text-[#071b44] hover:text-[#ff3217] inline-flex items-center gap-1"
+                        >
+                          Abrir marca <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-[#e6ebf3] bg-white p-5 mt-4 flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#f6f8fc] text-[#61708a] grid place-items-center flex-shrink-0">
+                <Building2 className="w-5 h-5" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-black text-[#071b44]">
+                  Ainda nao ha match de marca forte neste canal.
+                </p>
+                <p className="text-xs text-[#61708a] mt-1">
+                  Atualize o Radar ou abra o modo completo para pesquisar mais
+                  canais e aumentar a base de sinais.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {loading ? (
         <div className="rounded-2xl border border-[#e6ebf3] bg-[#fbfcff] p-5 mt-5">

@@ -415,7 +415,10 @@ export interface RadarBrandProspect {
   fitScore: number;
   why: string;
   interestedThemes: string[];
+  matchedContent?: string[];
+  contentFit?: string;
   evidence: string[];
+  sourceUrls?: string[];
   approach: string;
 }
 
@@ -1366,7 +1369,8 @@ async function discoverBrandProspects(
   plan: any,
   profiles: SocialProfile[],
   profileMatches: RadarProfileMatch[],
-  channel: RadarChannel
+  channel: RadarChannel,
+  hits: RadarHit[] = []
 ): Promise<RadarBrandProspect[]> {
   const signals = commercialSignals(profiles);
   const verified = signals
@@ -1388,11 +1392,32 @@ async function discoverBrandProspects(
 
   if (!process.env.OPENROUTER_API_KEY) return verified;
   try {
+    const ownTopPosts = ((plan?.profile?.topPosts ?? []) as any[])
+      .slice(0, 8)
+      .map((post: any) => ({
+        caption: String(post?.caption || "").slice(0, 500),
+        likes: post?.likesCount ?? post?.likes,
+        comments: post?.commentsCount ?? post?.comments,
+        views: post?.videoViewCount ?? post?.videoPlayCount ?? post?.views,
+        type: post?.type,
+      }));
+    const marketEvidence = hits.slice(0, 10).map(hit => ({
+      owner: hit.ownerUsername,
+      role: hit.profileRole,
+      scope: hit.profileMatchScope,
+      dimension: hit.profileInspirationDimension,
+      reason: hit.profileMatchReason || hit.why,
+      mechanism: hit.mechanism,
+      theme: hit.theme,
+      caption: String(hit.caption || "").slice(0, 420),
+    }));
     const content = await openRouterChat([
       {
         role: "system",
         content: `Voce e o Agente de Oportunidades de Marca da Cacarejar.
-Encontre marcas que podem se interessar pelo perfil analisado.
+Encontre marcas que podem se interessar comercialmente pelo CONTEUDO do perfil analisado.
+
+Sua entrega e um mapa de prospeccao: marcas para publi, collab, permuta, patrocínio, licenciamento, evento, afiliacao ou campanha de creator marketing.
 
 Existem duas classes:
 1. investiu_em_perfil_similar: somente quando ha evidencia publica fornecida de publi, parceria ou patrocinio;
@@ -1408,16 +1433,23 @@ Retorne SOMENTE JSON:
   "fitScore":0,
   "why":"por que pode se interessar",
   "interestedThemes":["tema 1","tema 2"],
+  "matchedContent":["conteudo/serie/post do perfil que cria o fit"],
+  "contentFit":"uma frase explicando o match entre conteudo e marca",
   "evidence":["evidencia concreta"],
+  "sourceUrls":["url publica quando existir"],
   "approach":"abordagem especifica para iniciar conversa"
 }]}
 
 Regras:
 - Nunca diga que uma marca investiu sem uma evidencia publica recebida.
-- Para hipoteses, prefira marcas reais com operacao no Brasil e explique a afinidade.
+- Para hipoteses, pesquise marcas reais com operacao no Brasil e explique a afinidade.
 - Evite uma lista obvia de gigantes. Misture marcas nichadas, empresas medias e no maximo duas grandes.
-- A nota mede afinidade comercial, nao fama.
+- A nota mede afinidade comercial com o conteudo, nao fama.
 - Nao prometa contato, verba ou interesse confirmado.
+- Rejeite marca por coincidencia superficial de genero, beleza, moda, lifestyle, tamanho de audiencia ou "marca pessoal".
+- Use primeiro os posts campeoes, DNA visual, tom e temas recorrentes do perfil. Rotulos automaticos de nicho sao secundarios.
+- Em criadores autorais, valorize marcas de materiais, ferramentas, educacao, cultura, sustentabilidade, creator economy, eventos, plataformas e comunidades que ganhariam com aquele tipo de conteudo.
+- Nao coloque perfis de pessoas como marca. A lista precisa ser de empresas, produtos, instituicoes, eventos, plataformas ou marcas comerciais.
 - Gere no maximo 8 oportunidades, ordenadas por utilidade.`,
       },
       {
@@ -1430,10 +1462,14 @@ ${JSON.stringify({
   objetivo: plan?.objetivoPrincipal,
   perfil: plan?.profile,
   dna: plan?.brandDNA,
+  postsCampeoesDoPerfil: ownTopPosts,
 })}
 
 PERFIS SIMILARES QUALIFICADOS
 ${JSON.stringify(profileMatches)}
+
+POSTS E MECANISMOS DO RADAR QUE PASSARAM NO FILTRO
+${JSON.stringify(marketEvidence)}
 
 SINAIS PUBLICOS DE MARCAS NAS PUBLICACOES
 ${JSON.stringify(signals.slice(0, 20).map(signal => ({
@@ -1441,9 +1477,11 @@ ${JSON.stringify(signals.slice(0, 20).map(signal => ({
   mencoes: signal.mentions,
   mencoesComSinalComercial: signal.commercialMentions,
   evidencias: signal.evidence,
-})))}`,
+})))}
+
+Monte oportunidades de marca que combinem com o CONTEUDO real do perfil, nao com uma categoria generica.`,
       },
-    ], { model: BRAIN, temperature: 0.2, maxTokens: 4200 });
+    ], { model: DISCOVERY_BRAIN, temperature: 0.2, maxTokens: 5200 });
     const parsed = parseJson<{ brands?: any[] }>(content);
     const commercialByHandle = new Map(
       signals.map(signal => [signal.handle, signal])
@@ -1474,11 +1512,18 @@ ${JSON.stringify(signals.slice(0, 20).map(signal => ({
         interestedThemes: Array.isArray(item?.interestedThemes)
           ? item.interestedThemes.map(String).filter(Boolean).slice(0, 5)
           : [],
+        matchedContent: Array.isArray(item?.matchedContent)
+          ? item.matchedContent.map(String).filter(Boolean).slice(0, 4)
+          : [],
+        contentFit: String(item?.contentFit || "").trim() || undefined,
         evidence: relationship === "investiu_em_perfil_similar"
           ? signal!.evidence
           : Array.isArray(item?.evidence)
             ? item.evidence.map(String).filter(Boolean).slice(0, 3)
             : [],
+        sourceUrls: Array.isArray(item?.sourceUrls)
+          ? item.sourceUrls.map(String).filter(Boolean).slice(0, 3)
+          : [],
         approach: String(item?.approach || "Apresente uma proposta curta com tema, formato e beneficio para a marca."),
       });
     }
@@ -1841,7 +1886,8 @@ export async function scan(
     plan,
     acceptedProfiles,
     profileMatches,
-    channel
+    channel,
+    hits
   );
 
   let marketSummary = hits.length
