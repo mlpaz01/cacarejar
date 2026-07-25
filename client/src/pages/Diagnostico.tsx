@@ -96,6 +96,7 @@ const safePotentialBrandText = (brand: any, value: any) => {
     .replace(/\bconfirmado p[uú]blicamente\b/gi, "a confirmar publicamente")
     .replace(/\bconfirmada p[uú]blicamente\b/gi, "a confirmar publicamente")
     .replace(/\bcampanha anterior\b/gi, "conteudo de melhor desempenho")
+    .replace(/\bda conte[uú]do de melhor desempenho\b/gi, "do conteudo de melhor desempenho")
     .replace(/\bformalizar em contrato de s[ée]rie\b/gi, "propor uma serie")
     .replace(/\bformalizar em contrato\b/gi, "propor uma conversa comercial")
     .replace(/\bera co-branded\b/gi, "poderia indicar afinidade com esse ecossistema")
