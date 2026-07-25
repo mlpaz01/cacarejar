@@ -397,6 +397,7 @@ export interface RadarProfileMatch {
   evidence: string[];
   dimensions?: RadarFitDimensions;
   relevantPostIndexes?: number[];
+  validationStatus?: "qualified" | "candidate";
 }
 
 export interface RadarFitDimensions {
@@ -945,6 +946,169 @@ export function fallbackProfileAssessment(
     evidence: matched.slice(0, 6),
     dimensions,
   };
+}
+
+function candidateProfileMatch(
+  plan: any,
+  channel: RadarChannel,
+  handle: string,
+  profile?: SocialProfile,
+  options: { manual?: boolean; suggested?: boolean; related?: boolean } = {}
+): RadarProfileMatch | null {
+  const clean = cleanChannelHandle(handle || profile?.handle || "", channel);
+  if (!clean) return null;
+  const text = lowerPlain([
+    clean,
+    profile?.fullName,
+    profile?.bio,
+    profile?.category,
+    ...(profile ? assessmentPosts(profile, 8).map(post => post.caption) : []),
+  ].filter(Boolean).join(" "));
+  if (RADAR_BLOCKLIST_TERMS.some(term => text.includes(term))) return null;
+  if (profile && hasContradictoryVertical(plan, profile)) return null;
+
+  const base = profile
+    ? fallbackProfileAssessment(plan, profile, channel, options.manual === true)
+    : null;
+  if (base) {
+    return {
+      ...base,
+      fitScore: clamp(Math.min(base.fitScore, 68), 0, 100),
+      confidence: "baixa",
+      reason: `Candidato a validar: ${base.reason} O Radar ainda precisa confirmar posts recentes antes de tratar como referencia comprovada.`,
+      contentOpportunity: "Abrir posts, marcar Gostei ou Nao gostei e deixar o Agente recalibrar antes de criar.",
+      validationStatus: "candidate",
+    };
+  }
+
+  const terms = planRelevanceTerms(plan);
+  const matched = text
+    ? terms.filter(term => text.includes(term)).slice(0, 5)
+    : [];
+  const canKeepAsCandidate =
+    options.manual ||
+    options.suggested ||
+    options.related ||
+    matched.length >= 2;
+  if (!canKeepAsCandidate) return null;
+
+  const fitScore = clamp(
+    46 +
+      matched.length * 4 +
+      (profile?.bio ? 4 : 0) +
+      (options.manual ? 8 : 0) +
+      (options.suggested ? 6 : 0),
+    42,
+    64
+  );
+  return {
+    channel,
+    handle: clean,
+    fullName: profile?.fullName,
+    bio: profile?.bio,
+    followers: profile?.followers,
+    profilePic: profile?.profilePic,
+    role: "inspiracao",
+    matchScope: "componente_editorial",
+    inspirationDimension: matched.length ? "assunto" : "mecanismo",
+    fitScore,
+    confidence: "baixa",
+    reason: matched.length
+      ? `Candidato a validar: apareceu por ${matched.slice(0, 4).join(", ")}. Ainda falta prova visual/post recente para virar referencia comprovada.`
+      : "Candidato a validar: sugerido pelo Radar, mas o coletor ainda nao conseguiu provar aderencia com posts publicos.",
+    audienceOverlap: "A validar com o usuario.",
+    offerOverlap: "A validar; pode servir como inspiracao parcial.",
+    contentOpportunity: "Abrir posts, marcar Gostei ou Nao gostei e deixar o Agente recalibrar antes de criar.",
+    evidence: matched.length
+      ? matched
+      : options.manual
+        ? ["perfil informado manualmente"]
+        : ["candidato sugerido pelo Agente"],
+    dimensions: {
+      audience: matched.length ? 48 + matched.length * 4 : 45,
+      offer: matched.length ? 42 + matched.length * 3 : 35,
+      subject: matched.length ? 50 + matched.length * 5 : 40,
+      formatTone: profile?.posts?.length ? 48 : 35,
+      visualDNA: profile?.posts?.some(post => Boolean(post.img)) ? 48 : 30,
+    },
+    validationStatus: "candidate",
+  };
+}
+
+function buildProfileMatchList(
+  plan: any,
+  channel: RadarChannel,
+  profiles: SocialProfile[],
+  handles: string[],
+  qualified: RadarProfileMatch[],
+  options: {
+    manualHandles: string[];
+    suggestedHandles: string[];
+    relatedHandles: string[];
+  }
+): RadarProfileMatch[] {
+  const qualifiedHandles = new Set(
+    qualified.map(match => cleanChannelHandle(match.handle, channel))
+  );
+  const profileByHandle = new Map(
+    profiles.map(profile => [
+      cleanChannelHandle(profile.handle, channel),
+      profile,
+    ])
+  );
+  const manual = new Set(
+    options.manualHandles.map(handle => cleanChannelHandle(handle, channel))
+  );
+  const suggested = new Set(
+    options.suggestedHandles.map(handle => cleanChannelHandle(handle, channel))
+  );
+  const related = new Set(
+    options.relatedHandles.map(handle => cleanChannelHandle(handle, channel))
+  );
+  const order = [
+    ...options.manualHandles,
+    ...options.suggestedHandles,
+    ...options.relatedHandles,
+    ...handles,
+    ...profiles.map(profile => profile.handle),
+  ]
+    .map(handle => cleanChannelHandle(handle, channel))
+    .filter(Boolean);
+  const candidates: RadarProfileMatch[] = [];
+  const seen = new Set<string>(qualifiedHandles);
+  for (const handle of order) {
+    if (seen.has(handle)) continue;
+    const candidate = candidateProfileMatch(
+      plan,
+      channel,
+      handle,
+      profileByHandle.get(handle),
+      {
+        manual: manual.has(handle),
+        suggested: suggested.has(handle),
+        related: related.has(handle),
+      }
+    );
+    if (!candidate) continue;
+    seen.add(handle);
+    candidates.push(candidate);
+    if (qualified.length + candidates.length >= RADAR_PROFILE_LIMIT) break;
+  }
+
+  return [
+    ...qualified.map(match => ({
+      ...match,
+      validationStatus: match.validationStatus ?? ("qualified" as const),
+    })),
+    ...candidates,
+  ]
+    .sort((a, b) => {
+      const aQualified = a.validationStatus !== "candidate";
+      const bQualified = b.validationStatus !== "candidate";
+      if (aQualified !== bQualified) return aQualified ? -1 : 1;
+      return (b.fitScore ?? 0) - (a.fitScore ?? 0);
+    })
+    .slice(0, RADAR_PROFILE_LIMIT);
 }
 
 interface PublicProfileResearch {
@@ -1582,6 +1746,109 @@ Monte oportunidades de marca que combinem com o CONTEUDO real do perfil, nao com
   }
 }
 
+function brandProspectKey(value: string) {
+  return lowerPlain(value)
+    .replace(/\bbrasil\b/g, "")
+    .replace(/\boficial\b/g, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function fallbackBrandCatalog(plan: any, channel: RadarChannel): RadarBrandProspect[] {
+  const seed = sourceSeed(plan);
+  const make = (
+    brand: string,
+    fitScore: number,
+    category: string,
+    contentFit: string,
+    approach: string,
+    themes: string[] = []
+  ): RadarBrandProspect => ({
+    channel,
+    brand,
+    category,
+    relationship: "aderencia_potencial",
+    evidenceLevel: "hipotese",
+    fitScore,
+    why: contentFit,
+    contentFit,
+    interestedThemes: themes,
+    matchedContent: [
+      "conteudo autoral do perfil",
+      "posts campeoes e DNA visual do diagnostico",
+    ],
+    evidence: ["hipotese criada pelo cruzamento entre conteudo, tema e categoria da marca"],
+    approach,
+  });
+
+  if (/\b(arte|artesan|artesanal|reciclagem|reciclado|sustentavel|sustentabilidade|diy|decoracao|video artistico|criacao audiovisual)\b/.test(seed)) {
+    return [
+      make("Acrilex", 96, "materiais artisticos", "Materiais de arte combinam com transformacoes visuais, bastidores de processo e projetos com resultado bonito.", "Propor uma serie curta mostrando um objeto comum virando peca visual usando materiais da marca.", ["arte", "processo", "transformacao"]),
+      make("Mimo Crafts", 95, "ferramentas criativas", "Ferramentas de personalizacao ganham quando aparecem em uso real, com antes/depois e humor de processo.", "Apresentar tres ideias de videos curtos com transformacao e CTA para kit de entrada.", ["DIY", "decoracao", "personalizacao"]),
+      make("Cricut Brasil", 93, "ferramentas de criacao", "O perfil pode traduzir ferramentas de corte e personalizacao em narrativa visual simples, demonstravel e compartilhavel.", "Propor teste com um formato: erro inicial, improviso, resultado final e bastidor honesto.", ["maker", "projeto", "antes e depois"]),
+      make("Faber-Castell Brasil", 90, "materiais criativos", "A marca conversa com desenho, expressao manual e educacao criativa sem depender de producao polida.", "Sugerir uma collab de desafio criativo com material simples e resultado autoral.", ["criatividade", "arte", "educacao"]),
+      make("Casa da Arte", 88, "varejo de arte", "Um varejo especializado ganha valor quando o criador mostra quais materiais destravam o processo.", "Montar proposta de lista de materiais por video, com links e versoes economicas.", ["materiais", "tutorial", "processo"]),
+      make("Staedtler Brasil", 86, "papelaria artistica", "Canetas, marcadores e lapis podem entrar no momento de acabamento, detalhe e assinatura visual.", "Propor quadro recorrente de acabamento: antes cru, depois com detalhe da marca.", ["acabamento", "desenho", "manual"]),
+      make("Elo7", 84, "marketplace criativo", "O conteudo de transformacao e peca unica combina com vitrine de pequenos criadores e presentes autorais.", "Sugerir serie com ideias de presente/objeto feito a mao e chamada para compra criativa.", ["feito a mao", "presente", "decoracao"]),
+      make("Leroy Merlin Brasil", 82, "casa e construcao", "Projetos acessiveis de decoracao e reaproveitamento podem mostrar materiais de obra em linguagem leve.", "Propor conteudo de baixo custo: material comum, problema domestico, resultado visual.", ["decoracao", "casa", "reaproveitamento"]),
+      make("Mercado Livre", 81, "marketplace", "Materiais baratos e faceis de achar viram ponto de partida natural para projetos criativos recorrentes.", "Propor lista de compra enxuta por video, sem transformar a peca em catalogo.", ["materiais", "compra facil", "DIY"]),
+      make("Tok&Stok", 78, "decoracao", "A linguagem de antes/depois e ambiente real pode traduzir decoracao de forma menos publicitaria e mais humana.", "Sugerir collab de desafio: transformar canto simples com objeto autoral e humor.", ["decoracao", "ambiente", "estilo"]),
+    ];
+  }
+
+  if (/\b(neuro|educa|aprendiz|ensino|escola|pedagog|tdah|dislexia|inclusiv)\b/.test(seed)) {
+    return [
+      make("Instituto ABCD", 94, "educacao inclusiva", "Conteudos sobre aprendizagem e neurodiversidade combinam com causas e projetos de alfabetizacao inclusiva.", "Propor serie educativa com sinais praticos e linguagem acolhedora.", ["neurodiversidade", "aprendizagem"]),
+      make("PlayKids", 88, "educacao digital", "A marca ganha quando conteudo educativo mostra criancas aprendendo de formas diferentes.", "Sugerir quadros curtos para pais com exemplos reais e atividade simples.", ["infantil", "aprendizagem"]),
+      make("Arvore", 85, "leitura e educacao", "Leitura, escola e adaptacao pedagogica criam bom encaixe para conteudos de autoridade acessivel.", "Propor pauta de leitura inclusiva com checklists para familia e escola.", ["leitura", "escola"]),
+      make("Kumon Brasil", 80, "educacao complementar", "Pode haver afinidade em rotinas de estudo, desde que o conteudo preserve acolhimento e individualidade.", "Abrir conversa com uma serie de habitos de estudo sem culpa.", ["estudo", "rotina"]),
+      make("Saraiva Educacao", 76, "conteudo educacional", "Materiais e trilhas de ensino podem aparecer como apoio a uma narrativa de aprendizagem real.", "Propor guia de recursos por dificuldade observada.", ["material didatico", "familia"]),
+    ];
+  }
+
+  if (/\b(saude do trabalho|sst|seguranca do trabalho|medicina ocupacional|ergonomia|pgr|pcmso|aso)\b/.test(seed)) {
+    return [
+      make("SOC", 92, "software ocupacional", "Conteudo de SST pode gerar demanda para ferramentas que organizam exames, documentos e riscos.", "Propor serie de erros de gestao ocupacional com solucao pratica.", ["SST", "software"]),
+      make("Sesi", 87, "saude e seguranca", "Educacao preventiva e gestao de risco combinam com conteudos de autoridade tecnica.", "Sugerir pauta de conscientizacao para empresas de pequeno e medio porte.", ["prevencao", "empresa"]),
+      make("TOTVS", 78, "gestao empresarial", "Empresas que vendem gestao podem se interessar por conteudo que liga compliance, rotina e produtividade.", "Criar abordagem conectando SST a eficiencia operacional.", ["gestao", "compliance"]),
+    ];
+  }
+
+  return [
+    make("RD Station", 82, "marketing e vendas", "Conteudo que ensina execucao comercial pode dialogar com geracao de demanda e automacao.", "Propor serie com funil simples, conteudo e captura de lead.", ["marketing", "lead"]),
+    make("Nuvemshop", 78, "e-commerce", "Marcas com venda online precisam de criacao de conteudo que transforme visita em compra.", "Sugerir estudo de caso com conteudo, produto e conversao.", ["ecommerce", "vendas"]),
+    make("Canva", 76, "design e criacao", "Criadores e pequenos negocios precisam de ferramentas visuais que preservem toque humano.", "Propor serie de antes/depois com edicao visual simples.", ["design", "criacao"]),
+    make("Hotmart", 74, "produtos digitais", "Perfis que ensinam e vendem conhecimento podem criar ponte com produto digital.", "Sugerir pauta de autoridade que leve para oferta educativa.", ["infoproduto", "educacao"]),
+  ];
+}
+
+function completeBrandProspects(
+  plan: any,
+  channel: RadarChannel,
+  prospects: RadarBrandProspect[]
+) {
+  const result = prospects
+    .slice()
+    .sort((a, b) => (b.fitScore ?? 0) - (a.fitScore ?? 0));
+  const seen = new Set(
+    result.map(prospect => brandProspectKey(prospect.handle || prospect.brand))
+  );
+  for (const fallback of fallbackBrandCatalog(plan, channel)) {
+    const key = brandProspectKey(fallback.handle || fallback.brand);
+    if (!key || seen.has(key)) continue;
+    result.push(fallback);
+    seen.add(key);
+    if (result.length >= RADAR_BRAND_LIMIT) break;
+  }
+  return result
+    .sort((a, b) => {
+      if (a.relationship !== b.relationship) {
+        return a.relationship === "investiu_em_perfil_similar" ? -1 : 1;
+      }
+      return (b.fitScore ?? 0) - (a.fitScore ?? 0);
+    })
+    .slice(0, RADAR_BRAND_LIMIT);
+}
+
 function fallbackPatterns(hits: RadarHit[]): MarketPattern[] {
   const groups = new Map<string, number[]>();
   hits.forEach((h, i) => {
@@ -1768,14 +2035,28 @@ export async function scan(
       );
     });
   }
-  const profileMatches = await assessMarketProfiles(
+  const qualifiedProfileMatches = await assessMarketProfiles(
     plan,
     profiles,
     channel,
     opts.strictQualification ? [] : manualHandles,
     ownProfile
   );
-  const acceptedHandles = new Set(profileMatches.map(match => match.handle));
+  const acceptedHandles = new Set(
+    qualifiedProfileMatches.map(match => match.handle)
+  );
+  const profileMatches = buildProfileMatchList(
+    plan,
+    channel,
+    profiles,
+    handles,
+    qualifiedProfileMatches,
+    {
+      manualHandles,
+      suggestedHandles: channelSuggestion.profiles,
+      relatedHandles,
+    }
+  );
   const acceptedProfiles = profiles.filter(profile =>
     acceptedHandles.has(cleanChannelHandle(profile.handle, channel))
   );
@@ -1796,7 +2077,7 @@ export async function scan(
   if (!profiles.length && !hashtagPosts.length) {
     qualityWarnings.push("A coleta automatica nao trouxe perfis ou hashtags com posts suficientes nesta rodada.");
   }
-  if (profiles.length && !profileMatches.length) {
+  if (profiles.length && !qualifiedProfileMatches.length) {
     qualityWarnings.push(
       "Os perfis coletados nao provaram aderencia suficiente de publico, oferta ou conteudo e foram descartados."
     );
@@ -1804,7 +2085,7 @@ export async function scan(
   const candidates: RadarHit[] = [];
 
   for (const p of acceptedProfiles) {
-    const profileMatch = profileMatches.find(
+    const profileMatch = qualifiedProfileMatches.find(
       match => match.handle === cleanChannelHandle(p.handle, channel)
     );
     const assessedPosts = assessmentPosts(p, 8);
@@ -1852,7 +2133,7 @@ export async function scan(
 
   for (const post of channel === "instagram" ? hashtagPosts.filter(p => p.img) : []) {
     const owner = cleanChannelHandle(post.ownerUsername || "", "instagram");
-    const profileMatch = profileMatches.find(match => match.handle === owner);
+    const profileMatch = qualifiedProfileMatches.find(match => match.handle === owner);
     if (!profileMatch) continue;
     const score = calcHotScore({ likes: post.likes, comments: post.comments, timestamp: (post as any).timestamp });
     candidates.push({
@@ -1919,7 +2200,7 @@ export async function scan(
   const brandProspectsPromise = discoverBrandProspects(
     plan,
     acceptedProfiles,
-    profileMatches,
+    qualifiedProfileMatches,
     channel,
     hits
   );
@@ -2096,7 +2377,11 @@ Regras:
     }));
   }
 
-  const brandProspects = await brandProspectsPromise;
+  const brandProspects = completeBrandProspects(
+    plan,
+    channel,
+    await brandProspectsPromise
+  );
   const scannedAt = Date.now();
   const current = await getRadar(orgId);
   const channels: NonNullable<RadarResult["channels"]> = {

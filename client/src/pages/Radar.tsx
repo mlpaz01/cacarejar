@@ -72,6 +72,8 @@ const cleanHandle = (h?: string) =>
     .replace(/^https?:\/\/(www\.)?instagram\.com\//i, "")
     .replace(/\/$/, "")
     .toLowerCase();
+const isCandidateProfile = (profile: any) =>
+  profile?.validationStatus === "candidate" || profile?.confidence === "baixa";
 type RadarChannel = "instagram" | "facebook" | "tiktok";
 const CHANNELS: { id: RadarChannel; label: string }[] = [
   { id: "instagram", label: "Instagram" },
@@ -940,8 +942,8 @@ export default function Radar() {
                 Match do Radar
               </h3>
               <p className="text-[11px] text-[#61708a] mt-1">
-                Ate 10 perfis inspiradores e ate 10 marcas que podem se
-                interessar pelo conteudo deste perfil.
+                Ate 10 perfis inspiradores, qualificados ou candidatos a
+                validar, e ate 10 marcas que podem se interessar pelo conteudo.
               </p>
             </div>
             <div className="flex gap-2 flex-wrap">
@@ -971,35 +973,48 @@ export default function Radar() {
               </div>
               {topProfileMatches.length ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {topProfileMatches.map((profile: any, index: number) => (
-                    <article
-                      key={`${profile.handle}-${index}`}
-                      className="rounded-lg bg-white border border-[#e6ebf3] px-3 py-2"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs font-black text-[#071b44] truncate">
-                          @{profile.handle}
+                  {topProfileMatches.map((profile: any, index: number) => {
+                    const candidate = isCandidateProfile(profile);
+                    return (
+                      <article
+                        key={`${profile.handle}-${index}`}
+                        className="rounded-lg bg-white border border-[#e6ebf3] px-3 py-2"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-black text-[#071b44] truncate">
+                            @{profile.handle}
+                          </p>
+                          <span
+                            className={`text-[9px] font-black text-white rounded-full px-2 py-0.5 ${
+                              candidate ? "bg-[#61708a]" : "bg-[#ff3217]"
+                            }`}
+                          >
+                            {profile.fitScore ?? "-"}/100
+                          </span>
+                        </div>
+                        <p
+                          className={`text-[9px] font-black uppercase mt-1 ${
+                            candidate ? "text-[#61708a]" : "text-[#ff3217]"
+                          }`}
+                        >
+                          {candidate
+                            ? "Candidato a validar"
+                            : profile.role === "concorrente_direto"
+                              ? "Concorrente direto"
+                              : profile.matchScope === "componente_editorial"
+                                ? `Inspiracao: ${String(profile.inspirationDimension || "mecanismo").replace(/_/g, " ")}`
+                                : "Inspiracao ampla"}
                         </p>
-                        <span className="text-[9px] font-black text-white bg-[#ff3217] rounded-full px-2 py-0.5">
-                          {profile.fitScore ?? "-"}/100
-                        </span>
-                      </div>
-                      <p className="text-[9px] font-black text-[#ff3217] uppercase mt-1">
-                        {profile.role === "concorrente_direto"
-                          ? "Concorrente direto"
-                          : profile.matchScope === "componente_editorial"
-                            ? `Inspiracao: ${String(profile.inspirationDimension || "mecanismo").replace(/_/g, " ")}`
-                            : "Inspiracao ampla"}
-                      </p>
-                      <p className="text-[10px] text-[#61708a] mt-1 line-clamp-2">
-                        {profile.reason}
-                      </p>
-                    </article>
-                  ))}
+                        <p className="text-[10px] text-[#61708a] mt-1 line-clamp-2">
+                          {profile.reason}
+                        </p>
+                      </article>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="rounded-lg bg-white border border-[#e6ebf3] p-4 text-xs text-[#61708a] font-semibold">
-                  Rode o Radar para montar a lista de perfis qualificados.
+                  Rode o Radar ou clique em Sugerir perfis para montar a lista.
                 </div>
               )}
             </div>
@@ -1250,7 +1265,7 @@ export default function Radar() {
                 <div className="flex items-center justify-between gap-2">
                   <h4 className="text-xs font-black text-[#071b44] uppercase tracking-wide flex items-center gap-1.5">
                     <Users className="w-3.5 h-3.5 text-[#ff3217]" /> Biblioteca
-                    de perfis qualificados
+                    de perfis do Radar
                   </h4>
                   <button
                     onClick={copyRadarPackage}
@@ -1261,34 +1276,48 @@ export default function Radar() {
                 </div>
                 <div className="space-y-2 mt-3">
                   {topProfileMatches.length ? (
-                    topProfileMatches.map((profile: any) => (
-                      <div
-                        key={profile.handle}
-                        className="rounded-lg bg-white border border-[#e6ebf3] px-3 py-2"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-xs font-black text-[#071b44] truncate">
-                            @{profile.handle}
+                    topProfileMatches.map((profile: any) => {
+                      const candidate = isCandidateProfile(profile);
+                      return (
+                        <div
+                          key={profile.handle}
+                          className="rounded-lg bg-white border border-[#e6ebf3] px-3 py-2"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs font-black text-[#071b44] truncate">
+                              @{profile.handle}
+                            </p>
+                            <span
+                              className={`text-[9px] font-black text-white rounded-full px-2 py-0.5 ${
+                                candidate ? "bg-[#61708a]" : "bg-[#ff3217]"
+                              }`}
+                            >
+                              {profile.fitScore}/100
+                            </span>
+                          </div>
+                          <p
+                            className={`text-[9px] font-black uppercase mt-1 ${
+                              candidate ? "text-[#61708a]" : "text-[#ff3217]"
+                            }`}
+                          >
+                            {candidate
+                              ? "Candidato a validar"
+                              : profile.role === "concorrente_direto"
+                                ? "Concorrente direto"
+                                : profile.matchScope === "componente_editorial"
+                                  ? `Inspiracao: ${String(profile.inspirationDimension || "mecanismo").replace(/_/g, " ")}`
+                                  : "Inspiracao ampla"}
                           </p>
-                          <span className="text-[9px] font-black text-white bg-[#ff3217] rounded-full px-2 py-0.5">
-                            {profile.fitScore}/100
-                          </span>
+                          <p className="text-[10px] text-[#61708a] mt-1 line-clamp-3">
+                            {profile.reason}
+                          </p>
                         </div>
-                        <p className="text-[9px] font-black text-[#ff3217] uppercase mt-1">
-                          {profile.role === "concorrente_direto"
-                            ? "Concorrente direto"
-                            : profile.matchScope === "componente_editorial"
-                              ? `Inspiracao: ${String(profile.inspirationDimension || "mecanismo").replace(/_/g, " ")}`
-                              : "Inspiracao ampla"}
-                        </p>
-                        <p className="text-[10px] text-[#61708a] mt-1 line-clamp-3">
-                          {profile.reason}
-                        </p>
-                      </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <p className="text-xs text-[#61708a]">
-                      Rode o Radar para montar a biblioteca.
+                      Rode o Radar ou use os perfis sugeridos para montar a
+                      biblioteca.
                     </p>
                   )}
                 </div>
