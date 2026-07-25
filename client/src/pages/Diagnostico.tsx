@@ -95,6 +95,11 @@ const safePotentialBrandText = (brand: any, value: any) => {
     .replace(/\bj[áa] foi confirmada\b/gi, "deve ser confirmada")
     .replace(/\bconfirmado p[uú]blicamente\b/gi, "a confirmar publicamente")
     .replace(/\bconfirmada p[uú]blicamente\b/gi, "a confirmar publicamente")
+    .replace(/\bcampanha anterior\b/gi, "conteudo de melhor desempenho")
+    .replace(/\bformalizar em contrato de s[ée]rie\b/gi, "propor uma serie")
+    .replace(/\bformalizar em contrato\b/gi, "propor uma conversa comercial")
+    .replace(/\bera co-branded\b/gi, "poderia indicar afinidade com esse ecossistema")
+    .replace(/\bcontrato de s[ée]rie\b/gi, "serie comercial")
     .trim();
 };
 const normalizeLoose = (value: any) =>
