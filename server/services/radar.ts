@@ -385,6 +385,7 @@ export interface RadarProfileMatch {
   bio?: string;
   followers?: number;
   profilePic?: string;
+  profileUrl?: string;
   role: "concorrente_direto" | "inspiracao";
   matchScope?: "perfil_completo" | "componente_editorial";
   inspirationDimension?: string;
@@ -397,7 +398,30 @@ export interface RadarProfileMatch {
   evidence: string[];
   dimensions?: RadarFitDimensions;
   relevantPostIndexes?: number[];
+  previewPosts?: RadarProfilePreviewPost[];
+  collabFit?: RadarProfileCollabFit;
   validationStatus?: "qualified" | "candidate";
+}
+
+export interface RadarProfilePreviewPost {
+  img?: string;
+  url?: string;
+  caption?: string;
+  likes?: number;
+  comments?: number;
+  views?: number;
+  type?: string;
+  format?: string;
+}
+
+export interface RadarProfileCollabFit {
+  score: number;
+  verdict: "forte" | "possivel" | "validar" | "baixo";
+  format: "collab" | "feat" | "publi_permuta" | "benchmark" | "inspiracao";
+  label: string;
+  why: string;
+  approach: string;
+  caution: string;
 }
 
 export interface RadarFitDimensions {
@@ -683,6 +707,159 @@ function assessmentPosts(profile: SocialProfile, limit = 6) {
     .slice(0, limit);
 }
 
+function profileUrlFor(channel: RadarChannel, handle: string) {
+  const clean = cleanChannelHandle(handle, channel);
+  if (!clean) return undefined;
+  if (channel === "tiktok") return `https://www.tiktok.com/@${clean}`;
+  if (channel === "facebook") return `https://www.facebook.com/${clean}`;
+  return `https://www.instagram.com/${clean}/`;
+}
+
+function profilePreviewPosts(
+  profile?: SocialProfile,
+  relevantPostIndexes: number[] = []
+): RadarProfilePreviewPost[] {
+  if (!profile) return [];
+  const assessed = assessmentPosts(profile, 8);
+  const selected = relevantPostIndexes.length
+    ? relevantPostIndexes
+        .map(index => assessed[index])
+        .filter((post): post is SocialPost => Boolean(post))
+    : assessmentPosts(profile, 4);
+  return selected
+    .filter(post => post.img || post.url || post.caption)
+    .slice(0, 4)
+    .map(post => ({
+      img: post.img,
+      url: post.url,
+      caption: String(post.caption || "").slice(0, 280),
+      likes: post.likes,
+      comments: post.comments,
+      views: post.views,
+      type: post.type,
+      format: inferFormat(post),
+    }));
+}
+
+function profileHasCommercialSignal(profile?: SocialProfile) {
+  return (profile?.posts ?? []).some(post =>
+    /\b(publi|publicidade|parceria|patrocin|ad\b|apoio|oferecimento|embaixador|embaixadora|cupom|desconto)\b/i.test(
+      stripAccents(String(post.caption || ""))
+    )
+  );
+}
+
+function inferCollabFit(
+  match: Pick<
+    RadarProfileMatch,
+    | "fitScore"
+    | "role"
+    | "matchScope"
+    | "inspirationDimension"
+    | "confidence"
+    | "validationStatus"
+    | "dimensions"
+    | "contentOpportunity"
+  >,
+  profile?: SocialProfile
+): RadarProfileCollabFit {
+  const dims = match.dimensions;
+  const hasCommercialSignal = profileHasCommercialSignal(profile);
+  const bio = stripAccents(String(profile?.bio || ""));
+  const bioSuggestsContact = /\b(contato|parceria|publi|publicidade|comercial|email|assessoria|dm|orcamento)\b/i.test(bio);
+  const isCandidate = match.validationStatus === "candidate" || match.confidence === "baixa";
+  const directCompetitor = match.role === "concorrente_direto";
+  const componentOnly = match.matchScope === "componente_editorial";
+  const audience = dims?.audience ?? match.fitScore;
+  const subject = dims?.subject ?? match.fitScore;
+  const formatTone = dims?.formatTone ?? match.fitScore;
+  const visualDNA = dims?.visualDNA ?? match.fitScore;
+  const baseScore =
+    match.fitScore * 0.38 +
+    audience * 0.18 +
+    subject * 0.18 +
+    formatTone * 0.14 +
+    visualDNA * 0.12;
+  const score = clamp(
+    Math.round(
+      baseScore +
+        (hasCommercialSignal ? 8 : 0) +
+        (bioSuggestsContact ? 7 : 0) -
+        (directCompetitor ? 12 : 0) -
+        (componentOnly ? 5 : 0) -
+        (isCandidate ? 14 : 0)
+    ),
+    0,
+    100
+  );
+  const format: RadarProfileCollabFit["format"] = directCompetitor
+    ? "benchmark"
+    : hasCommercialSignal || bioSuggestsContact
+      ? "publi_permuta"
+      : componentOnly
+        ? "feat"
+        : "collab";
+  const verdict: RadarProfileCollabFit["verdict"] =
+    score >= 82
+      ? "forte"
+      : score >= 68
+        ? "possivel"
+        : score >= 52
+          ? "validar"
+          : "baixo";
+  const label =
+    verdict === "forte"
+      ? "Forte para parceria"
+      : verdict === "possivel"
+        ? "Vale abordagem"
+        : verdict === "validar"
+          ? "Validar antes"
+          : "Usar como inspiracao";
+  const why = directCompetitor
+    ? "Ha semelhanca competitiva; antes de chamar para parceria, use como benchmark e evite conflito de oferta."
+    : componentOnly
+      ? `Pode render um feat pontual pelo componente ${String(match.inspirationDimension || "editorial").replace(/_/g, " ")}.`
+      : hasCommercialSignal
+        ? "O perfil ja mostrou sinal publico de conteudo comercial, entao pode estar aberto a propostas."
+        : "Ha afinidade editorial suficiente para testar uma abordagem simples e sem promessa de verba.";
+  const approach = directCompetitor
+    ? "Nao abra com pedido de parceria. Salve como referencia, observe formatos e so avance se houver complementaridade clara."
+    : format === "publi_permuta"
+      ? "Enviar proposta curta com tema, formato, entrega, beneficio e exemplo de post que preserva o estilo do criador."
+      : format === "feat"
+        ? "Convidar para um feat leve: resposta, dueto, desafio, live curta ou troca de bastidor sobre o mesmo mecanismo."
+        : "Propor collab editorial com uma pauta especifica, mostrando por que o publico dos dois lados ganha.";
+  const caution = isCandidate
+    ? "Ainda precisa abrir o perfil e validar posts recentes antes de marcar como referencia forte."
+    : directCompetitor
+      ? "Cuidado com concorrencia direta, conflito de oferta e comparacao publica."
+      : "Confirmar valores, disponibilidade, tom da comunidade e historico de publis antes de negociar.";
+  return { score, verdict, format, label, why, approach, caution };
+}
+
+function enrichProfileMatch(
+  match: RadarProfileMatch,
+  profile?: SocialProfile,
+  channel: RadarChannel = match.channel,
+  relevantPostIndexes: number[] = match.relevantPostIndexes ?? []
+): RadarProfileMatch {
+  const withUrl: RadarProfileMatch = {
+    ...match,
+    profileUrl: match.profileUrl || profileUrlFor(channel, match.handle),
+    profilePic: match.profilePic || profile?.profilePic,
+    bio: match.bio || profile?.bio,
+    fullName: match.fullName || profile?.fullName,
+    followers: match.followers ?? profile?.followers,
+    previewPosts: match.previewPosts?.length
+      ? match.previewPosts
+      : profilePreviewPosts(profile, relevantPostIndexes),
+  };
+  return {
+    ...withUrl,
+    collabFit: withUrl.collabFit || inferCollabFit(withUrl, profile),
+  };
+}
+
 function postPerformance(post: SocialPost) {
   return (
     (post.likes || 0) +
@@ -927,7 +1104,7 @@ export function fallbackProfileAssessment(
     formatTone: clamp(30 + matchedFields * 10, 0, 80),
     visualDNA: 0,
   };
-  return {
+  return enrichProfileMatch({
     channel,
     handle: cleanChannelHandle(profile.handle, channel),
     fullName: profile.fullName,
@@ -945,7 +1122,7 @@ export function fallbackProfileAssessment(
     contentOpportunity: "Observar os formatos fora da curva e adaptar o mecanismo ao DNA da marca.",
     evidence: matched.slice(0, 6),
     dimensions,
-  };
+  }, profile, channel);
 }
 
 function candidateProfileMatch(
@@ -971,14 +1148,14 @@ function candidateProfileMatch(
     ? fallbackProfileAssessment(plan, profile, channel, options.manual === true)
     : null;
   if (base) {
-    return {
+    return enrichProfileMatch({
       ...base,
       fitScore: clamp(Math.min(base.fitScore, 68), 0, 100),
       confidence: "baixa",
       reason: `Candidato a validar: ${base.reason} O Radar ainda precisa confirmar posts recentes antes de tratar como referencia comprovada.`,
       contentOpportunity: "Abrir posts, marcar Gostei ou Nao gostei e deixar o Agente recalibrar antes de criar.",
       validationStatus: "candidate",
-    };
+    }, profile, channel);
   }
 
   const terms = planRelevanceTerms(plan);
@@ -1001,7 +1178,7 @@ function candidateProfileMatch(
     42,
     64
   );
-  return {
+  return enrichProfileMatch({
     channel,
     handle: clean,
     fullName: profile?.fullName,
@@ -1032,7 +1209,7 @@ function candidateProfileMatch(
       visualDNA: profile?.posts?.some(post => Boolean(post.img)) ? 48 : 30,
     },
     validationStatus: "candidate",
-  };
+  }, profile, channel);
 }
 
 function buildProfileMatchList(
@@ -1096,10 +1273,17 @@ function buildProfileMatchList(
   }
 
   return [
-    ...qualified.map(match => ({
-      ...match,
-      validationStatus: match.validationStatus ?? ("qualified" as const),
-    })),
+    ...qualified.map(match =>
+      enrichProfileMatch(
+        {
+          ...match,
+          validationStatus: match.validationStatus ?? ("qualified" as const),
+        },
+        profileByHandle.get(cleanChannelHandle(match.handle, channel)),
+        channel,
+        match.relevantPostIndexes ?? []
+      )
+    ),
     ...candidates,
   ]
     .sort((a, b) => {
@@ -1441,7 +1625,7 @@ Regras duras:
         continue;
       }
       const dimensions = normalizeDimensions(item);
-      accepted.push({
+      const match: RadarProfileMatch = {
         channel,
         handle,
         fullName: profile.fullName,
@@ -1470,7 +1654,8 @@ Regras duras:
           : [],
         dimensions,
         relevantPostIndexes,
-      });
+      };
+      accepted.push(enrichProfileMatch(match, profile, channel, relevantPostIndexes));
     }
     return accepted
       .sort((a, b) => b.fitScore - a.fitScore)

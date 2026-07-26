@@ -12,6 +12,7 @@ import {
   Heart,
   MessageCircle,
   Film,
+  Eye,
   ExternalLink,
   Search,
   Target,
@@ -28,6 +29,7 @@ import {
   Handshake,
   BadgeCheck,
   Lightbulb,
+  X,
 } from "lucide-react";
 import { AnalysisProgress, RADAR_STEPS } from "@/components/AnalysisProgress";
 
@@ -96,6 +98,48 @@ const cleanSourceHandle = (raw: string, channel: RadarChannel) => {
   }
   return cleanHandle(value);
 };
+const profileExternalUrl = (profile: any, channel: RadarChannel) => {
+  if (profile?.profileUrl) return String(profile.profileUrl);
+  const handle = cleanSourceHandle(String(profile?.handle || ""), channel);
+  if (!handle) return "";
+  if (channel === "tiktok") return `https://www.tiktok.com/@${handle}`;
+  if (channel === "facebook") return `https://www.facebook.com/${handle}`;
+  return `https://www.instagram.com/${handle}/`;
+};
+const previewPostsForProfile = (profile: any) =>
+  ((profile?.previewPosts ?? []) as any[]).filter(
+    post => post?.img || post?.url || post?.caption
+  );
+const collabInfo = (profile: any) => {
+  if (profile?.collabFit) return profile.collabFit;
+  const candidate = isCandidateProfile(profile);
+  const fit = Number(profile?.fitScore ?? 0);
+  return {
+    score: candidate ? Math.min(52, fit) : fit,
+    verdict: candidate ? "validar" : fit >= 72 ? "possivel" : "baixo",
+    format: candidate ? "inspiracao" : "collab",
+    label: candidate
+      ? "Validar antes"
+      : fit >= 72
+        ? "Vale abordagem"
+        : "Usar como inspiracao",
+    why: candidate
+      ? "O perfil apareceu como candidato, mas ainda precisa de inspecao manual antes de virar referencia forte."
+      : "Ha afinidade editorial, mas a possibilidade de parceria depende de contato, historico comercial e encaixe de pauta.",
+    approach: candidate
+      ? "Abra o perfil, veja posts recentes e marque Gostei somente se o estilo realmente combinar."
+      : "Propor uma pauta simples de collab com beneficio claro para as duas audiencias.",
+    caution: "Nao trate como parceria confirmada sem conversa direta.",
+  };
+};
+const collabBadgeClass = (verdict?: string) =>
+  verdict === "forte"
+    ? "bg-[#eafff1] text-[#087a38] border-[#bfeccb]"
+    : verdict === "possivel"
+      ? "bg-[#f6f8fc] text-[#071b44] border-[#cfd8e6]"
+      : verdict === "validar"
+        ? "bg-[#fff8e8] text-[#8a5b00] border-[#ffe1a6]"
+        : "bg-[#fff1ef] text-[#9b1c0b] border-[#ffd6ce]";
 const siteHost = (raw?: string) => {
   const value = (raw || "").trim();
   if (!value) return "";
@@ -332,6 +376,7 @@ export default function Radar() {
   const [radarMode, setRadarMode] = useState<"profiles" | "brands">("profiles");
   const [likedProfileHandles, setLikedProfileHandles] = useState<string[]>([]);
   const [dislikedProfileHandles, setDislikedProfileHandles] = useState<string[]>([]);
+  const [selectedProfilePreview, setSelectedProfilePreview] = useState<any | null>(null);
   const [likedHitKeys, setLikedHitKeys] = useState<string[]>([]);
   const [dislikedHitKeys, setDislikedHitKeys] = useState<string[]>([]);
 
@@ -496,6 +541,7 @@ export default function Radar() {
     setDislikedProfileHandles((data.feedback?.rejectedHandles ?? []) as string[]);
     setLikedHitKeys((data.feedback?.likedPostKeys ?? []) as string[]);
     setDislikedHitKeys((data.feedback?.dislikedPostKeys ?? []) as string[]);
+    setSelectedProfilePreview(null);
   }, [data?.scannedAt]);
 
   useEffect(() => {
@@ -1006,6 +1052,8 @@ export default function Radar() {
                     const handle = cleanSourceHandle(profile.handle, activeChannel);
                     const liked = likedProfileHandles.includes(handle);
                     const disliked = dislikedProfileHandles.includes(handle);
+                    const collab = collabInfo(profile);
+                    const externalUrl = profileExternalUrl(profile, activeChannel);
                     return (
                       <article
                         key={`${profile.handle}-${index}`}
@@ -1045,6 +1093,35 @@ export default function Radar() {
                         <p className="text-[10px] text-[#61708a] mt-1 line-clamp-2">
                           {profile.reason}
                         </p>
+                        <div
+                          className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[9px] font-black mt-2 ${collabBadgeClass(collab.verdict)}`}
+                        >
+                          <Handshake className="w-3 h-3" />
+                          {collab.label} - {collab.score ?? "-"}/100
+                        </div>
+                        <div className="grid grid-cols-2 gap-1.5 mt-2">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedProfilePreview(profile)}
+                            className="text-[10px] font-black rounded-lg border border-[#e6ebf3] py-1.5 flex items-center justify-center gap-1.5 text-[#071b44] bg-white hover:border-[#071b44]"
+                          >
+                            <Eye className="w-3 h-3" /> Ver previa
+                          </button>
+                          {externalUrl ? (
+                            <a
+                              href={externalUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-[10px] font-black rounded-lg border border-[#e6ebf3] py-1.5 flex items-center justify-center gap-1.5 text-[#071b44] bg-white hover:border-[#ff3217]"
+                            >
+                              Abrir perfil <ExternalLink className="w-3 h-3" />
+                            </a>
+                          ) : (
+                            <span className="text-[10px] font-black rounded-lg border border-[#e6ebf3] py-1.5 flex items-center justify-center text-[#9aa7bb] bg-[#f6f8fc]">
+                              Sem link
+                            </span>
+                          )}
+                        </div>
                         <div className="grid grid-cols-2 gap-1.5 mt-2">
                           <button
                             type="button"
@@ -1342,6 +1419,8 @@ export default function Radar() {
                       const handle = cleanSourceHandle(profile.handle, activeChannel);
                       const liked = likedProfileHandles.includes(handle);
                       const disliked = dislikedProfileHandles.includes(handle);
+                      const collab = collabInfo(profile);
+                      const externalUrl = profileExternalUrl(profile, activeChannel);
                       return (
                         <div
                           key={profile.handle}
@@ -1381,6 +1460,35 @@ export default function Radar() {
                           <p className="text-[10px] text-[#61708a] mt-1 line-clamp-3">
                             {profile.reason}
                           </p>
+                          <div
+                            className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[9px] font-black mt-2 ${collabBadgeClass(collab.verdict)}`}
+                          >
+                            <Handshake className="w-3 h-3" />
+                            {collab.label} - {collab.score ?? "-"}/100
+                          </div>
+                          <div className="grid grid-cols-2 gap-1.5 mt-2">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedProfilePreview(profile)}
+                              className="text-[10px] font-black rounded-lg border border-[#e6ebf3] py-1.5 flex items-center justify-center gap-1.5 text-[#071b44] bg-white hover:border-[#071b44]"
+                            >
+                              <Eye className="w-3 h-3" /> Ver previa
+                            </button>
+                            {externalUrl ? (
+                              <a
+                                href={externalUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-[10px] font-black rounded-lg border border-[#e6ebf3] py-1.5 flex items-center justify-center gap-1.5 text-[#071b44] bg-white hover:border-[#ff3217]"
+                              >
+                                Abrir perfil <ExternalLink className="w-3 h-3" />
+                              </a>
+                            ) : (
+                              <span className="text-[10px] font-black rounded-lg border border-[#e6ebf3] py-1.5 flex items-center justify-center text-[#9aa7bb] bg-[#f6f8fc]">
+                                Sem link
+                              </span>
+                            )}
+                          </div>
                           <div className="grid grid-cols-2 gap-1.5 mt-2">
                             <button
                               type="button"
@@ -1854,6 +1962,282 @@ export default function Radar() {
           )}
         </>
       )}
+
+      {selectedProfilePreview &&
+        (() => {
+          const profile = selectedProfilePreview;
+          const handle = cleanSourceHandle(profile.handle, activeChannel);
+          const liked = likedProfileHandles.includes(handle);
+          const disliked = dislikedProfileHandles.includes(handle);
+          const collab = collabInfo(profile);
+          const posts = previewPostsForProfile(profile);
+          const externalUrl = profileExternalUrl(profile, activeChannel);
+          return (
+            <div className="fixed inset-0 z-50 bg-[#071b44]/50 backdrop-blur-sm px-4 py-6 flex items-center justify-center">
+              <div className="w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white border border-[#e6ebf3] shadow-2xl">
+                <div className="sticky top-0 z-10 bg-white border-b border-[#e6ebf3] p-4 flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {profile.profilePic ? (
+                      <img
+                        src={profile.profilePic}
+                        alt={`@${profile.handle}`}
+                        className="w-14 h-14 rounded-2xl object-cover border border-[#e6ebf3]"
+                      />
+                    ) : (
+                      <div className="w-14 h-14 rounded-2xl bg-[#f6f8fc] border border-[#e6ebf3] flex items-center justify-center">
+                        <Users className="w-6 h-6 text-[#61708a]" />
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-lg font-black text-[#071b44] truncate">
+                        @{profile.handle}
+                      </p>
+                      {profile.fullName && (
+                        <p className="text-xs text-[#61708a] font-semibold truncate">
+                          {profile.fullName}
+                        </p>
+                      )}
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        <span className="rounded-full bg-[#071b44] text-white px-2.5 py-1 text-[10px] font-black">
+                          Radar {profile.fitScore ?? "-"}/100
+                        </span>
+                        <span
+                          className={`rounded-full border px-2.5 py-1 text-[10px] font-black ${collabBadgeClass(collab.verdict)}`}
+                        >
+                          {collab.label} - {collab.score ?? "-"}/100
+                        </span>
+                        {profile.followers != null && (
+                          <span className="rounded-full bg-[#f6f8fc] border border-[#e6ebf3] text-[#071b44] px-2.5 py-1 text-[10px] font-black">
+                            {nf(profile.followers)} seguidores
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedProfilePreview(null)}
+                    className="w-9 h-9 rounded-full border border-[#e6ebf3] bg-white text-[#071b44] flex items-center justify-center hover:border-[#071b44]"
+                    aria-label="Fechar previa"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="p-5 grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-4">
+                  <div className="space-y-4">
+                    <section className="rounded-xl border border-[#e6ebf3] bg-[#fbfcff] p-4">
+                      <p className="text-[10px] font-black uppercase tracking-wide text-[#ff3217]">
+                        Previa do perfil
+                      </p>
+                      {profile.bio ? (
+                        <p className="text-sm text-[#22304b] font-semibold leading-relaxed mt-2">
+                          {profile.bio}
+                        </p>
+                      ) : (
+                        <p className="text-sm text-[#61708a] font-semibold mt-2">
+                          Bio nao carregada. Abra o perfil para validar a linguagem
+                          antes de marcar Gostei.
+                        </p>
+                      )}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 mt-4">
+                        <div className="rounded-lg bg-white border border-[#e6ebf3] p-3">
+                          <p className="text-[9px] font-black uppercase text-[#61708a]">
+                            Publico
+                          </p>
+                          <p className="text-[11px] text-[#071b44] font-bold mt-1">
+                            {profile.audienceOverlap || "A validar no perfil"}
+                          </p>
+                        </div>
+                        <div className="rounded-lg bg-white border border-[#e6ebf3] p-3">
+                          <p className="text-[9px] font-black uppercase text-[#61708a]">
+                            Oferta
+                          </p>
+                          <p className="text-[11px] text-[#071b44] font-bold mt-1">
+                            {profile.offerOverlap || "A validar no perfil"}
+                          </p>
+                        </div>
+                        <div className="rounded-lg bg-white border border-[#e6ebf3] p-3">
+                          <p className="text-[9px] font-black uppercase text-[#61708a]">
+                            O que observar
+                          </p>
+                          <p className="text-[11px] text-[#071b44] font-bold mt-1">
+                            {profile.contentOpportunity || profile.reason}
+                          </p>
+                        </div>
+                      </div>
+                    </section>
+
+                    <section className="rounded-xl border border-[#e6ebf3] bg-white p-4">
+                      <div className="flex items-center justify-between gap-3 mb-3">
+                        <div>
+                          <p className="text-[10px] font-black uppercase tracking-wide text-[#ff3217]">
+                            Amostras para decidir
+                          </p>
+                          <p className="text-[11px] text-[#61708a] mt-1">
+                            Veja o tipo de conteudo antes de marcar Gostei ou Nao gostei.
+                          </p>
+                        </div>
+                        {externalUrl && (
+                          <a
+                            href={externalUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="shrink-0 inline-flex items-center gap-1 text-[10px] font-black text-[#071b44] border border-[#e6ebf3] rounded-full px-3 py-1.5 hover:border-[#ff3217]"
+                          >
+                            Abrir perfil <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+                      </div>
+                      {posts.length ? (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {posts.slice(0, 4).map((post: any, index: number) => (
+                            <article
+                              key={`${post.url || post.img || index}`}
+                              className="rounded-xl border border-[#e6ebf3] bg-[#fbfcff] overflow-hidden"
+                            >
+                              {post.img ? (
+                                <img
+                                  src={post.img}
+                                  alt={`Amostra ${index + 1} de @${profile.handle}`}
+                                  className="w-full aspect-video object-cover bg-[#eef2f8]"
+                                />
+                              ) : (
+                                <div className="w-full aspect-video bg-[#eef2f8] flex items-center justify-center">
+                                  <Film className="w-7 h-7 text-[#9aa7bb]" />
+                                </div>
+                              )}
+                              <div className="p-3">
+                                <div className="flex flex-wrap gap-1.5 mb-2">
+                                  {post.format && (
+                                    <span className="text-[9px] font-black text-[#071b44] bg-white border border-[#e6ebf3] rounded px-1.5 py-0.5">
+                                      {post.format}
+                                    </span>
+                                  )}
+                                  {typeof post.likes === "number" && (
+                                    <span className="text-[9px] font-black text-[#ff3217] bg-white border border-[#ffd6ce] rounded px-1.5 py-0.5">
+                                      {nf(post.likes)} curtidas
+                                    </span>
+                                  )}
+                                  {typeof post.comments === "number" && (
+                                    <span className="text-[9px] font-black text-[#61708a] bg-white border border-[#e6ebf3] rounded px-1.5 py-0.5">
+                                      {nf(post.comments)} coment.
+                                    </span>
+                                  )}
+                                </div>
+                                {post.caption && (
+                                  <p className="text-[11px] text-[#22304b] font-semibold leading-snug line-clamp-4">
+                                    {post.caption}
+                                  </p>
+                                )}
+                                {post.url && (
+                                  <a
+                                    href={post.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1 mt-2 text-[10px] font-black text-[#071b44] hover:text-[#ff3217]"
+                                  >
+                                    Abrir post <ExternalLink className="w-3 h-3" />
+                                  </a>
+                                )}
+                              </div>
+                            </article>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="rounded-xl border border-[#ffd6ce] bg-[#fff8f6] p-4">
+                          <p className="text-sm font-black text-[#071b44]">
+                            Ainda nao ha amostra visual carregada.
+                          </p>
+                          <p className="text-xs text-[#61708a] font-semibold mt-1">
+                            Abra o perfil externo, veja posts recentes e so marque
+                            Gostei se o conteudo realmente servir como referencia.
+                          </p>
+                        </div>
+                      )}
+                    </section>
+                  </div>
+
+                  <aside className="space-y-4">
+                    <section className="rounded-xl border border-[#e6ebf3] bg-[#071b44] text-white p-4">
+                      <p className="text-[10px] font-black uppercase tracking-wide text-[#ffb5aa]">
+                        Parceria ou feat
+                      </p>
+                      <p className="text-3xl font-black mt-2">
+                        {collab.score ?? "-"}/100
+                      </p>
+                      <p className="text-sm font-black mt-1">{collab.label}</p>
+                      <p className="text-xs text-white/80 leading-relaxed mt-3">
+                        {collab.why}
+                      </p>
+                    </section>
+
+                    <section className="rounded-xl border border-[#e6ebf3] bg-[#fbfcff] p-4">
+                      <p className="text-[10px] font-black uppercase tracking-wide text-[#ff3217]">
+                        Como abordar
+                      </p>
+                      <p className="text-xs text-[#22304b] font-semibold leading-relaxed mt-2">
+                        {collab.approach}
+                      </p>
+                    </section>
+
+                    <section className="rounded-xl border border-[#ffd6ce] bg-[#fff8f6] p-4">
+                      <p className="text-[10px] font-black uppercase tracking-wide text-[#9b1c0b]">
+                        Cuidado antes de chamar
+                      </p>
+                      <p className="text-xs text-[#22304b] font-semibold leading-relaxed mt-2">
+                        {collab.caution}
+                      </p>
+                    </section>
+
+                    {!!profile.evidence?.length && (
+                      <section className="rounded-xl border border-[#e6ebf3] bg-white p-4">
+                        <p className="text-[10px] font-black uppercase tracking-wide text-[#ff3217]">
+                          Evidencias do Radar
+                        </p>
+                        <div className="flex flex-wrap gap-1.5 mt-3">
+                          {profile.evidence.slice(0, 6).map((item: string) => (
+                            <span
+                              key={item}
+                              className="rounded-full bg-[#f6f8fc] border border-[#e6ebf3] px-2 py-1 text-[9px] font-black text-[#071b44]"
+                            >
+                              {item}
+                            </span>
+                          ))}
+                        </div>
+                      </section>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => markProfileLike(profile.handle)}
+                        className={`rounded-xl border py-3 text-xs font-black flex items-center justify-center gap-2 ${
+                          liked
+                            ? "text-white bg-[#18b85c] border-[#18b85c]"
+                            : "text-[#071b44] bg-white border-[#e6ebf3] hover:border-[#18b85c]"
+                        }`}
+                      >
+                        <ThumbsUp className="w-4 h-4" /> Gostei
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => markProfileDislike(profile.handle)}
+                        className={`rounded-xl border py-3 text-xs font-black flex items-center justify-center gap-2 ${
+                          disliked
+                            ? "text-white bg-[#c20f00] border-[#c20f00]"
+                            : "text-[#071b44] bg-white border-[#e6ebf3] hover:border-[#c20f00]"
+                        }`}
+                      >
+                        <ThumbsDown className="w-4 h-4" /> Nao gostei
+                      </button>
+                    </div>
+                  </aside>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
     </AppLayout>
   );
 }
