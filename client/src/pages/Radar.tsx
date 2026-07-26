@@ -106,6 +106,8 @@ const profileExternalUrl = (profile: any, channel: RadarChannel) => {
   if (channel === "facebook") return `https://www.facebook.com/${handle}`;
   return `https://www.instagram.com/${handle}/`;
 };
+const profilePreviewKey = (profile: any, channel: RadarChannel) =>
+  `${channel}:${cleanSourceHandle(String(profile?.handle || ""), channel)}`;
 const previewPostsForProfile = (profile: any) =>
   ((profile?.previewPosts ?? []) as any[]).filter(
     post => post?.img || post?.url || post?.caption
@@ -377,6 +379,7 @@ export default function Radar() {
   const [likedProfileHandles, setLikedProfileHandles] = useState<string[]>([]);
   const [dislikedProfileHandles, setDislikedProfileHandles] = useState<string[]>([]);
   const [selectedProfilePreview, setSelectedProfilePreview] = useState<any | null>(null);
+  const [profilePreviewOverrides, setProfilePreviewOverrides] = useState<Record<string, any>>({});
   const [likedHitKeys, setLikedHitKeys] = useState<string[]>([]);
   const [dislikedHitKeys, setDislikedHitKeys] = useState<string[]>([]);
 
@@ -395,6 +398,15 @@ export default function Radar() {
       toast.success("Radar refinado com base nos perfis compativeis!");
     },
     onError: e => toast.error(e.message || "Erro ao refinar o Radar"),
+  });
+  const loadProfilePreview = trpc.radar.previewProfile.useMutation({
+    onSuccess: profile => {
+      const key = profilePreviewKey(profile, profile.channel ?? activeChannel);
+      setProfilePreviewOverrides(prev => ({ ...prev, [key]: profile }));
+      setSelectedProfilePreview(profile);
+      toast.success("Previa do perfil carregada.");
+    },
+    onError: e => toast.error(e.message || "Nao foi possivel carregar a previa"),
   });
   const recalibrate = trpc.diagnosis.recalibrate.useMutation({
     onSuccess: () => {
@@ -542,6 +554,7 @@ export default function Radar() {
     setLikedHitKeys((data.feedback?.likedPostKeys ?? []) as string[]);
     setDislikedHitKeys((data.feedback?.dislikedPostKeys ?? []) as string[]);
     setSelectedProfilePreview(null);
+    setProfilePreviewOverrides({});
   }, [data?.scannedAt]);
 
   useEffect(() => {
@@ -1048,15 +1061,18 @@ export default function Radar() {
               {topProfileMatches.length ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {topProfileMatches.map((profile: any, index: number) => {
-                    const candidate = isCandidateProfile(profile);
-                    const handle = cleanSourceHandle(profile.handle, activeChannel);
+                    const currentProfile =
+                      profilePreviewOverrides[profilePreviewKey(profile, activeChannel)] ??
+                      profile;
+                    const candidate = isCandidateProfile(currentProfile);
+                    const handle = cleanSourceHandle(currentProfile.handle, activeChannel);
                     const liked = likedProfileHandles.includes(handle);
                     const disliked = dislikedProfileHandles.includes(handle);
-                    const collab = collabInfo(profile);
-                    const externalUrl = profileExternalUrl(profile, activeChannel);
+                    const collab = collabInfo(currentProfile);
+                    const externalUrl = profileExternalUrl(currentProfile, activeChannel);
                     return (
                       <article
-                        key={`${profile.handle}-${index}`}
+                        key={`${currentProfile.handle}-${index}`}
                         className={`rounded-lg border px-3 py-2 transition-colors ${
                           liked
                             ? "bg-[#f7fff9] border-[#18b85c]"
@@ -1067,14 +1083,14 @@ export default function Radar() {
                       >
                         <div className="flex items-center justify-between gap-2">
                           <p className="text-xs font-black text-[#071b44] truncate">
-                            @{profile.handle}
+                            @{currentProfile.handle}
                           </p>
                           <span
                             className={`text-[9px] font-black text-white rounded-full px-2 py-0.5 ${
                               candidate ? "bg-[#61708a]" : "bg-[#ff3217]"
                             }`}
                           >
-                            {profile.fitScore ?? "-"}/100
+                            {currentProfile.fitScore ?? "-"}/100
                           </span>
                         </div>
                         <p
@@ -1084,14 +1100,14 @@ export default function Radar() {
                         >
                           {candidate
                             ? "Candidato a validar"
-                            : profile.role === "concorrente_direto"
+                            : currentProfile.role === "concorrente_direto"
                               ? "Concorrente direto"
-                              : profile.matchScope === "componente_editorial"
-                                ? `Inspiracao: ${String(profile.inspirationDimension || "mecanismo").replace(/_/g, " ")}`
+                              : currentProfile.matchScope === "componente_editorial"
+                                ? `Inspiracao: ${String(currentProfile.inspirationDimension || "mecanismo").replace(/_/g, " ")}`
                                 : "Inspiracao ampla"}
                         </p>
                         <p className="text-[10px] text-[#61708a] mt-1 line-clamp-2">
-                          {profile.reason}
+                          {currentProfile.reason}
                         </p>
                         <div
                           className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[9px] font-black mt-2 ${collabBadgeClass(collab.verdict)}`}
@@ -1102,7 +1118,7 @@ export default function Radar() {
                         <div className="grid grid-cols-2 gap-1.5 mt-2">
                           <button
                             type="button"
-                            onClick={() => setSelectedProfilePreview(profile)}
+                            onClick={() => setSelectedProfilePreview(currentProfile)}
                             className="text-[10px] font-black rounded-lg border border-[#e6ebf3] py-1.5 flex items-center justify-center gap-1.5 text-[#071b44] bg-white hover:border-[#071b44]"
                           >
                             <Eye className="w-3 h-3" /> Ver previa
@@ -1125,7 +1141,7 @@ export default function Radar() {
                         <div className="grid grid-cols-2 gap-1.5 mt-2">
                           <button
                             type="button"
-                            onClick={() => markProfileLike(profile.handle)}
+                            onClick={() => markProfileLike(currentProfile.handle)}
                             className={`text-[10px] font-black rounded-lg border py-1.5 flex items-center justify-center gap-1.5 ${
                               liked
                                 ? "text-white bg-[#18b85c] border-[#18b85c]"
@@ -1136,7 +1152,7 @@ export default function Radar() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => markProfileDislike(profile.handle)}
+                            onClick={() => markProfileDislike(currentProfile.handle)}
                             className={`text-[10px] font-black rounded-lg border py-1.5 flex items-center justify-center gap-1.5 ${
                               disliked
                                 ? "text-white bg-[#c20f00] border-[#c20f00]"
@@ -1415,15 +1431,18 @@ export default function Radar() {
                 <div className="space-y-2 mt-3">
                   {topProfileMatches.length ? (
                     topProfileMatches.map((profile: any) => {
-                      const candidate = isCandidateProfile(profile);
-                      const handle = cleanSourceHandle(profile.handle, activeChannel);
+                      const currentProfile =
+                        profilePreviewOverrides[profilePreviewKey(profile, activeChannel)] ??
+                        profile;
+                      const candidate = isCandidateProfile(currentProfile);
+                      const handle = cleanSourceHandle(currentProfile.handle, activeChannel);
                       const liked = likedProfileHandles.includes(handle);
                       const disliked = dislikedProfileHandles.includes(handle);
-                      const collab = collabInfo(profile);
-                      const externalUrl = profileExternalUrl(profile, activeChannel);
+                      const collab = collabInfo(currentProfile);
+                      const externalUrl = profileExternalUrl(currentProfile, activeChannel);
                       return (
                         <div
-                          key={profile.handle}
+                          key={currentProfile.handle}
                           className={`rounded-lg border px-3 py-2 transition-colors ${
                             liked
                               ? "bg-[#f7fff9] border-[#18b85c]"
@@ -1434,14 +1453,14 @@ export default function Radar() {
                         >
                           <div className="flex items-center justify-between gap-2">
                             <p className="text-xs font-black text-[#071b44] truncate">
-                              @{profile.handle}
+                              @{currentProfile.handle}
                             </p>
                             <span
                               className={`text-[9px] font-black text-white rounded-full px-2 py-0.5 ${
                                 candidate ? "bg-[#61708a]" : "bg-[#ff3217]"
                               }`}
                             >
-                              {profile.fitScore}/100
+                                {currentProfile.fitScore}/100
                             </span>
                           </div>
                           <p
@@ -1451,14 +1470,14 @@ export default function Radar() {
                           >
                             {candidate
                               ? "Candidato a validar"
-                              : profile.role === "concorrente_direto"
+                              : currentProfile.role === "concorrente_direto"
                                 ? "Concorrente direto"
-                                : profile.matchScope === "componente_editorial"
-                                  ? `Inspiracao: ${String(profile.inspirationDimension || "mecanismo").replace(/_/g, " ")}`
+                                : currentProfile.matchScope === "componente_editorial"
+                                  ? `Inspiracao: ${String(currentProfile.inspirationDimension || "mecanismo").replace(/_/g, " ")}`
                                   : "Inspiracao ampla"}
                           </p>
                           <p className="text-[10px] text-[#61708a] mt-1 line-clamp-3">
-                            {profile.reason}
+                            {currentProfile.reason}
                           </p>
                           <div
                             className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[9px] font-black mt-2 ${collabBadgeClass(collab.verdict)}`}
@@ -1469,7 +1488,7 @@ export default function Radar() {
                           <div className="grid grid-cols-2 gap-1.5 mt-2">
                             <button
                               type="button"
-                              onClick={() => setSelectedProfilePreview(profile)}
+                              onClick={() => setSelectedProfilePreview(currentProfile)}
                               className="text-[10px] font-black rounded-lg border border-[#e6ebf3] py-1.5 flex items-center justify-center gap-1.5 text-[#071b44] bg-white hover:border-[#071b44]"
                             >
                               <Eye className="w-3 h-3" /> Ver previa
@@ -1492,7 +1511,7 @@ export default function Radar() {
                           <div className="grid grid-cols-2 gap-1.5 mt-2">
                             <button
                               type="button"
-                              onClick={() => markProfileLike(profile.handle)}
+                              onClick={() => markProfileLike(currentProfile.handle)}
                               className={`text-[10px] font-black rounded-lg border py-1.5 flex items-center justify-center gap-1.5 ${
                                 liked
                                   ? "text-white bg-[#18b85c] border-[#18b85c]"
@@ -1503,7 +1522,7 @@ export default function Radar() {
                             </button>
                             <button
                               type="button"
-                              onClick={() => markProfileDislike(profile.handle)}
+                              onClick={() => markProfileDislike(currentProfile.handle)}
                               className={`text-[10px] font-black rounded-lg border py-1.5 flex items-center justify-center gap-1.5 ${
                                 disliked
                                   ? "text-white bg-[#c20f00] border-[#c20f00]"
@@ -1965,13 +1984,25 @@ export default function Radar() {
 
       {selectedProfilePreview &&
         (() => {
-          const profile = selectedProfilePreview;
+          const selected = selectedProfilePreview;
+          const selectedKey = profilePreviewKey(selected, activeChannel);
+          const profile = profilePreviewOverrides[selectedKey] ?? selected;
           const handle = cleanSourceHandle(profile.handle, activeChannel);
           const liked = likedProfileHandles.includes(handle);
           const disliked = dislikedProfileHandles.includes(handle);
           const collab = collabInfo(profile);
           const posts = previewPostsForProfile(profile);
           const externalUrl = profileExternalUrl(profile, activeChannel);
+          const isLoadingThisPreview =
+            loadProfilePreview.isPending &&
+            cleanSourceHandle(
+              String(loadProfilePreview.variables?.handle || ""),
+              activeChannel
+            ) === handle;
+          const requestPreview = () => {
+            if (!handle) return;
+            loadProfilePreview.mutate({ handle, channel: activeChannel });
+          };
           return (
             <div className="fixed inset-0 z-50 bg-[#071b44]/50 backdrop-blur-sm px-4 py-6 flex items-center justify-center">
               <div className="w-full max-w-5xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white border border-[#e6ebf3] shadow-2xl">
@@ -2088,6 +2119,19 @@ export default function Radar() {
                             Abrir perfil <ExternalLink className="w-3 h-3" />
                           </a>
                         )}
+                        <button
+                          type="button"
+                          onClick={requestPreview}
+                          disabled={!handle || isLoadingThisPreview}
+                          className="shrink-0 inline-flex items-center gap-1 text-[10px] font-black text-[#071b44] border border-[#e6ebf3] rounded-full px-3 py-1.5 hover:border-[#071b44] disabled:opacity-50"
+                        >
+                          {isLoadingThisPreview ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <Eye className="w-3 h-3" />
+                          )}
+                          {posts.length ? "Atualizar previa" : "Carregar previa"}
+                        </button>
                       </div>
                       {posts.length ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

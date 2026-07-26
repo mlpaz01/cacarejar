@@ -2762,6 +2762,92 @@ export async function refineWithFeedback(
   }
 }
 
+export async function previewProfileForRadar(
+  orgId: number,
+  input: { handle: string; channel?: RadarChannel }
+): Promise<RadarProfileMatch> {
+  const channel: RadarChannel = input.channel ?? "instagram";
+  const handle = cleanChannelHandle(input.handle, channel);
+  if (!handle) throw new Error("Informe um perfil valido para carregar a previa");
+
+  const plan: any = await getPlan(orgId);
+  const current = await getRadar(orgId);
+  const existing =
+    current?.channels?.[channel]?.profileMatches?.find(
+      match => cleanChannelHandle(match.handle, channel) === handle
+    ) ??
+    current?.profileMatches?.find(
+      match =>
+        (match.channel ?? channel) === channel &&
+        cleanChannelHandle(match.handle, channel) === handle
+    );
+
+  let profile: SocialProfile | undefined;
+  if (channel === "instagram") {
+    [profile] = await fetchInstagramProfilesBatch([handle]);
+    if (profile) {
+      const history = await fetchInstagramPostHistoryBatch([profile.handle], 30);
+      mergeProfileHistory(
+        profile,
+        history[cleanChannelHandle(profile.handle, "instagram")] ?? []
+      );
+    }
+  } else if (channel === "tiktok") {
+    [profile] = await fetchTikTokProfilesBatch([handle]);
+  } else {
+    [profile] = await fetchFacebookPagesBatch([handle]);
+  }
+
+  const assessed =
+    existing ??
+    (profile
+      ? fallbackProfileAssessment(plan, profile, channel, true) ??
+        candidateProfileMatch(plan, channel, handle, profile, { manual: true })
+      : null);
+  const fallback: RadarProfileMatch = assessed ?? {
+    channel,
+    handle,
+    fullName: profile?.fullName,
+    bio: profile?.bio,
+    followers: profile?.followers,
+    profilePic: profile?.profilePic,
+    role: "inspiracao",
+    matchScope: "componente_editorial",
+    inspirationDimension: "mecanismo",
+    fitScore: existing?.fitScore ?? 48,
+    confidence: "baixa",
+    reason: profile
+      ? "Previa carregada para validacao manual. O Agente ainda nao encontrou evidencia suficiente para qualificar como referencia forte."
+      : "Nao foi possivel ler posts publicos deste perfil nesta rodada. Abra o perfil externo antes de decidir.",
+    audienceOverlap: "A validar com o usuario.",
+    offerOverlap: "A validar; pode servir como inspiracao parcial.",
+    contentOpportunity: "Abrir o perfil, avaliar posts recentes e marcar Gostei somente se o mecanismo combinar.",
+    evidence: profile?.bio ? ["bio carregada"] : ["perfil a validar"],
+    dimensions: {
+      audience: profile?.followers ? 50 : 35,
+      offer: 35,
+      subject: 40,
+      formatTone: profile?.posts?.length ? 45 : 30,
+      visualDNA: profile?.posts?.some(post => Boolean(post.img)) ? 45 : 25,
+    },
+    validationStatus: "candidate",
+  };
+
+  return enrichProfileMatch(
+    {
+      ...fallback,
+      channel,
+      handle,
+      validationStatus: fallback.validationStatus ?? (
+        fallback.confidence === "baixa" ? "candidate" : "qualified"
+      ),
+    },
+    profile,
+    channel,
+    fallback.relevantPostIndexes ?? []
+  );
+}
+
 export async function attachCreativeToIdea(orgId: number, index: number, creativeId: number, imageUrl: string) {
   const db = await getDb();
   if (!db) return;

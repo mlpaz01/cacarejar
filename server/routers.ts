@@ -1719,6 +1719,16 @@ const radarRouter = router({
       if (!orgId) throw new Error("Organizacao nao encontrada");
       return radarService.refineWithFeedback(orgId, input);
     }),
+  previewProfile: protectedProcedure
+    .input(z.object({
+      handle: z.string().min(1),
+      channel: z.enum(["instagram", "facebook", "tiktok"]).optional(),
+    }))
+    .mutation(({ ctx, input }) => {
+      const orgId = ctx.user.organizationId;
+      if (!orgId) throw new Error("Organizacao nao encontrada");
+      return radarService.previewProfileForRadar(orgId, input);
+    }),
   updateIdeaDecision: protectedProcedure
     .input(z.object({
       index: z.number(),
