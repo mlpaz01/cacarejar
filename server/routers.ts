@@ -1709,6 +1709,7 @@ const radarRouter = router({
   refine: protectedProcedure
     .input(z.object({
       likedHandles: z.array(z.string()).optional(),
+      rejectedHandles: z.array(z.string()).optional(),
       likedPostKeys: z.array(z.string()).optional(),
       dislikedPostKeys: z.array(z.string()).optional(),
       channel: z.enum(["instagram", "facebook", "tiktok"]).optional(),

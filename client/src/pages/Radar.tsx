@@ -330,6 +330,8 @@ export default function Radar() {
   const [activeChannel, setActiveChannel] =
     useState<RadarChannel>("instagram");
   const [radarMode, setRadarMode] = useState<"profiles" | "brands">("profiles");
+  const [likedProfileHandles, setLikedProfileHandles] = useState<string[]>([]);
+  const [dislikedProfileHandles, setDislikedProfileHandles] = useState<string[]>([]);
   const [likedHitKeys, setLikedHitKeys] = useState<string[]>([]);
   const [dislikedHitKeys, setDislikedHitKeys] = useState<string[]>([]);
 
@@ -483,10 +485,15 @@ export default function Radar() {
     channelKeys.has(key)
   );
   const feedbackCount =
-    channelLikedHitKeys.length + channelDislikedHitKeys.length;
+    likedProfileHandles.length +
+    dislikedProfileHandles.length +
+    channelLikedHitKeys.length +
+    channelDislikedHitKeys.length;
 
   useEffect(() => {
     if (!data) return;
+    setLikedProfileHandles((data.feedback?.likedHandles ?? []) as string[]);
+    setDislikedProfileHandles((data.feedback?.rejectedHandles ?? []) as string[]);
     setLikedHitKeys((data.feedback?.likedPostKeys ?? []) as string[]);
     setDislikedHitKeys((data.feedback?.dislikedPostKeys ?? []) as string[]);
   }, [data?.scannedAt]);
@@ -534,6 +541,8 @@ export default function Radar() {
   };
   const runRefine = () =>
     refine.mutate({
+      likedHandles: likedProfileHandles,
+      rejectedHandles: dislikedProfileHandles,
       likedPostKeys: channelLikedHitKeys,
       dislikedPostKeys: channelDislikedHitKeys,
       channel: activeChannel,
@@ -563,6 +572,22 @@ export default function Radar() {
     const key = hitKey(hit);
     setLikedHitKeys(prev => prev.filter(k => k !== key));
     setDislikedHitKeys(prev => (prev.includes(key) ? prev : [...prev, key]));
+  };
+  const markProfileLike = (handle: string) => {
+    const clean = cleanSourceHandle(handle, activeChannel);
+    if (!clean) return;
+    setLikedProfileHandles(prev =>
+      prev.includes(clean) ? prev.filter(h => h !== clean) : [...prev, clean]
+    );
+    setDislikedProfileHandles(prev => prev.filter(h => h !== clean));
+  };
+  const markProfileDislike = (handle: string) => {
+    const clean = cleanSourceHandle(handle, activeChannel);
+    if (!clean) return;
+    setDislikedProfileHandles(prev =>
+      prev.includes(clean) ? prev.filter(h => h !== clean) : [...prev, clean]
+    );
+    setLikedProfileHandles(prev => prev.filter(h => h !== clean));
   };
   const exportPdf = () => {
     try {
@@ -627,7 +652,10 @@ export default function Radar() {
             text: "Voce ja marcou referencias. Agora refaca a pesquisa com esse criterio para evitar copiar concorrente errado e melhorar o contexto da criacao.",
             label: refine.isPending ? "Refinando..." : "Refinar Radar",
             run: runRefine,
-            disabled: refine.isPending || channelLikedHitKeys.length === 0,
+            disabled:
+              refine.isPending ||
+              (likedProfileHandles.length === 0 &&
+                channelLikedHitKeys.length === 0),
           }
         : {
             title: "Proxima acao: aplicar feedback e abrir o Estudio",
@@ -975,10 +1003,19 @@ export default function Radar() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   {topProfileMatches.map((profile: any, index: number) => {
                     const candidate = isCandidateProfile(profile);
+                    const handle = cleanSourceHandle(profile.handle, activeChannel);
+                    const liked = likedProfileHandles.includes(handle);
+                    const disliked = dislikedProfileHandles.includes(handle);
                     return (
                       <article
                         key={`${profile.handle}-${index}`}
-                        className="rounded-lg bg-white border border-[#e6ebf3] px-3 py-2"
+                        className={`rounded-lg border px-3 py-2 transition-colors ${
+                          liked
+                            ? "bg-[#f7fff9] border-[#18b85c]"
+                            : disliked
+                              ? "bg-[#fff8f6] border-[#c20f00]"
+                              : "bg-white border-[#e6ebf3]"
+                        }`}
                       >
                         <div className="flex items-center justify-between gap-2">
                           <p className="text-xs font-black text-[#071b44] truncate">
@@ -1008,6 +1045,30 @@ export default function Radar() {
                         <p className="text-[10px] text-[#61708a] mt-1 line-clamp-2">
                           {profile.reason}
                         </p>
+                        <div className="grid grid-cols-2 gap-1.5 mt-2">
+                          <button
+                            type="button"
+                            onClick={() => markProfileLike(profile.handle)}
+                            className={`text-[10px] font-black rounded-lg border py-1.5 flex items-center justify-center gap-1.5 ${
+                              liked
+                                ? "text-white bg-[#18b85c] border-[#18b85c]"
+                                : "text-[#61708a] bg-white border-[#e6ebf3] hover:border-[#18b85c]"
+                            }`}
+                          >
+                            <ThumbsUp className="w-3 h-3" /> Gostei
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => markProfileDislike(profile.handle)}
+                            className={`text-[10px] font-black rounded-lg border py-1.5 flex items-center justify-center gap-1.5 ${
+                              disliked
+                                ? "text-white bg-[#c20f00] border-[#c20f00]"
+                                : "text-[#61708a] bg-white border-[#e6ebf3] hover:border-[#c20f00]"
+                            }`}
+                          >
+                            <ThumbsDown className="w-3 h-3" /> Nao gostei
+                          </button>
+                        </div>
                       </article>
                     );
                   })}
@@ -1278,10 +1339,19 @@ export default function Radar() {
                   {topProfileMatches.length ? (
                     topProfileMatches.map((profile: any) => {
                       const candidate = isCandidateProfile(profile);
+                      const handle = cleanSourceHandle(profile.handle, activeChannel);
+                      const liked = likedProfileHandles.includes(handle);
+                      const disliked = dislikedProfileHandles.includes(handle);
                       return (
                         <div
                           key={profile.handle}
-                          className="rounded-lg bg-white border border-[#e6ebf3] px-3 py-2"
+                          className={`rounded-lg border px-3 py-2 transition-colors ${
+                            liked
+                              ? "bg-[#f7fff9] border-[#18b85c]"
+                              : disliked
+                                ? "bg-[#fff8f6] border-[#c20f00]"
+                                : "bg-white border-[#e6ebf3]"
+                          }`}
                         >
                           <div className="flex items-center justify-between gap-2">
                             <p className="text-xs font-black text-[#071b44] truncate">
@@ -1311,6 +1381,30 @@ export default function Radar() {
                           <p className="text-[10px] text-[#61708a] mt-1 line-clamp-3">
                             {profile.reason}
                           </p>
+                          <div className="grid grid-cols-2 gap-1.5 mt-2">
+                            <button
+                              type="button"
+                              onClick={() => markProfileLike(profile.handle)}
+                              className={`text-[10px] font-black rounded-lg border py-1.5 flex items-center justify-center gap-1.5 ${
+                                liked
+                                  ? "text-white bg-[#18b85c] border-[#18b85c]"
+                                  : "text-[#61708a] bg-white border-[#e6ebf3] hover:border-[#18b85c]"
+                              }`}
+                            >
+                              <ThumbsUp className="w-3 h-3" /> Gostei
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => markProfileDislike(profile.handle)}
+                              className={`text-[10px] font-black rounded-lg border py-1.5 flex items-center justify-center gap-1.5 ${
+                                disliked
+                                  ? "text-white bg-[#c20f00] border-[#c20f00]"
+                                  : "text-[#61708a] bg-white border-[#e6ebf3] hover:border-[#c20f00]"
+                              }`}
+                            >
+                              <ThumbsDown className="w-3 h-3" /> Nao gostei
+                            </button>
+                          </div>
                         </div>
                       );
                     })
@@ -1499,15 +1593,18 @@ export default function Radar() {
                   concorrentes e criadores
                 </h3>
                 <p className="text-[11px] text-[#61708a] mt-1">
-                  Abra cada post real, veja a imagem e marque Gostei ou Nao
-                  gostei. Os gostei viram referencia; os rejeitados saem da
-                  proxima pesquisa.
+                  Marque perfis ou posts que combinam. Os gostei viram criterio;
+                  os rejeitados saem da proxima pesquisa.
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-[10px] font-black text-[#071b44] bg-[#f6f8fc] border border-[#e6ebf3] rounded-full px-3 py-1">
-                  {channelLikedHitKeys.length} gostei /{" "}
-                  {channelDislikedHitKeys.length} não gostei
+                  {likedProfileHandles.length} perfis gostei /{" "}
+                  {dislikedProfileHandles.length} perfis nao gostei
+                </span>
+                <span className="text-[10px] font-black text-[#071b44] bg-[#f6f8fc] border border-[#e6ebf3] rounded-full px-3 py-1">
+                  {channelLikedHitKeys.length} posts gostei /{" "}
+                  {channelDislikedHitKeys.length} posts nao gostei
                 </span>
                 <span className="text-[10px] font-black text-[#071b44] bg-[#f6f8fc] border border-[#e6ebf3] rounded-full px-3 py-1">
                   {freeLeft > 0
@@ -1525,7 +1622,9 @@ export default function Radar() {
                 <button
                   onClick={runRefine}
                   disabled={
-                    refine.isPending || channelLikedHitKeys.length === 0
+                    refine.isPending ||
+                    (likedProfileHandles.length === 0 &&
+                      channelLikedHitKeys.length === 0)
                   }
                   className="btn-action-primary text-xs px-4 py-2 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -1710,11 +1809,13 @@ export default function Radar() {
                 especifica.
               </p>
             )}
-            {hits.length > 0 && channelLikedHitKeys.length === 0 && (
+            {hits.length > 0 &&
+              channelLikedHitKeys.length === 0 &&
+              likedProfileHandles.length === 0 && (
               <p className="text-[11px] text-[#61708a] font-semibold mt-3 rounded-xl bg-[#fbfcff] border border-[#e6ebf3] p-3">
-                Marque Gostei em pelo menos um post compatível para refazer a
-                pesquisa. Se gostar de mais de um post do mesmo perfil, o Radar
-                mantém só o último marcado para trazer variedade.
+                Marque Gostei em pelo menos um perfil ou post compativel para
+                refazer a pesquisa. Se gostar de mais de um post do mesmo perfil,
+                o Radar mantem so o ultimo marcado para trazer variedade.
               </p>
             )}
 

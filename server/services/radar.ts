@@ -2491,38 +2491,52 @@ export async function refineWithFeedback(
   orgId: number,
   input: string[] | {
     likedHandles?: string[];
+    rejectedHandles?: string[];
     likedPostKeys?: string[];
     dislikedPostKeys?: string[];
     channel?: RadarChannel;
   }
 ): Promise<RadarResult> {
   const current = await getRadar(orgId);
-  if (!current?.sources?.length) throw new Error("Faca uma pesquisa de Radar primeiro");
-
   const channel: RadarChannel = Array.isArray(input)
-    ? current.activeChannel ?? "instagram"
-    : input.channel ?? current.activeChannel ?? "instagram";
-  const channelHits = current.channels?.[channel]?.hits ??
+    ? current?.activeChannel ?? "instagram"
+    : input.channel ?? current?.activeChannel ?? "instagram";
+  const channelSnapshot = current?.channels?.[channel];
+  const channelHasRadar =
+      !!channelSnapshot?.hits?.length ||
+      !!channelSnapshot?.profileMatches?.length ||
+      !!channelSnapshot?.brandProspects?.length ||
+      !!current?.sources?.length ||
+      !!current?.hits?.length ||
+      !!current?.profileMatches?.length;
+  if (!current || !channelHasRadar) throw new Error("Faca uma pesquisa de Radar primeiro");
+
+  const channelHits = channelSnapshot?.hits ??
     (current.hits ?? []).filter(hit => (hit.channel ?? "instagram") === channel);
   const likedPostKeys = new Set((Array.isArray(input) ? [] : input.likedPostKeys ?? []).map(String).filter(Boolean));
   const dislikedPostKeys = [...new Set((Array.isArray(input) ? [] : input.dislikedPostKeys ?? []).map(String).filter(Boolean))];
   const fallbackLikedHandles = Array.isArray(input) ? input : (input.likedHandles ?? []);
+  const feedbackRejectedHandles = Array.isArray(input) ? [] : (input.rejectedHandles ?? []);
   const likedPosts = channelHits.filter(h => likedPostKeys.has(hitKey(h)));
   const likedHandles = [...new Set([
     ...likedPosts.map(h => cleanChannelHandle(h.ownerUsername || "", channel)).filter(Boolean),
     ...fallbackLikedHandles.map(handle => cleanChannelHandle(handle, channel)).filter(Boolean),
   ])];
-  if (!likedHandles.length) throw new Error("Marque Gostei em pelo menos um post compativel para refazer a pesquisa");
+  if (!likedHandles.length) throw new Error("Marque Gostei em pelo menos um perfil ou post compativel para refazer a pesquisa");
 
   const currentSources = [...new Set([
-    ...(current.channels?.[channel]?.sources ?? []).map(handle => cleanChannelHandle(handle, channel)).filter(Boolean),
+    ...(channelSnapshot?.sources ?? []).map(handle => cleanChannelHandle(handle, channel)).filter(Boolean),
+    ...(channelSnapshot?.profileMatches ?? []).map(match => cleanChannelHandle(match.handle, channel)).filter(Boolean),
     ...channelHits.map(h => cleanChannelHandle(h.ownerUsername || "", channel)).filter(Boolean),
   ])];
   const dislikedHandles = channelHits
     .filter(h => dislikedPostKeys.includes(hitKey(h)))
     .map(h => cleanChannelHandle(h.ownerUsername || "", channel))
     .filter(Boolean);
-  const rejectedHandles = [...new Set(dislikedHandles.filter(h => !likedHandles.includes(h)))];
+  const rejectedHandles = [...new Set([
+    ...dislikedHandles,
+    ...feedbackRejectedHandles.map(handle => cleanChannelHandle(handle, channel)).filter(Boolean),
+  ].filter(h => !likedHandles.includes(h)))];
   const previousCount = current.feedback?.refinementCount ?? 0;
   const nextCount = previousCount + 1;
   let holdId: number | null = null;
